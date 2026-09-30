@@ -89,6 +89,89 @@ void CCop::SetCopType(i32 type)
 
 // @Ok
 // @Matching
+// 0x428EE0. Native comparison passed 13824 cases.
+i32 CCop::SetAnimMode(i32 mode, i32 playAnim)
+{
+	u8 oldMode = this->field_298.Bytes[1];
+	i32 anim = -1;
+	if (this->field_298.Bytes[1] != mode)
+	{
+
+		if (this->mType == 306)
+		{
+			switch (mode)
+			{
+				case 0:
+					if (oldMode == 1)
+						anim = 13;
+					else if (oldMode == 2)
+						anim = 6;
+					this->field_294.Int = gPoliceFightAnims[0];
+					this->field_298.Int = gPoliceFightAnims[1];
+					break;
+				case 1:
+					this->field_294.Int = gPoliceFightAnims[2];
+					this->field_298.Int = gPoliceFightAnims[3];
+					break;
+				case 2:
+					if (oldMode == 1)
+						anim = 4;
+					else if (oldMode == 3)
+						anim = 7;
+					this->field_294.Int = gPoliceFightAnims[4];
+					this->field_298.Int = gPoliceFightAnims[5];
+					break;
+				case 3:
+					if (oldMode == 2)
+						anim = 12;
+					this->field_294.Int = gPoliceFightAnims[6];
+					this->field_298.Int = gPoliceFightAnims[7];
+					break;
+				default:
+					print_if_false(0, "Unknown anim mode.");
+					break;
+			}
+		}
+		else
+		{
+			switch (mode)
+			{
+				case 0:
+					if (oldMode == 1 || oldMode == 2)
+						anim = 13;
+					this->field_294.Int = gSwatFightAnims[0];
+					this->field_298.Int = gSwatFightAnims[1];
+					break;
+				case 1:
+					this->field_294.Int = gSwatFightAnims[2];
+					this->field_298.Int = gSwatFightAnims[3];
+					break;
+				case 2:
+					this->field_294.Int = gSwatFightAnims[4];
+					this->field_298.Int = gSwatFightAnims[5];
+					break;
+				case 3:
+					this->field_294.Int = gSwatFightAnims[6];
+					this->field_298.Int = gSwatFightAnims[7];
+					break;
+				default:
+					print_if_false(0, "Unknown anim mode.");
+					break;
+			}
+		}
+
+		if (anim != -1)
+		{
+			if (playAnim)
+				this->RunAnim(anim, 0, -1);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// @Ok
+// @Matching
 // 0x42ED60
 void CCop::PlaySounds(void)
 {

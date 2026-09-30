@@ -23,6 +23,7 @@ public:
 	EXPORT void BackpedalPlease(void);
 	EXPORT void TakeHit(void);
 	EXPORT void GetWhippedLikeTheWhoreYouAre(void);
+	EXPORT i32 SetAnimMode(i32, i32);
 	EXPORT void LookConfused(void);
 	EXPORT void Guard(void);
 	EXPORT void ClearAttackFlags(void);
