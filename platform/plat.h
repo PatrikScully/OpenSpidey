@@ -109,4 +109,26 @@ void Plat_SndSetFrequency(PlatSoundVoice*, i32 hz);
 i32 Plat_SndGetFrequency(PlatSoundVoice*);
 i32 Plat_SndBufferRate(PlatSoundBuffer*);
 
+// ---------------------------------------------------------------- movies
+
+// Bink files are decoded by the ffmpeg executable. offset/bytes select a
+// stored file inside media.pkr; bytes == 0 selects a loose file.
+i32 Plat_MovieOpen(const char* path, u32 offset, u32 bytes);
+i32 Plat_MovieNextFrame(void);
+void Plat_MovieStop(void);
+void Plat_MovieSetVolume(i32 volume);  // 0..255
+
+// Backend movie sinks. PCM is stereo S16 at 44100 Hz. Queue size is bytes.
+enum PlatMovieAudioOp
+{
+	PLAT_MOVIE_AUDIO_OPEN,
+	PLAT_MOVIE_AUDIO_CLOSE,
+	PLAT_MOVIE_AUDIO_QUEUE,
+	PLAT_MOVIE_AUDIO_QUEUED,
+	PLAT_MOVIE_AUDIO_START,
+	PLAT_MOVIE_AUDIO_VOLUME,
+};
+i32 Plat_MovieAudio(PlatMovieAudioOp op, const void* pcm, i32 value);
+void Plat_MovieDrawFrame(const u8* bgra, i32 width, i32 height);
+
 #endif
