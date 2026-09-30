@@ -473,8 +473,12 @@ u8 PCMOVIE_Play(char *a1, i32 a2)
 // @Matching
 void PCMOVIE_SetVolume(i32 a1)
 {
+#ifdef SPIDEY_STANDALONE
+	Plat_MovieSetVolume(a1);
+#else
 	BinkSetVolume(G_MOVIE_BINK_RELATED, (a1 << 15) / 255);
 	BinkSetPan(G_MOVIE_BINK_RELATED, 0x8000);
+#endif
 }
 
 // @Ok
