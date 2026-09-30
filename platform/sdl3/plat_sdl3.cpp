@@ -141,6 +141,7 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 
 void Plat_Shutdown(void)
 {
+	Plat_MovieStop();
 	if (gGL)
 		SDL_GL_DestroyContext(gGL);
 	if (gWindow)
