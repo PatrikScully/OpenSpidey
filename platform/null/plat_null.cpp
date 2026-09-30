@@ -32,6 +32,7 @@ i32 Plat_Init(i32 width, i32 height, i32)
 
 void Plat_Shutdown(void)
 {
+	Plat_MovieStop();
 }
 
 // SPIDEY_QUIT_MS: stop yielding after this many ms (default: never).
