@@ -3992,23 +3992,22 @@ CMysterioHeadGlow::CMysterioHeadGlow(CMysterio *owner)
 // recovered from the disasm, not from a header: owner is the CBaddy that
 // this soft spot belongs to (only used to shuffle owner in and out of
 // BaddyList, and for Mem_MakeHandle), health becomes mHealth, node becomes
-// mNode, type becomes field_324 and picks the branch. The two InitItem
-// string literals and the print_if_false message are guesses (content
-// doesn't affect compare.py, which only diffs mnemonics); 0x56E990 is
+// mNode, type becomes field_324 and picks the branch. InitItem uses the original asset names at
+// 0x54E2F8 and 0x54E2EC. 0x56E990 is
 // BaddyList per idbs/idb_globals.txt, 0x54D474 is DifficultyLevel same
 // source (already used elsewhere in this file).
 CSoftSpot::CSoftSpot(CBaddy* owner, i32 health, i32 node, i32 type)
 {
 	if (type >= 6)
 	{
-		this->InitItem("softspot");
+		this->InitItem("softeyes");
 
 		if (type == 10)
 			this->mFlags |= 1;
 	}
 	else
 	{
-		this->InitItem("softspot_glow");
+		this->InitItem("softspot");
 		this->mFlags |= 0x400;
 
 		i32 grey = Rnd(110) + 20;
