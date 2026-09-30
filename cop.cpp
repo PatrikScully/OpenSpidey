@@ -265,6 +265,84 @@ void CCop::TakeHit(void)
 	}
 }
 
+// @NotOk
+// 0x42D060, instruction matching is pending.
+void CCop::GetWhippedLikeTheWhoreYouAre(void)
+{
+	switch (this->dumbAssPad)
+	{
+		case 0:
+			this->Neutralize();
+			this->dumbAssPad++;
+			this->RunAnim(22, 0, -1);
+			this->field_1F8 = 0;
+			// fall through
+		case 1:
+		{
+			this->field_38C |= 2;
+			print_if_false(this->field_384 != 0, "Pointer to mpThrowPoints is NULL.");
+			this->field_2FC = this->mPos;
+			i32 path = this->PathCheck(&this->mPos, &this->field_384[this->field_1F8], 0, 55);
+			if (path || !this->AddPointToPath(&this->field_384[this->field_1F8], 0)
+				|| ++this->field_1F8 >= 8)
+			{
+				if (this->ShouldFall(200, 389120))
+				{
+					this->mPos = this->field_2FC;
+					this->SetHeight(1, 100, 600);
+					this->field_31C.bothFlags = 26;
+					this->dumbAssPad = 0;
+				}
+				else
+				{
+					if (path)
+						this->RunAnim(22, 0, -1);
+					this->dumbAssPad++;
+				}
+			}
+			else
+				this->mPos = this->field_384[this->field_1F8 - 1];
+			break;
+		}
+		case 2:
+			if (this->mAnimFinished)
+			{
+				this->mHealth -= 50;
+				if (this->mHealth <= 0)
+				{
+					this->field_31C.bothFlags = 26;
+					this->dumbAssPad = 0;
+				}
+				else
+				{
+					this->RunAnim(23, 0, -1);
+					this->dumbAssPad++;
+				}
+			}
+			break;
+		case 3:
+			if (this->mAnimFinished)
+			{
+				this->mCBodyFlags |= 0x10;
+				this->field_31C.bothFlags = 0;
+				this->dumbAssPad = 0;
+			}
+			break;
+		case 4:
+			this->mPos.vy += 409600;
+			if (this->mPos.vy > this->field_308)
+			{
+				SFX_PlayPos(0x802E, &this->mPos, 0);
+				this->mPos.vy = this->field_308;
+				this->dumbAssPad = 2;
+			}
+			break;
+		default:
+			print_if_false(0, "Unknown substate!");
+			break;
+	}
+}
+
 // @Ok
 // @Matching
 // 0x42EBD0
