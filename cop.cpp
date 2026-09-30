@@ -172,6 +172,46 @@ i32 CCop::SetAnimMode(i32 mode, i32 playAnim)
 
 // @Ok
 // @Matching
+// 0x42AC60. Native comparison passed 100000 cases.
+i32 CCop::TooCloseToSpidey(void)
+{
+	if (this->mType == 306)
+	{
+		if (this->DistanceToPlayer(2) >= 105)
+			return 0;
+		CVector target = this->mPos;
+		target.vx += (((target.vx - G_MECHLIST_PLAYER->mPos.vx) * (120 - this->DistanceToPlayer(2))) * 17) >> 12;
+		target.vz += (((target.vz - G_MECHLIST_PLAYER->mPos.vz) * (120 - this->DistanceToPlayer(2))) * 17) >> 12;
+		if (this->PathCheck(&this->mPos, &target, 0, 55))
+			return 0;
+		if (this->AddPointToPath(&target, 0))
+		{
+			this->dumbAssPad = 6;
+			this->field_1F8 = 3;
+			return 1;
+		}
+	}
+	else
+	{
+		if (this->DistanceToPlayer(2) >= 162)
+			return 0;
+		CVector target = this->mPos;
+		target.vx += (((target.vx - G_MECHLIST_PLAYER->mPos.vx) * (185 - this->DistanceToPlayer(2))) * 11) >> 12;
+		target.vz += (((target.vz - G_MECHLIST_PLAYER->mPos.vz) * (185 - this->DistanceToPlayer(2))) * 11) >> 12;
+		if (this->PathCheck(&this->mPos, &target, 0, 55))
+			return 0;
+		if (this->AddPointToPath(&target, 0))
+		{
+			this->dumbAssPad = 6;
+			this->field_1F8 = 3;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// @Ok
+// @Matching
 // 0x42ED60
 void CCop::PlaySounds(void)
 {
