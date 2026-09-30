@@ -2769,7 +2769,7 @@ int CBaddy::ExecuteCommand(u16 cmd)
 
 		case 0x4294:
 		{
-			void *list = gsub_4E3880(*reinterpret_cast<u16*>(&this->field_2A8));
+			void *list = gsub_4E3880(this->mNode);
 			u16 *entries = reinterpret_cast<u16*>(list);
 			u16 n = entries[0];
 
@@ -3219,7 +3219,7 @@ int CBaddy::ExecuteCommand(u16 cmd)
 		case 0x4512:
 		{
 			u16 val = CBaddy_ReadOperand(this);
-			void *list = gsub_4E3880(*reinterpret_cast<u16*>(&this->field_2A8));
+			void *list = gsub_4E3880(this->mNode);
 			u16 *entries = reinterpret_cast<u16*>(list);
 			u16 n = entries[0];
 
