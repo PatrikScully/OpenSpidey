@@ -1187,14 +1187,14 @@ CScriptOnlyBaddy::CScriptOnlyBaddy(i16* a2, i32 a3)
 // @Ok
 // 0x407740 (0x407720 is MSVC's scalar deleting thunk around it; neither is
 // named in the IDB, found through CScriptOnlyBaddy's vtable 0x53B2E8 slot 0).
-// Unlinks from BaddyList, stops the script's sound, deletes the owned
+// Unlinks from ControlBaddyList, stops the script's sound, deletes the owned
 // object and the compass, then falls into ~CBaddy/~CBody. Without this the
-// class had no destructor at all, so Init_KillAll left BaddyList pointing
+// class had no destructor at all, so Init_KillAll left its list pointing
 // at freed memory and Reloc_UnloadAll crashed on the next level restart
 // (found 2026-09-03 in the standalone build).
 CScriptOnlyBaddy::~CScriptOnlyBaddy(void)
 {
-	this->DeleteFrom(reinterpret_cast<CBody**>(&G_BADDY_LIST));
+	this->DeleteFrom(&G_CONTROL_BADDY_LIST);
 
 	if (this->field_328)
 		SFX_Stop(this->field_328);
