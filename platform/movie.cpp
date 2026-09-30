@@ -195,3 +195,31 @@ i32 Plat_MovieOpen(const char* path, u32 offset, u32 bytes)
 	return 1;
 }
 
+// @Bogus
+static void feedMovieAudio(void)
+{
+	if (gMovie.audioEnded)
+		return;
+	i32 queued = Plat_MovieAudio(PLAT_MOVIE_AUDIO_QUEUED, 0, 0);
+	if (queued < 0)
+		queued = 0;
+	u8 pcm[8192];
+	while (queued < 44100)
+	{
+		i32 room = (44100 - queued) & ~3;
+		if (room <= 0)
+			break;
+		i32 count = read(gMovie.audio.fd, pcm, room < sizeof(pcm) ? room : sizeof(pcm));
+		if (count == 0 || (count < 0 && errno != EAGAIN && errno != EINTR))
+		{
+			gMovie.audioEnded = 1;
+			break;
+		}
+		if (count < 0)
+			break;
+		if (gMovie.audioEnabled)
+			Plat_MovieAudio(PLAT_MOVIE_AUDIO_QUEUE, pcm, count);
+		queued += count;
+	}
+}
+
