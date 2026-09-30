@@ -82,3 +82,20 @@ static i32 startDecoder(MovieDecoder* decoder, const char* path, i32 audio)
 	return 1;
 }
 
+// @Bogus
+void Plat_MovieStop(void)
+{
+	// No decoder owns fd 0 before the first movie is opened.
+	if (gMovie.video.pid)
+		stopDecoder(&gMovie.video);
+	if (gMovie.audio.pid)
+		stopDecoder(&gMovie.audio);
+	Plat_MovieAudio(PLAT_MOVIE_AUDIO_CLOSE, 0, 0);
+	Plat_MovieDrawFrame(0, 0, 0);
+	if (gMovie.path[0])
+		unlink(gMovie.path);
+	free(gMovie.pixels);
+	memset(&gMovie, 0, sizeof(gMovie));
+	gMovie.video.fd = gMovie.audio.fd = -1;
+}
+
