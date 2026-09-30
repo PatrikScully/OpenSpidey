@@ -210,6 +210,102 @@ i32 CCop::TooCloseToSpidey(void)
 	return 0;
 }
 
+// @NotOk
+// Native comparison passed 100000 cases; instruction matching is pending.
+// 0x42E4D0
+i32 CCop::DetermineFightState(void)
+{
+	u32 oldState = this->field_31C.bothFlags;
+	i32 path = -1;
+	i32 distance = this->DistanceToPlayer(2);
+	if (this->mHealth <= 0 || G_MECHLIST_PLAYER->mHealth <= 0
+		|| G_MECHLIST_PLAYER->field_57C)
+		return 0;
+	this->field_35C = distance > 2000 ? 31 : distance > 1000 ? 15 : 3;
+	if (!this->field_324
+		&& ((distance < 200 && !this->field_32C
+			&& my_abs(G_MECHLIST_PLAYER->mPos.vy - this->mPos.vy) < 819200)
+			|| this->BumpedIntoSpidey(110)))
+		this->field_32C = 120;
+	if (this->field_1A4)
+		return 0;
+	if (!Utils_LineOfSight(&this->mPos, &G_MECHLIST_PLAYER->mPos, 0, 0))
+	{
+		if (this->field_2A8 & 0x800)
+		{
+			this->field_2A8 &= ~0x800;
+			if (!this->PathCheck(&this->mPos, &this->field_1A8[0], 0, 55)
+				&& this->AddPointToPath(&this->mPos, 0)
+				&& this->AddPointToPath(&this->field_1A8[0], 0))
+			{
+				this->field_31C.bothFlags = 24;
+				this->dumbAssPad = 0;
+				return 1;
+			}
+		}
+		else if (this->field_324 && this->field_31C.bothFlags != 23
+			&& this->field_31C.bothFlags != 24)
+		{
+			this->field_31C.bothFlags = 23;
+			this->dumbAssPad = 0;
+			return 1;
+		}
+		return 0;
+	}
+	if (this->field_324 && distance < this->field_360)
+	{
+		path = this->PathCheck(&this->mPos, &G_MECHLIST_PLAYER->mPos, 0, 55);
+		if (!path)
+		{
+			this->field_31C.bothFlags = 4;
+			this->dumbAssPad = 0;
+			goto changed;
+		}
+	}
+	if (this->CheckSightCone(this->field_368, this->field_364,
+		this->field_360, this->field_36C, G_MECHLIST_PLAYER))
+	{
+		if (!this->field_324)
+		{
+			this->field_31C.bothFlags = 3;
+			this->dumbAssPad = 0;
+			goto changed;
+		}
+		if (!(path == -1
+			? this->PathCheck(&this->mPos, &G_MECHLIST_PLAYER->mPos, 0, 55) : path))
+		{
+			this->field_31C.bothFlags = 4;
+			this->dumbAssPad = 0;
+			goto changed;
+		}
+		if (this->field_31C.bothFlags != 1)
+		{
+			this->field_31C.bothFlags = 4;
+			this->dumbAssPad = 0;
+		}
+	}
+	if (!G_MECHLIST_PLAYER->field_57C && !G_COP_LIST && !G_MECHLIST_PLAYER->mHeldObject)
+	{
+		if (((this->field_218 & 0x800) && distance < this->field_37C)
+			|| (this->field_324 && distance < 1500
+				&& (path == -1
+					? this->PathCheck(&this->mPos, &G_MECHLIST_PLAYER->mPos, 0, 55) : path)))
+		{
+			this->Neutralize();
+			G_COP_LIST = this;
+			this->field_31C.bothFlags = 9;
+			this->dumbAssPad = 0;
+		}
+	}
+changed:
+	if (oldState != this->field_31C.bothFlags)
+	{
+		this->mCBodyFlags |= 0x10;
+		this->Baddy_SendSignal();
+	}
+	return oldState != this->field_31C.bothFlags;
+}
+
 // @Ok
 // @Matching
 // 0x42ED60

@@ -25,6 +25,7 @@ public:
 	EXPORT void GetWhippedLikeTheWhoreYouAre(void);
 	EXPORT i32 SetAnimMode(i32, i32);
 	EXPORT i32 TooCloseToSpidey(void);
+	EXPORT i32 DetermineFightState(void);
 	EXPORT void LookConfused(void);
 	EXPORT void Guard(void);
 	EXPORT void ClearAttackFlags(void);
@@ -56,7 +57,9 @@ public:
 
 	i32 field_324;
 
-	PADDING(0x340-0x324-4);
+	PADDING(0x32C-0x324-4);
+	i32 field_32C;
+	PADDING(0x340-0x32C-4);
 
 	i32 field_340;
 
@@ -64,7 +67,8 @@ public:
 
 	SHandle field_34C;
 
-	PADDING(0x360-0x34C-sizeof(SHandle));
+	PADDING(0x35C-0x34C-sizeof(SHandle));
+	i32 field_35C;
 
 	i32 field_360;
 	i32 field_364;
