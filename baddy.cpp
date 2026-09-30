@@ -1174,7 +1174,7 @@ CScriptOnlyBaddy::CScriptOnlyBaddy(i16* a2, i32 a3)
 	this->mFlags |= 1;
 	this->mCBodyFlags &= ~0x10;
 	this->field_32C = -1;
-	this->AttachTo(reinterpret_cast<CBody**>(&G_BADDY_LIST));
+	this->AttachTo(&G_CONTROL_BADDY_LIST);
 
 	this->mRMinor = 0;
 	this->mType = 203;
