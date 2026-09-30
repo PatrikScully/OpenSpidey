@@ -24,7 +24,7 @@ public:
 	EXPORT void AI(void) OVERRIDE;
 	EXPORT void DieHostage(void);
 	EXPORT void FollowWaypoints(void);
-	EXPORT void SetHostageType(i32);
+	EXPORT virtual void SetHostageType(i32);
 	EXPORT ~CHostage(void);
 
 

@@ -550,13 +550,7 @@ void validate_CHostage(void){
 // `new CHostage(...)`) stay in the exe. hostageVtable (0x53B874, 18
 // entries, confirmed against the maintainer's IDB name) has slot 17
 // (0x442A80) pointing at SetHostageType, so the original calls it through
-// the vtable. Our CHostage does not declare SetHostageType virtual, so
-// building an object with our vtable would silently fall back to the base
-// class there. Everything else that only touches the object (not builds
-// or destroys it) is safe to hook: SetHostageType itself works fine
-// hooked directly, since the patch overwrites the target address, and
-// virtual dispatch through the exe's own (unhooked, still-correct)
-// vtable still lands on it either way.
+// the vtable. SetHostageType uses the same slot in our standalone objects.
 // CheckIfFreed, HostageXAPlay, GetUp and DisappearBitch have no
 // standalone address, they get inlined into their callers in the
 // original same as here.
@@ -569,7 +563,7 @@ void patch_hostage(void)
 	PATCH_PUSH_RET_POLY(0x00442650, CHostage::DieHostage, "?DieHostage@CHostage@@QAEXXZ");
 	PATCH_PUSH_RET_POLY(0x004427A0, CHostage::FollowWaypoints, "?FollowWaypoints@CHostage@@QAEXXZ");
 	PATCH_PUSH_RET_POLY(0x00442960, CHostage::WaitForPlayer, "?WaitForPlayer@CHostage@@QAEXXZ");
-	PATCH_PUSH_RET_POLY(0x00442A80, CHostage::SetHostageType, "?SetHostageType@CHostage@@QAEXH@Z");
+	PATCH_PUSH_RET_POLY(0x00442A80, CHostage::SetHostageType, "?SetHostageType@CHostage@@UAEXH@Z");
 	PATCH_PUSH_RET_POLY(0x00442B10, CHostage::BegMotherfucker, "?BegMotherfucker@CHostage@@QAEXXZ");
 	PATCH_PUSH_RET_POLY(0x00442C70, CHostage::TellSomebodyToShootMe, "?TellSomebodyToShootMe@CHostage@@QAEXXZ");
 }
