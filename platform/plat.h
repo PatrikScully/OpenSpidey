@@ -80,6 +80,8 @@ i32 Plat_GfxReadPixels(u8* dstBGR, i32 width, i32 height);
 // Keyboard state indexed by DirectInput DIK_* scancode, 0x80 bit = down,
 // same contract as DXINPUT_PollKeyboard / gKeyState.
 void Plat_InputPollKeyboard(u8 dikState[256]);
+// Escape feeds the original skip action during an in-engine scene.
+void Plat_InputMapCutsceneSkip(u8 dikState[256]);
 // Relative mouse motion since the last call, 3 buttons (0x80 = down).
 void Plat_InputPollMouse(i32* dx, i32* dy, u8 buttons[3]);
 // Game controller. Returns 0 if none. Axes are -1000..1000 (the DIPROP_RANGE
