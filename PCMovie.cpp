@@ -422,10 +422,32 @@ void PCMOVIE_OpenPKR(void)
 u8 PCMOVIE_Play(char *a1, i32 a2)
 {
 #ifdef SPIDEY_STANDALONE
-	// @TODO Phase 2b: a Bink player. Movies are skipped for now.
-	printf("PCMOVIE_Play: skipping %s\n", a1);
-	return 0;
-#endif
+	PCMOVIE_Stop();
+	if (!G_MEDIA_PKR)
+	{
+		const char* mediaPath = "media.pkr";
+		FILE* test = fopen(mediaPath, "rb");
+		if (!test)
+		{
+			mediaPath = "Media.pkr";
+			test = fopen(mediaPath, "rb");
+		}
+		if (test)
+		{
+			fclose(test);
+			PKR_Open(&G_MEDIA_PKR, mediaPath, 1);
+		}
+	}
+	if (G_MEDIA_PKR)
+	{
+		PKR_FILEINFO info;
+		if (PKR_GetFileInfo(G_MEDIA_PKR, "data\\movie\\", a1, &info) && info.compressed == -2)
+			return Plat_MovieOpen(G_MEDIA_PKR->name, info.fileOffset, info.uncompressedSize) != 0;
+	}
+	char path[256];
+	snprintf(path, sizeof(path), "data/movie/%s", a1);
+	return Plat_MovieOpen(path, 0, 0) != 0;
+#else
 	PCMOVIE_Init();
 	PCMOVIE_Stop();
 
@@ -440,6 +462,7 @@ u8 PCMOVIE_Play(char *a1, i32 a2)
 
 	CloseMovieFile();
 	return 0;
+#endif
 }
 
 // @Ok
