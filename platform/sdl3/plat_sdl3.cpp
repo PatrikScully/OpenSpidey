@@ -74,23 +74,46 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	if (fullscreen)
 		flags |= SDL_WINDOW_FULLSCREEN;
 
-	gWindow = SDL_CreateWindow("Spider-Man", width * gScale, height * gScale, flags);
-	if (!gWindow)
-	{
-		printf("Plat(sdl3): SDL_CreateWindow failed: %s\n", SDL_GetError());
-		return 0;
-	}
+	// SPIDEY_MSAA sets the requested samples; 0 disables antialiasing.
+	i32 samples = 4;
+	if (getenv("SPIDEY_MSAA"))
+		samples = atoi(getenv("SPIDEY_MSAA"));
+	if (samples < 0)
+		samples = 0;
 
-	gGL = SDL_GL_CreateContext(gWindow);
-	if (!gGL)
+	for (;;)
 	{
-		printf("Plat(sdl3): SDL_GL_CreateContext failed: %s\n", SDL_GetError());
-		return 0;
+		bool attributes = SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, samples > 0 ? 1 : 0)
+			&& SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
+		gWindow = attributes ? SDL_CreateWindow("Spider-Man", width * gScale, height * gScale, flags) : 0;
+		gGL = gWindow ? SDL_GL_CreateContext(gWindow) : 0;
+		if (gGL)
+			break;
+
+		printf("Plat(sdl3): OpenGL initialization failed with %d samples: %s\n", samples, SDL_GetError());
+		if (gWindow)
+			SDL_DestroyWindow(gWindow);
+		gWindow = 0;
+		if (!samples)
+		{
+			SDL_Quit();
+			return 0;
+		}
+		samples = 0;
 	}
 	SDL_GL_SetSwapInterval(1);
 
-	printf("Plat(sdl3): %dx%d, GL %s / %s\n", width, height,
-			(const char*)glGetString(GL_VERSION), (const char*)glGetString(GL_RENDERER));
+	GLint sampleBuffers = 0, actualSamples = 0;
+	glGetIntegerv(GL_SAMPLE_BUFFERS, &sampleBuffers);
+	glGetIntegerv(GL_SAMPLES, &actualSamples);
+	if (sampleBuffers && actualSamples > 1)
+		glEnable(GL_MULTISAMPLE);
+	else
+		glDisable(GL_MULTISAMPLE);
+
+	printf("Plat(sdl3): %dx%d, GL %s / %s, MSAA %d\n", width, height,
+			(const char*)glGetString(GL_VERSION), (const char*)glGetString(GL_RENDERER),
+			sampleBuffers ? actualSamples : 0);
 
 	glViewport(0, 0, width * gScale, height * gScale);
 	glMatrixMode(GL_PROJECTION);
