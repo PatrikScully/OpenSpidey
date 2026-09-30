@@ -1767,7 +1767,7 @@ CBaddy* CBaddy::GetClosest(i32 baddyType, i32 inSight)
 //   0x42B5                           forward (sub_4273D0)
 //   0x42B6 C_SET_TARGET_FRAME (uncertain name) field_230 = resolved
 //                                    operand, gated like 0x4281
-//   0x42B7                           field_214 |= 1 (byte), return true
+//   0x42B7                           field_234 = 1 (scene skip flag)
 //   0x42B8                           walks a checksum list via sub_4C9230,
 //                                    pokes byte 28/30 of each hit (a
 //                                    CItem-derived object whose real type
@@ -3067,7 +3067,7 @@ int CBaddy::ExecuteCommand(u16 cmd)
 		}
 
 		case 0x42B7:
-			this->field_214 |= 1;
+			this->field_234 = 1;
 			return true;
 
 		case 0x42B8:
