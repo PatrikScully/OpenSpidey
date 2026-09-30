@@ -1495,12 +1495,14 @@ void Spool_MaskFaceFlags(
 		u32 a2,
 		u32 a3)
 {
-	print_if_false(region < 0 || region >= 40, "Bad region number sent to Spool_MaskFaceFlags");
+	print_if_false(region >= 0 && region < 40, "Bad region number sent to Spool_MaskFaceFlags");
 
-	print_if_false(PSXRegion[region].Usable != 0, "PSX not usable in call to Spool_MaskFaceFlags");
+	print_if_false(G_PSXREGION[region].Usable != 0, "PSX not usable in call to Spool_MaskFaceFlags");
 
-	i32* v4 = *reinterpret_cast<i32**>(PSXRegion[region].ppModels);
-	i32 v5 = v4[-1];
+	i32** models = reinterpret_cast<i32**>(G_PSXREGION[region].ppModels);
+	i32* v4 = *models;
+	// The count precedes the model pointer table, not the first model.
+	i32 v5 = reinterpret_cast<i32*>(models)[-1];
 
 	for (i32 i = 0; i < v5; i++)
 	{
