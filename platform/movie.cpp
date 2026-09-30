@@ -223,3 +223,63 @@ static void feedMovieAudio(void)
 	}
 }
 
+// @Bogus
+i32 Plat_MovieNextFrame(void)
+{
+	if (!gMovie.pixels || !Plat_Yield())
+	{
+		Plat_MovieStop();
+		return 0;
+	}
+	feedMovieAudio();
+	u32 now = Plat_Ticks();
+	while (gMovie.filled < gMovie.frameBytes && !gMovie.videoEnded)
+	{
+		i32 count = read(gMovie.video.fd, gMovie.pixels + gMovie.filled,
+			gMovie.frameBytes - gMovie.filled);
+		if (count == 0 || (count < 0 && errno != EAGAIN && errno != EINTR))
+		{
+			gMovie.videoEnded = 1;
+			break;
+		}
+		if (count < 0)
+			break;
+		gMovie.filled += count;
+		gMovie.lastDataAt = now;
+	}
+	if (!gMovie.started && gMovie.filled == gMovie.frameBytes &&
+		(gMovie.audioEnded || !gMovie.audioEnabled ||
+		 Plat_MovieAudio(PLAT_MOVIE_AUDIO_QUEUED, 0, 0) >= 17640))
+	{
+		gMovie.started = 1;
+		gMovie.startedAt = now;
+		Plat_MovieAudio(PLAT_MOVIE_AUDIO_START, 0, 0);
+	}
+	f64 elapsed = (u32)(now - gMovie.startedAt);
+	f64 frameTime = (f64)gMovie.frame * 1000.0 * gMovie.fpsDen / gMovie.fps;
+	if (gMovie.started && elapsed >= frameTime && gMovie.filled == gMovie.frameBytes)
+	{
+		Plat_MovieDrawFrame(gMovie.pixels, gMovie.width, gMovie.height);
+		gMovie.filled = 0;
+		gMovie.frame++;
+		if (gMovie.trace && (gMovie.frame == 1 || (u32)(now - gMovie.traceAt) >= 1000))
+		{
+			fprintf(stderr, "MOVIE frame=%u/%u time=%.0f audio=%d\n", gMovie.frame,
+				gMovie.frames, elapsed, Plat_MovieAudio(PLAT_MOVIE_AUDIO_QUEUED, 0, 0));
+			gMovie.traceAt = now;
+		}
+	}
+	if ((gMovie.videoEnded && (!gMovie.started || elapsed >= frameTime)) ||
+		(!gMovie.started && (u32)(now - gMovie.openedAt) > 10000) ||
+		(gMovie.started && gMovie.frame < gMovie.frames &&
+		 gMovie.filled < gMovie.frameBytes && (u32)(now - gMovie.lastDataAt) > 10000))
+	{
+		if (gMovie.frame != gMovie.frames)
+			fprintf(stderr, "Movie: decoder stopped at frame %u of %u\n", gMovie.frame, gMovie.frames);
+		Plat_MovieStop();
+		return 0;
+	}
+	Plat_Sleep(2);
+	return 1;
+}
+
