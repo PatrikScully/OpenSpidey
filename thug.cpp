@@ -2821,7 +2821,7 @@ void CThug::BackpedalPlease(void)
 			v10 = this->mPos;
 
 			v10.vx += 6 * ((this->mPos.vx - G_MECHLIST_PLAYER->mPos.vx) >> 2);
-			v10.vx += 6 * ((this->mPos.vz - G_MECHLIST_PLAYER->mPos.vz) >> 2);
+			v10.vz += 6 * ((this->mPos.vz - G_MECHLIST_PLAYER->mPos.vz) >> 2);
 
 			if (this->AddPointToPath(&this->mPos, 0) && this->AddPointToPath(&v10, 0))
 			{
