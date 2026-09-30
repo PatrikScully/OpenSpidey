@@ -117,7 +117,7 @@ u8 GameFMV_PlayMovie(
 			Plat_InputPollKeyboard(keys);
 			if (!(keys[1] & 0x80))
 				skipReady = true;
-			else if (a2 && skipReady)
+			else if (skipReady)
 				break;
 #endif
 			gGameFmvPad++;
