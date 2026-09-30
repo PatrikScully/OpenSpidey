@@ -487,23 +487,26 @@ void CPlayer::AI(void)
 	// Submariner-die check, gated on field_1AC and field_1A4.
 	if (this->field_1AC != 0 && this->field_1A4 != 0)
 	{
+		u8* pad = reinterpret_cast<u8*>(this->field_E0C);
 		if (*gPshellForceLevelExitEarly != 0)
 		{
-			if (this->field_E0C[0xE1] != 0)
+			if (pad[0xE1] != 0)
 			{
-				this->field_E0C[0xE1] = 0;
+				pad[0xE1] = 0;
 				*gSubmarinerDieRelated = 1;
 			}
 		}
 		else
 		{
+#ifndef SPIDEY_STANDALONE
 			if (G_DIFFICULTY_LEVEL != 0)
+#endif
 			{
-				if (this->field_E0C[0x31] != 0 || this->field_E0C[0x21] != 0)
+				if (pad[0x31] != 0 || pad[0x21] != 0)
 				{
-					this->field_E0C[0x101] = 0;
-					this->field_E0C[0x21] = 0;
-					this->field_E0C[0x31] = 0;
+					pad[0x101] = 0;
+					pad[0x21] = 0;
+					pad[0x31] = 0;
 					*gSubmarinerDieRelated = 1;
 				}
 			}
