@@ -485,7 +485,11 @@ void PCMOVIE_SetVolume(i32 a1)
 // @Matching
 INLINE void PCMOVIE_Stop(void)
 {
+#ifdef SPIDEY_STANDALONE
+	Plat_MovieStop();
+#else
 	CloseMovieFile();
+#endif
 }
 
 // @Ok
