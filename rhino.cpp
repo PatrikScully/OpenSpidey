@@ -1211,84 +1211,86 @@ void CRhino::DoDazedEffect(void)
 // @Ok
 void CRhino::DoMGSShadow(void)
 {
-	VECTOR hook3, hook6, hookB, hookE;
+	CVector points[4];
 	SHook h;
 
 	h.Part.vx = 0; h.Part.vy = 0; h.Part.vz = 0;
 	h.Offset = 3;
-	M3dUtils_GetDynamicHookPosition(&hook3, this, &h);
+	M3dUtils_GetDynamicHookPosition(reinterpret_cast<VECTOR*>(&points[0]), this, &h);
 
 	h.Offset = 6;
-	M3dUtils_GetDynamicHookPosition(&hook6, this, &h);
+	M3dUtils_GetDynamicHookPosition(reinterpret_cast<VECTOR*>(&points[1]), this, &h);
 
 	h.Offset = 0xB;
-	M3dUtils_GetDynamicHookPosition(&hookB, this, &h);
+	M3dUtils_GetDynamicHookPosition(reinterpret_cast<VECTOR*>(&points[2]), this, &h);
 
 	h.Offset = 0xE;
-	M3dUtils_GetDynamicHookPosition(&hookE, this, &h);
+	M3dUtils_GetDynamicHookPosition(reinterpret_cast<VECTOR*>(&points[3]), this, &h);
 
-	VECTOR points[4];
-	points[0] = hook3;
-	points[1] = hook6;
-	points[2] = hookB;
-	points[3] = hookE;
+	CVector plane(0, this->field_21E << 12, 0);
+	points[0] -= this->mPos;
+	points[1] -= this->mPos;
+	points[2] -= this->mPos;
+	points[3] -= this->mPos;
 
 	MATRIX localMtx;
 	M3dMaths_TransposeMatrix1(&this->mTransform, &localMtx);
 	gte_SetRotMatrix(&localMtx);
 
-	i32 minX = 0x20, maxX = -0x20, minZ = 0x40, maxZ = -0x40;
+	i32 maxX = 0x20, maxZ = 0x40, minX = -0x20, minZ = -0x40;
 	i32 i;
 
 	for (i = 0; i < 4; i++)
 	{
-		gte_ldlvl(&points[i]);
+		points[i] >>= 12;
+		gte_ldlvl(reinterpret_cast<VECTOR*>(&points[i]));
 		gte_rtir();
-		gte_stlvnl(&points[i]);
+		gte_stlvnl(reinterpret_cast<VECTOR*>(&points[i]));
 
 		if (points[i].vx > maxX) maxX = points[i].vx;
-		if (points[i].vx < minX) minX = points[i].vx;
+		else if (points[i].vx < minX) minX = points[i].vx;
 
 		if (points[i].vz > maxZ) maxZ = points[i].vz;
-		if (points[i].vz < minZ) minZ = points[i].vz;
+		else if (points[i].vz < minZ) minZ = points[i].vz;
 	}
 
+	plane >>= 12;
+	gte_ldlvl(reinterpret_cast<VECTOR*>(&plane));
+	gte_rtir();
+	gte_stlvnl(reinterpret_cast<VECTOR*>(&plane));
+
+	points[0].vy = plane.vy;
+	points[1].vy = plane.vy;
+	points[2].vy = plane.vy;
+	points[3].vy = plane.vy;
+	points[0].vx = minX; points[0].vz = maxZ;
+	points[1].vx = minX; points[1].vz = minZ;
+	points[2].vx = maxX; points[2].vz = maxZ;
+	points[3].vx = maxX; points[3].vz = minZ;
+
 	gte_SetRotMatrix(&this->mTransform);
-
-	VECTOR rawCorners[4];
-	rawCorners[0].vx = minX; rawCorners[0].vy = 4; rawCorners[0].vz = minZ;
-	rawCorners[1].vx = maxX; rawCorners[1].vy = 4; rawCorners[1].vz = minZ;
-	rawCorners[2].vx = minX; rawCorners[2].vy = 4; rawCorners[2].vz = maxZ;
-	rawCorners[3].vx = maxX; rawCorners[3].vy = 4; rawCorners[3].vz = maxZ;
-
-	CVector corners[4];
-
 	for (i = 0; i < 4; i++)
 	{
-		gte_ldlvl(&rawCorners[i]);
+		gte_ldlvl(reinterpret_cast<VECTOR*>(&points[i]));
 		gte_rtir();
-		gte_stlvnl(&rawCorners[i]);
-
-		corners[i].vx = rawCorners[i].vx + this->mPos.vx;
-		corners[i].vy = rawCorners[i].vy + this->mPos.vy;
-		corners[i].vz = rawCorners[i].vz + this->mPos.vz;
+		gte_stlvnl(reinterpret_cast<VECTOR*>(&points[i]));
+		points[i] <<= 12;
+		points[i] += this->mPos;
 	}
 
 	if (!this->field_3E0)
 	{
 		this->field_3E0 = reinterpret_cast<u32>(new CQuadBit());
+		CQuadBit *shadow = reinterpret_cast<CQuadBit*>(this->field_3E0);
+		shadow->SetTexture(0, 0);
+		shadow->mFrigDeltaZ = 0x20;
+		shadow->SetSemiTransparent();
+		shadow->SetSubtractiveTransparency();
 	}
 
 	CQuadBit *shadow = reinterpret_cast<CQuadBit*>(this->field_3E0);
-
-	if (shadow)
-	{
-		shadow->SetTexture(0, -1);
-		shadow->SetSemiTransparent();
-		shadow->SetSubtractiveTransparency();
-		shadow->SetTransparency(0x40);
-		shadow->SetCorners(corners[0], corners[1], corners[2], corners[3]);
-	}
+	shadow->SetTransparency(0x40);
+	shadow->SetCorners(points[0], points[1], points[2], points[3]);
 }
 
 // @Ok
