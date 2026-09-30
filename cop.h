@@ -21,6 +21,7 @@ public:
 
 	EXPORT void PlaySounds(void);
 	EXPORT void BackpedalPlease(void);
+	EXPORT void TakeHit(void);
 	EXPORT void LookConfused(void);
 	EXPORT void Guard(void);
 	EXPORT void ClearAttackFlags(void);

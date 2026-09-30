@@ -212,6 +212,59 @@ void CCop::BackpedalPlease(void)
 	}
 }
 
+// @NotOk
+// Native comparison passed 100000 cases; instruction matching is pending.
+// 0x42C570
+void CCop::TakeHit(void)
+{
+	switch (this->dumbAssPad)
+	{
+		case 0:
+			this->mCBodyFlags &= ~0x10;
+			this->field_310 = 0;
+			this->ClearAttackFlags();
+			if (this->field_318 == 1)
+			{
+				this->mRMinor = 0;
+				this->RunAnim(22, 0, -1);
+				this->dumbAssPad = 2;
+			}
+			else
+			{
+				new CAIProc_LookAt(this, G_MECHLIST_PLAYER, 0, 0, 80, 200);
+				this->RunAnim(20, 0, -1);
+				this->dumbAssPad = 3;
+			}
+			break;
+		case 1:
+			if (this->mAnimFinished)
+			{
+				this->field_318 = 0;
+				this->field_31C.bothFlags = 28;
+				this->dumbAssPad = 0;
+			}
+			break;
+		case 2:
+			if (this->mAnimFinished)
+			{
+				this->mRMinor = this->mType != 306 ? 150 : 96;
+				this->RunAnim(23, 0, -1);
+				this->dumbAssPad = 1;
+			}
+			break;
+		case 3:
+			if (this->mAnimFinished)
+			{
+				this->field_31C.bothFlags = 28;
+				this->dumbAssPad = 0;
+			}
+			break;
+		default:
+			print_if_false(0, "Unknown substate!");
+			break;
+	}
+}
+
 // @Ok
 // @Matching
 // 0x42EBD0
