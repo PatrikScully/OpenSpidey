@@ -691,6 +691,7 @@ void Plat_InputPollKeyboard(u8 dikState[256])
 	if (gScriptKeyDown && now < gKeyDownUntil)
 	{
 		dikState[gScriptKeyDown] = 0x80;
+		Plat_InputMapCutsceneSkip(dikState);
 		return;
 	}
 	gScriptKeyDown = 0;
@@ -701,6 +702,7 @@ void Plat_InputPollKeyboard(u8 dikState[256])
 		gScriptNext++;
 		dikState[gScriptKeyDown] = 0x80;
 	}
+	Plat_InputMapCutsceneSkip(dikState);
 }
 
 void Plat_InputPollMouse(i32* dx, i32* dy, u8 buttons[3])
