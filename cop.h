@@ -47,6 +47,7 @@ public:
 	EXPORT virtual void Victorious(void);
 	EXPORT virtual void SetParamByIndex(i32, i32);
 	EXPORT virtual u8 Grab(CVector*);
+	EXPORT virtual void SetCopType(i32);
 
 	i32 field_324;
 

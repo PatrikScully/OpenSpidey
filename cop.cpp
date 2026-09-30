@@ -54,6 +54,39 @@ extern SStateFlags gCopStateFlags;
 //#define G_COP_STATE_FLAGS (&gCopStateFlags)
 #define G_COP_STATE_FLAGS (reinterpret_cast<SStateFlags*>(0x00549220))
 
+// Fight animation choices and hand hooks read by SetCopType at 0x4288D0.
+static i32* const gPoliceFightAnims = (i32*)0x00551E88;
+static i32* const gSwatFightAnims = (i32*)0x00551EA8;
+static void* const gPoliceHooksPacket = (void*)0x00549328;
+static void* const gSwatHooksPacket = (void*)0x00549408;
+
+// @Ok
+// @Matching
+void CCop::SetCopType(i32 type)
+{
+	this->mType = type;
+	switch (type)
+	{
+		case 306:
+			this->InitItem("police");
+			this->field_21E = 100;
+			this->field_294.Int = gPoliceFightAnims[0];
+			this->field_298.Int = gPoliceFightAnims[1];
+			M3dUtils_ReadHooksPacket(this, gPoliceHooksPacket);
+			break;
+		case 320:
+			this->InitItem("swat");
+			this->field_21E = 100;
+			this->field_294.Int = gSwatFightAnims[0];
+			this->field_298.Int = gSwatFightAnims[1];
+			M3dUtils_ReadHooksPacket(this, gSwatHooksPacket);
+			break;
+		default:
+			print_if_false(0, "Unknown cop type!");
+			break;
+	}
+}
+
 // @Ok
 // @Matching
 // 0x42ED60
@@ -1303,10 +1336,8 @@ void validate_CCopLaserPing(void)
 
 // @Bogus
 // Left out on purpose:
-//   CCop::CCop (0x00428750). The exe's CCop vtable (0x0053B670) has 18 slots,
-//     ours has 17: CCop::SetCopType (0x004288D0, slot 17) does not exist in
-//     our sources. Hooking the constructor would stamp the short vtable on
-//     every cop and a slot 17 call would run off the end of it.
+//   CCop::CCop (0x00428750) stays in the exe. The standalone cop now has
+//     its original SetCopType slot (0x004288D0) for police and SWAT setup.
 //   CCopLaserPing::CCopLaserPing (0x00428A50). Our CCopLaserPing has no Move,
 //     so it inherits CQuadBit's, while the exe's vtable (0x0053B6B8) points
 //     slot 1 at CCopLaserPing::Move (0x00428B90), the function that ages the
