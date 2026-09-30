@@ -2076,7 +2076,7 @@ void CSimpleTexturedRibbon::Display(void)
 	f32* invZArray = static_cast<f32*>(gSpoolSystemMemory);
 	i32 invZIndex = 0;
 
-	u8* recCursor = gRevisitInitOne;
+	u8* recCursor = *reinterpret_cast<u8**>(gRevisitInitOne);
 
 	CVector crossVec(0, 0, 0);
 	i32 width = 0;
@@ -2115,7 +2115,7 @@ void CSimpleTexturedRibbon::Display(void)
 		ProjectRibbonEdge(edgeA, invZArray, invZIndex, recCursor, &stlvA);
 		ProjectRibbonEdge(edgeB, invZArray, invZIndex, recCursor, &stlvB);
 
-		u8* rec2 = gRevisitInitTwo;
+		u8* rec2 = *reinterpret_cast<u8**>(gRevisitInitTwo);
 		*(i16*)(rec2 + 0) = (i16)stlvA.vx;
 		*(i16*)(rec2 + 2) = (i16)stlvA.vy;
 		*(i16*)(rec2 + 4) = 0;
@@ -2140,7 +2140,7 @@ void CSimpleTexturedRibbon::Display(void)
 	f32 scaleX = G_GAME_RESOLUTION_X / (f32)G_XRES;
 	f32 scaleY = G_GAME_RESOLUTION_Y / (f32)G_YRES;
 
-	i16* sxyBase = reinterpret_cast<i16*>(gRevisitInitOne);
+	i16* sxyBase = *reinterpret_cast<i16**>(gRevisitInitOne);
 
 	for (i32 k = 0; k < this->field_3E; k++)
 	{
