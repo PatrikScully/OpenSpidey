@@ -60,6 +60,11 @@ static i32* const gSwatFightAnims = (i32*)0x00551EA8;
 static void* const gPoliceHooksPacket = (void*)0x00549328;
 static void* const gSwatHooksPacket = (void*)0x00549408;
 
+// Joint poses used by ProcessMessages at 0x42F50C and 0x42F60E.
+// These unnamed tables lie between the cop state flags and hand hooks.
+static i16* const gPoliceMessagePose = (i16*)0x00549264;
+static i16* const gSwatMessagePose = (i16*)0x00549344;
+
 // @Ok
 // @Matching
 void CCop::SetCopType(i32 type)
@@ -1742,6 +1747,136 @@ void CreateCopRicochet(SLineInfo *pLine, u8 a2, u8 a3, u8 a4)
 	gte_stlvnl(reinterpret_cast<VECTOR*>(&cross));
 
 	new CCopLaserPing(&pLine->Position, &reflect, &cross, a2, a3, a4);
+}
+
+// @NotOk
+// 0x42F470. Handles the original cop message codes and joint offsets.
+void CCop::ProcessMessages(void)
+{
+	for (CMessage* message = this->pMessage; message; message = message->mNext)
+	{
+		i32 state = this->field_31C.bothFlags;
+		if (state == 26 && message->field_14 < 11)
+			goto handled;
+
+		switch (message->field_14)
+		{
+			case 5:
+				if (state != 18)
+				{
+					this->Neutralize();
+					this->field_31C.bothFlags = 18;
+					this->dumbAssPad = 0;
+				}
+				else
+				{
+					i32 substate = this->dumbAssPad;
+					if (substate != 3 && substate != 2)
+						continue;
+					this->field_1F8 = 0;
+					this->dumbAssPad = 2;
+				}
+				break;
+			case 6:
+				if (state != 19)
+				{
+					this->Neutralize();
+					SFX_PlayPos(0x800E, &this->mPos, 0);
+					this->field_31C.bothFlags = 19;
+					this->dumbAssPad = 0;
+					new CAIProc_StateSwitchSendMessage(this, 15);
+				}
+				break;
+			case 7:
+				if (state == 2 || state == 1)
+				{
+					CItem* sender = (CItem*)Mem_RecoverPointer(&message->mHandle);
+					if (sender)
+						this->RunToWhereTheActionIs(&sender->mPos);
+				}
+				break;
+			case 10:
+				if (state == 2 || state == 1)
+					this->RunToWhereTheActionIs((CVector*)message->mVects);
+				this->field_324 = 300;
+				break;
+			case 12:
+				this->ApplyPose(this->mType == 306 ? gPoliceMessagePose : gSwatMessagePose);
+				if (this->field_31C.bothFlags != 26)
+				{
+					((i16*)this->mpJoints)[8] >>= 1;
+					if (((i16*)this->mpJoints)[8] > 1)
+						continue;
+				}
+				((i16*)this->mpJoints)[8] = 0;
+				if (G_COP_LIST == this && this->field_31C.bothFlags != 9)
+					G_COP_LIST = 0;
+				this->mFlags &= ~4;
+				break;
+			case 14:
+				if (!(this->field_218 & 0x40))
+				{
+					CTrapWebEffect* effect = (CTrapWebEffect*)Mem_RecoverPointer(&this->field_104);
+					if (effect)
+						effect->Burst();
+					SFX_PlayPos(0x802D, &this->mPos, 0);
+				}
+				break;
+			case 15:
+				if (state == 14)
+					new CAIProc_StateSwitchSendMessage(this, 15);
+				else
+				{
+					CTrapWebEffect* effect = (CTrapWebEffect*)Mem_RecoverPointer(&this->field_10C);
+					if (effect)
+						effect->Burst();
+				}
+				break;
+			case 17:
+				if (this->field_380)
+					delete this->field_380;
+				this->field_380 = 0;
+				break;
+			case 19:
+				if (this->mAngles.vx)
+				{
+					this->mAngles.vx = 0;
+					this->mPos.vy += 6144 * this->field_33C;
+				}
+				this->field_33C = 0;
+				this->field_218 &= ~0x20;
+				break;
+			case 20:
+				if (!this->mpJoints)
+					this->ApplyPose(this->mType == 306 ? gPoliceMessagePose : gSwatMessagePose);
+				if (this->field_31C.bothFlags == 26 || message->field_40++ >= 8)
+				{
+					((i16*)this->mpJoints)[20] = 0;
+					((i16*)this->mpJoints)[44] = 0;
+					this->mFlags &= ~4;
+				}
+				else
+				{
+					this->mFlags |= 4;
+					if (message->field_40 >= 4)
+					{
+						((i16*)this->mpJoints)[20] >>= 1;
+						((i16*)this->mpJoints)[44] >>= 1;
+					}
+					else
+					{
+						((i16*)this->mpJoints)[20] += 800 >> message->field_40;
+						((i16*)this->mpJoints)[44] -= 800 >> message->field_40;
+					}
+					this->ApplyPose(this->mType == 306 ? gPoliceMessagePose : gSwatMessagePose);
+					continue;
+				}
+				break;
+		}
+handled:
+		message->field_10 |= 1;
+	}
+	this->CleanUpMessages(0, 0);
 }
 
 void validate_CCop(void){

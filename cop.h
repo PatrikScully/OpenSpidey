@@ -27,6 +27,7 @@ public:
 	EXPORT i32 TooCloseToSpidey(void);
 	EXPORT i32 DetermineFightState(void);
 	EXPORT i32 SetAttackFlags(void);
+	EXPORT void ProcessMessages(void);
 	EXPORT void LookConfused(void);
 	EXPORT void Guard(void);
 	EXPORT void ClearAttackFlags(void);
@@ -60,7 +61,8 @@ public:
 
 	PADDING(0x32C-0x324-4);
 	i32 field_32C;
-	PADDING(0x340-0x32C-4);
+	PADDING(0x33C-0x32C-4);
+	i32 field_33C;
 
 	i32 field_340;
 
