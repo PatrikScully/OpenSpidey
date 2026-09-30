@@ -32,3 +32,18 @@ struct MovieState
 
 static MovieState gMovie;
 
+// @Bogus
+static void stopDecoder(MovieDecoder* decoder)
+{
+	if (decoder->fd >= 0)
+		close(decoder->fd);
+	decoder->fd = -1;
+	if (decoder->pid > 0)
+	{
+		kill(decoder->pid, SIGKILL);
+		while (waitpid(decoder->pid, 0, 0) < 0 && errno == EINTR)
+			;
+	}
+	decoder->pid = 0;
+}
+
