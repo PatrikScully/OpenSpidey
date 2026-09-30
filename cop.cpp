@@ -306,6 +306,83 @@ changed:
 	return oldState != this->field_31C.bothFlags;
 }
 
+// @NotOk
+// 0x429090, instruction matching is pending.
+i32 CCop::SetAttackFlags(void)
+{
+	this->ClearAttackFlags();
+	i32 distance = this->DistanceToPlayer(2);
+	if (distance < 819200)
+	{
+		CCop* attacker = G_COP_GLOBAL;
+		if (attacker)
+		{
+			i32 height = G_MECHLIST_PLAYER->mPos.vy - attacker->field_29C - 0x4000;
+			if (my_abs(height) < 409600)
+			{
+				if (distance < attacker->DistanceToPlayer(2) - 150)
+				{
+					if (G_COP_GLOBAL->field_31C.bothFlags == 4
+						|| G_COP_GLOBAL->field_31C.bothFlags == 5)
+						G_COP_GLOBAL->DetermineFightState();
+					G_COP_GLOBAL->ClearAttackFlags();
+				}
+				attacker = G_COP_GLOBAL;
+			}
+			if (attacker)
+				goto waitingSlot;
+		}
+		i32 height = G_MECHLIST_PLAYER->mPos.vy - this->field_29C - 0x4000;
+		if (my_abs(height) < 409600)
+		{
+			G_COP_GLOBAL = this;
+			this->field_390 = 1;
+			return 1;
+		}
+	}
+waitingSlot:
+	i32 positiveX = this->mPos.vx - G_MECHLIST_PLAYER->mPos.vx > 0;
+	i32 positiveZ = this->mPos.vz - G_MECHLIST_PLAYER->mPos.vz > 0;
+	i32 direction = 1 << (this->field_392 & 7);
+	if (positiveX)
+	{
+		if (positiveZ)
+		{
+			if (direction & 0x70)
+				this->field_392 = 7;
+		}
+		else if (direction & 0xC1)
+			this->field_392 = 1;
+	}
+	else if (positiveZ)
+	{
+		if (direction & 0x1C)
+			this->field_392 = 5;
+	}
+	else if (direction & 7)
+		this->field_392 = 3;
+	i32 count = 0;
+	u8 slot = this->field_392;
+	i32 index;
+	for (;; ++slot)
+	{
+		index = slot & 7;
+		if (!((1 << index) & G_ATTACK_FLAG_RELATED))
+			break;
+		if (++count >= 8)
+		{
+			this->field_390 = 0;
+			return 0;
+		}
+	}
+	this->field_392 = index;
+	this->field_391 = 1 << index;
+	G_ATTACK_FLAG_RELATED |= 1 << index;
+	this->field_390 = 2;
+	this->SetAnimMode(2, 0);
+	return 1;
+}
+
 // @Ok
 // @Matching
 // 0x42ED60

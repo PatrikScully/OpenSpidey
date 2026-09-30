@@ -26,6 +26,7 @@ public:
 	EXPORT i32 SetAnimMode(i32, i32);
 	EXPORT i32 TooCloseToSpidey(void);
 	EXPORT i32 DetermineFightState(void);
+	EXPORT i32 SetAttackFlags(void);
 	EXPORT void LookConfused(void);
 	EXPORT void Guard(void);
 	EXPORT void ClearAttackFlags(void);
@@ -88,7 +89,8 @@ public:
 
 	u8 field_390;
 	u8 field_391;
-	u8 endPad[0x394 - 0x391 - 1];
+	u8 field_392;
+	u8 endPad[0x394 - 0x392 - 1];
 };
 
 class CCopPing : public CSimpleAnim
