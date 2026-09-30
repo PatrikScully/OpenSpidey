@@ -2048,7 +2048,7 @@ void ClearRegion(i32 region, i32 a2)
 		pRecord = reinterpret_cast<u32*>(reinterpret_cast<char*>(pData) + size);
 	}
 
-	if (!gReloading)
+	if (gReloading)
 	{
 		while (gAccessRelated[region])
 		{
