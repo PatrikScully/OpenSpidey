@@ -174,6 +174,44 @@ void CCop::PlaySounds(void)
 	}
 }
 
+// @NotOk
+// 0x42F310, instruction matching is pending.
+void CCop::BackpedalPlease(void)
+{
+	CVector target;
+	switch (this->dumbAssPad)
+	{
+		case 0:
+			this->Neutralize();
+			this->field_1F8 = 0;
+			target = this->mPos;
+			target.vx += 6 * ((this->mPos.vx - G_MECHLIST_PLAYER->mPos.vx) >> 2);
+			target.vz += 6 * ((this->mPos.vz - G_MECHLIST_PLAYER->mPos.vz) >> 2);
+			if (this->AddPointToPath(&this->mPos, 0) && this->AddPointToPath(&target, 0))
+			{
+				this->mVel = (this->mPos - G_MECHLIST_PLAYER->mPos) >> 2;
+				this->mVel.vy = 0;
+			}
+			this->RunAnim(20, 0, -1);
+			this->dumbAssPad++;
+			break;
+		case 1:
+			this->DoPhysics(1);
+			if (this->field_1F8 <= 0)
+				this->Neutralize();
+			if (this->mAnimFinished)
+			{
+				this->Neutralize();
+				this->field_31C.bothFlags = 28;
+				this->dumbAssPad = 0;
+			}
+			break;
+		default:
+			print_if_false(0, "Unknown substate!");
+			break;
+	}
+}
+
 // @Ok
 // @Matching
 // 0x42EBD0
