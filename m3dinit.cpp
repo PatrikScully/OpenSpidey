@@ -357,6 +357,8 @@ void M3dInit_ParsePSX(i32 a1)
 
 	gDCRegionItems[a1] = (i32)pModelData;
 	gDCRegionItemCounts[a1] = numParts;
+	// 0x453654: each region starts its own stitch index range.
+	*reinterpret_cast<i32*>(0x005F6760) = 0;
 
 	i32 minNextLod = 0xFFFF;
 	i32 stitchedVertexTotal = 0;
