@@ -270,6 +270,7 @@ void Plat_InputPollKeyboard(u8 dikState[256])
 	if (gKeyDown && now < gKeyDownUntil)
 	{
 		dikState[gKeyDown] = 0x80;
+		Plat_InputMapCutsceneSkip(dikState);
 		return;
 	}
 	gKeyDown = 0;
@@ -282,6 +283,7 @@ void Plat_InputPollKeyboard(u8 dikState[256])
 		printf("Plat(null): key %#x at %u ms\n", gKeyDown, now);
 		dikState[gKeyDown] = 0x80;
 	}
+	Plat_InputMapCutsceneSkip(dikState);
 }
 
 void Plat_InputPollMouse(i32* dx, i32* dy, u8 buttons[3])
