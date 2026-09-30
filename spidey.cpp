@@ -11438,9 +11438,10 @@ void CPlayer::CutSceneSkipCleanup(void)
 {
 	Redbook_XAStop();
 
-	if (G_CAMERA_LIST->mCameraMode != CAMERAMODE_DEMO && Trig_GetLevelID() != 514)
+	CCamera* pCamera = G_CAMERA_LIST;
+	if (pCamera && pCamera->mCameraMode != CAMERAMODE_DEMO && Trig_GetLevelID() != 514)
 	{
-		G_CAMERA_LIST->SetMode(static_cast<ECameraMode>(3));
+		pCamera->SetMode(static_cast<ECameraMode>(3));
 	}
 
 	int v3 = this->field_1A8;
@@ -11452,7 +11453,7 @@ void CPlayer::CutSceneSkipCleanup(void)
 
 	if (v3)
 	{
-		int* ptr = reinterpret_cast<int*>(Trig_GetLinksPointer(v3));
+		u16* ptr = Trig_GetLinksPointer(v3);
 		if (ptr[0])
 		{
 			Trig_GetPosition(&v14, ptr[1]);
