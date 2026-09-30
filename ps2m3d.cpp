@@ -1235,9 +1235,8 @@ static f32 * const gDCLightTintTable          = (f32*)0x0064F5A8;
 #define GDC_LIGHT_COLOR_TABLE_X(i)  (*(f32*)(6616488 + 12 * (i)))
 #define GDC_LIGHT_COLOR_TABLE_Y(i)  (*(f32*)(6616488 + 12 * (i) + 4))
 #define GDC_LIGHT_COLOR_TABLE_Z(i)  (*(f32*)(6616488 + 12 * (i) + 8))
-// Stitch-index-keyed lit-color table, parallels gDCStitchPositionTable
-// (position) but for lighting: dword_64F5D8 (3 ints/entry, only element 0
-// read) plus a second 12-bytes/entry table at 0x64F858 for components 1/2.
+// Stitched RGB table, indexed directly by the high word of the vertex flags.
+// The original reads all three components from 0x64F5D8 (0x4776A4..0x4776B7).
 static i32 * const gDCStitchColorIndexTable = (i32*)0x0064F5D8;
 // 0x65DFA8 holds the CURSOR (a pointer, 12 bytes/record, DCVert mFlags bit
 // 0x1), exactly like gDCAttachPointCursor above: the original reads
@@ -1546,20 +1545,19 @@ fogScanDone:
 					if ((pv->mFlags & 2) != 0)
 					{
 						// Stitched/welded vertex: share the lit color from
-						// a table keyed the same way as the position-share
-						// table above (byte-2 of mFlags), confirming the
+						// a table indexed by the high word of mFlags, confirming the
 						// "share across welded copies" idea also applies
 						// to lighting, not just screen position.
-						i32 stitchIdx = 999 - (u8)((u32)pv->mFlags >> 16);
+						i32 stitchIdx = (u16)((u32)pv->mFlags >> 16);
 						((i32*)pLitColor)[-2] = gDCStitchColorIndexTable[3 * stitchIdx];
-						pLitColor[-1] = *(f32*)(0x0064F858 + 12 * stitchIdx + 4);
-						pLitColor[0]  = *(f32*)(0x0064F858 + 12 * stitchIdx + 8);
+						pLitColor[-1] = *(f32*)(gDCStitchColorIndexTable + 3 * stitchIdx + 1);
+						pLitColor[0]  = *(f32*)(gDCStitchColorIndexTable + 3 * stitchIdx + 2);
 					}
 					else
 					{
-						pLitColor[-2] = *(f32*)gDCTexAnimColorA;
+						pLitColor[-2] = *(f32*)gDCTexAnimColorC;
 						pLitColor[-1] = *(f32*)gDCTexAnimColorB;
-						pLitColor[0]  = *(f32*)gDCTexAnimColorC;
+						pLitColor[0]  = *(f32*)gDCTexAnimColorA;
 
 						for (i32 li = 0; li < lightCount; li++)
 						{
@@ -1753,7 +1751,8 @@ fogScanDone:
 			// dcmodel.h).
 			if (*gDCTexAnimFlag != 0)
 			{
-				f32 *pLitColor = (f32*)0x0065DFB8; // gDCLitColorScratch, same buffer as the tint block above
+				// The tint cursor writes RGB at -2, -1 and 0. The table starts here.
+				f32 *pLitColor = (f32*)0x0065DFB0;
 				for (i32 c = 0; c < 4; c++)
 				{
 					u16 slot = (u16)(cornerSlots[c] & 0x7FFF);
