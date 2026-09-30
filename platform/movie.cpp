@@ -283,3 +283,10 @@ i32 Plat_MovieNextFrame(void)
 	return 1;
 }
 
+// @Bogus
+void Plat_MovieSetVolume(i32 volume)
+{
+	if (volume < 0) volume = 0;
+	if (volume > 255) volume = 255;
+	Plat_MovieAudio(PLAT_MOVIE_AUDIO_VOLUME, 0, volume);
+}
