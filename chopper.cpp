@@ -753,13 +753,14 @@ i32 INLINE CChopper::DoArrivalAction(void)
 }
 
 // @Ok
+// @Matching
 void CChopper::DoChopperPhysics(void)
 {
 	CVector v15 = this->mVel;
 	CVector v13;
 	CVector v14;
 
-	for (i32 i = this->field_80; i; i++)
+	for (i32 i = this->field_80; i; i--)
 	{
 		this->mVel += this->mAcc;
 		this->mVel %= this->mFric;
@@ -777,12 +778,12 @@ void CChopper::DoChopperPhysics(void)
 	Utils_RotateWorldToObject(this, &v13, &v14);
 
 
-	if (abs(v14.vz) > 20480)
+	if (my_abs(v14.vz) > 20480)
 		this->mAngles.vx = Utils_ShiftFilter(this->mAngles.vx, v14.vz > 0 ? 128 : -128, 5, 16);
 	else
 		this->mAngles.vx = Utils_ShiftFilter(this->mAngles.vx, 0, 1, 2);
 
-	if (abs(v14.vx) > 20480)
+	if (my_abs(v14.vx) > 20480)
 		this->mAngles.vz = Utils_ShiftFilter(this->mAngles.vz, v14.vx > 0 ? -256 : 256, 5, 16);
 	else
 		this->mAngles.vz = Utils_ShiftFilter(this->mAngles.vz, 0, 1, 2);
