@@ -371,6 +371,9 @@ void PCMOVIE_InitOnce(void)
 // @Matching
 u8 PCMOVIE_NextFrame(void)
 {
+#ifdef SPIDEY_STANDALONE
+	return Plat_MovieNextFrame() != 0;
+#else
 	if (!G_MOVIE_BINK_RELATED)
 		return 0;
 
@@ -379,6 +382,7 @@ u8 PCMOVIE_NextFrame(void)
 
 	PCMOVIE_Stop();
 	return 0;
+#endif
 }
 
 // @Ok
