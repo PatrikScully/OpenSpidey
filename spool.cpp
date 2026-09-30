@@ -203,7 +203,7 @@ i32 Spool_PSX(
 		}
 	}
 
-	print_if_false(openSpot == -1, "Too many PSX files loaded, increase MAXPSXS in spool.h");
+	print_if_false(openSpot != -1, "Too many PSX files loaded, increase MAXPSXS in spool.h");
 	if (IsEnviro)
 	{
 		print_if_false(EnvRegions[0] == -1, "Old environment still loaded");
