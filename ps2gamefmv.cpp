@@ -6,6 +6,9 @@
 #include "ps2pad.h"
 #include "PCShell.h"
 #include "tweak.h"
+#ifdef SPIDEY_STANDALONE
+#include "platform/plat.h"
+#endif
 
 #include "validate.h"
 
@@ -102,9 +105,21 @@ u8 GameFMV_PlayMovie(
 			v4 = 255;
 		PCMOVIE_SetVolume(v4);
 		Pad_ClearTriggers(G_SCONTROL);
+#ifdef SPIDEY_STANDALONE
+		u8 keys[256];
+		Plat_InputPollKeyboard(keys);
+		bool skipReady = (keys[1] & 0x80) == 0;
+#endif
 
 		while (PCMOVIE_NextFrame())
 		{
+#ifdef SPIDEY_STANDALONE
+			Plat_InputPollKeyboard(keys);
+			if (!(keys[1] & 0x80))
+				skipReady = true;
+			else if (a2 && skipReady)
+				break;
+#endif
 			gGameFmvPad++;
 			if (Pad_Update() ||
 					a2 &&
