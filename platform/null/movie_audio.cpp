@@ -25,3 +25,7 @@ i32 Plat_MovieAudio(PlatMovieAudioOp op, const void*, i32 value)
 	return op == PLAT_MOVIE_AUDIO_QUEUED ? queued : 1;
 }
 
+// @Bogus
+void Plat_MovieDrawFrame(const u8*, i32, i32)
+{
+}
