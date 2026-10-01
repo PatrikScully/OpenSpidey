@@ -217,3 +217,18 @@ class AssetTests(unittest.TestCase):
             with self.assertRaisesRegex(assets.AssetError, "symbolic link"):
                 assets.import_iso(self.iso, link)
 
+    def test_missing_and_read_only_installed_assets(self):
+        with self.assertRaisesRegex(assets.AssetError, "Missing"):
+            assets.validate_game_dir(self.destination)
+        make_iso(self.iso)
+        assets.import_iso(self.iso, self.destination)
+        with mock.patch.object(assets.os, "access", return_value=False):
+            with self.assertRaisesRegex(assets.AssetError, "writable"):
+                assets.validate_game_dir(self.destination)
+        (self.destination / "texture.dat").write_bytes(b"truncated")
+        with self.assertRaisesRegex(assets.AssetError, "damaged"):
+            assets.validate_game_dir(self.destination)
+
+
+if __name__ == "__main__":
+    unittest.main()
