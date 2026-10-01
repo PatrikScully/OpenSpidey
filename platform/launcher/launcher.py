@@ -299,3 +299,12 @@ class SetupWindow:
         except queue.Empty:
             pass
         self.root.after(75, self.poll)
+
+    def close(self):
+        if self.busy:
+            self.closing = True
+            self.cancelled.set()
+            self.cancel_button.configure(state="disabled")
+            self.status.set("Cancelling import…")
+        else:
+            self.root.destroy()
