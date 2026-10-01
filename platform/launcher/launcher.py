@@ -215,3 +215,15 @@ class SetupWindow:
             for widget in page.winfo_children():
                 if widget.winfo_class() == "TLabel" and int(widget.grid_info().get("columnspan", 1)) == 2:
                     widget.configure(wraplength=max(200, width - 8))
+
+    def browse(self):
+        from tkinter import filedialog
+        if self.busy:
+            return
+        if self.source_label.get() == "ISO disc image":
+            selected = filedialog.askopenfilename(parent=self.root, title="Choose your Spider-Man PC disc image", filetypes=(("ISO disc images", "*.iso *.ISO"), ("All files", "*")))
+        else:
+            selected = filedialog.askdirectory(parent=self.root, title="Choose the installed Spider-Man PC folder")
+        if selected:
+            self.vars["source_path"].set(selected)
+            self.status.set("Ready to check your game files.")
