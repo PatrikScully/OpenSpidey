@@ -356,3 +356,65 @@ def _valid_cache(destination, info, progress, cancelled):
         return False
 
 
+def import_iso(iso_path, destination, progress=None, cancelled=None):
+    """Import to a user-owned cache. Progress receives bytes, total, file name."""
+    info = inspect_iso(iso_path)
+    destination = Path(destination).expanduser().absolute()
+    if destination.is_symlink():
+        raise AssetError("The asset cache must not be a symbolic link.")
+    if destination.exists() and not destination.is_dir():
+        raise AssetError("The asset cache path is not a folder.")
+    if Path(info["source"]["path"]).is_relative_to(destination.resolve()):
+        raise AssetError("Choose an ISO outside the asset cache folder.")
+    if cancelled and cancelled():
+        raise ImportCancelled("Asset import cancelled.")
+    staging = None
+    backup = None
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with _import_lock(destination):
+            if _valid_cache(destination, info, progress, cancelled):
+                return destination
+            if shutil.disk_usage(destination.parent).free < info["total_bytes"] + 16 * CHUNK_SIZE:
+                raise AssetError("Not enough free space. The assets need %.0f MB plus 16 MB of working space."
+                                 % (info["total_bytes"] / CHUNK_SIZE))
+            staging = Path(tempfile.mkdtemp(prefix="." + destination.name + ".import-", dir=destination.parent))
+            hashes = {}
+            completed = 0
+            if progress:
+                progress(0, info["total_bytes"], "Checking assets")
+            with Path(info["source"]["path"]).open("rb") as stream:
+                for name, entry in info["files"].items():
+                    completed, hashes[name] = _copy_asset(stream, entry, staging / name, completed,
+                                                         info["total_bytes"], progress, cancelled)
+            expected_source = dict(info["source"])
+            del expected_source["descriptors_sha256"]
+            if _source_state(Path(info["source"]["path"])) != expected_source:
+                raise AssetError("The ISO changed during import. Try again.")
+            validate_game_dir(staging)
+            _preserve_saves(destination, staging)
+            manifest = {"version": 1, "source": info["source"], "sha256": hashes,
+                        "sizes": {name: entry["size"] for name, entry in info["files"].items()}}
+            (staging / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+            if cancelled and cancelled():
+                raise ImportCancelled("Asset import cancelled.")
+            if destination.exists():
+                backup = destination.parent / ("." + destination.name + ".old-" + uuid.uuid4().hex)
+                destination.rename(backup)
+            try:
+                staging.rename(destination)
+                staging = None
+            except OSError:
+                if backup is not None:
+                    backup.rename(destination)
+                    backup = None
+                raise
+            if backup is not None:
+                shutil.rmtree(backup)
+                backup = None
+            return destination
+    except OSError as error:
+        raise AssetError("Cannot import the game assets: %s" % error) from error
+    finally:
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
