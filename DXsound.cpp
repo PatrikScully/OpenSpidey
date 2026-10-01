@@ -588,7 +588,7 @@ i32 DXINPUT_PollKeyboard(void)
 // @Matching
 i32 DXINPUT_PollMouse(i32 *pX, i32 *pY)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	DWORD dwElements = 16;
 	DIDEVICEOBJECTDATA didod[16];
 	memset(didod, 0, sizeof(didod));
