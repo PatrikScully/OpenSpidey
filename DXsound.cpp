@@ -2158,7 +2158,7 @@ void DXPOLY_SetTexture(LPDIRECTDRAWSURFACE7 a1)
 // @Matching
 void DXSOUND_Close(i32 a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gDxSoundHolder[a1].pDSB)
 	{
 		HRESULT hr = gDxSoundHolder[a1].pDSB->Release();
