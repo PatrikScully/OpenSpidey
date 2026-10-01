@@ -208,3 +208,10 @@ class SetupWindow:
         self.canvas.yview_moveto(0)
         for name, button in self.navigation.items():
             button.configure(background="#29394e" if name == title else "#172334", foreground="white" if name == title else "#bac6d6")
+
+    def resize_pages(self, width, item):
+        self.canvas.itemconfigure(item, width=width)
+        for page in self.pages.values():
+            for widget in page.winfo_children():
+                if widget.winfo_class() == "TLabel" and int(widget.grid_info().get("columnspan", 1)) == 2:
+                    widget.configure(wraplength=max(200, width - 8))
