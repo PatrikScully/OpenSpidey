@@ -7,6 +7,11 @@
 
 #include <cstring>
 
+#ifdef SPIDEY_STANDALONE
+#include "platform/plat.h"
+#include "pkr.h"
+#endif
+
 #ifdef _WIN32
 #include "process.h"
 #else
@@ -125,8 +130,7 @@ static i32 gStandaloneMusicPlaying;
 i32 PCMUSIC_GetStatus(void)
 {
 #ifdef SPIDEY_STANDALONE
-	if (gStandaloneMusicPlaying)
-		return 0;   // "still playing"
+	return Plat_MusicIsPlaying() == 0;
 #endif
 	if (gMusicBinkHandle)
 	{
