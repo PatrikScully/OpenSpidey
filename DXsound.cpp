@@ -2549,7 +2549,7 @@ void DXSOUND_Open(
 		i32 a2,
 		i32 a3)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (g_pDS)
 	{
 		if (a3)
@@ -2579,7 +2579,7 @@ void DXSOUND_Open(
 		if (pBuf)
 		{
 			PlatSoundVoice* pVoice = Plat_SndCreateVoice(pBuf);
-			gDxSoundHolder[a1].pDSB = pVoice;
+			gDxSoundHolder[a1].pDSB = reinterpret_cast<LPDIRECTSOUNDBUFFER>(pVoice);
 			gDxSoundHolder[a1].mFrequency = Plat_SndGetFrequency(pVoice);
 		}
 	}
