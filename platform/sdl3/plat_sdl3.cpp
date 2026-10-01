@@ -477,8 +477,18 @@ void Plat_TexDestroy(PlatTexture* t)
 	delete t;
 }
 
+// @Bogus
 void Plat_GfxBeginScene(u32 clearColorARGB, i32 clearDepth)
 {
+	UpdateViewport();
+	GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
+	GLint scissorBox[4];
+	glGetIntegerv(GL_SCISSOR_BOX, scissorBox);
+	glDisable(GL_SCISSOR_TEST);
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glEnable(GL_SCISSOR_TEST);
+	glScissor(gViewportX, gViewportY, gViewportWidth, gViewportHeight);
 	gDbgSinceClear = 0;
 	if (gDbgLogFrom >= 0 && (i32)SDL_GetTicks() >= gDbgLogFrom && gDbgClears < 4)
 	{
@@ -499,6 +509,9 @@ void Plat_GfxBeginScene(u32 clearColorARGB, i32 clearDepth)
 	glDepthMask(GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT | (clearDepth ? GL_DEPTH_BUFFER_BIT : 0));
 	glDepthMask(depthMask);
+	glScissor(scissorBox[0], scissorBox[1], scissorBox[2], scissorBox[3]);
+	if (!scissor)
+		glDisable(GL_SCISSOR_TEST);
 }
 
 void Plat_GfxEndScene(void)
