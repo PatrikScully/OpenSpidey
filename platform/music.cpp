@@ -76,7 +76,7 @@ static void* playMusic(void*)
 				i32 room = (44100 - queued) & ~3;
 				if (!room)
 					break;
-				i32 count = read(gMusic.decoder.fd, pcm, room < sizeof(pcm) ? room : sizeof(pcm));
+				i32 count = Plat_DecoderRead(&gMusic.decoder, pcm, room < sizeof(pcm) ? room : sizeof(pcm));
 				if (!count)
 				{
 					gMusic.ended = 1;
@@ -112,7 +112,7 @@ static void* playMusic(void*)
 				stopMusicDecoder(&gMusic.decoder);
 				Plat_MusicAudio(PLAT_MUSIC_AUDIO_CLOSE, 0, 0);
 				if (gMusic.path[0])
-					unlink(gMusic.path);
+					Plat_DecoderRemove(gMusic.path);
 				gMusic.path[0] = 0;
 				gMusic.active = 0;
 				pthread_mutex_unlock(&gMusicLock);
