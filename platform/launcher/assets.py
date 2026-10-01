@@ -234,3 +234,32 @@ def inspect_iso(iso_path):
         raise AssetError("Cannot read the selected ISO: %s" % error) from error
 
 
+def validate_game_dir(game_dir):
+    path = Path(game_dir).expanduser().resolve()
+    try:
+        for name in REQUIRED_FILES:
+            asset = path / name
+            if not asset.is_file():
+                raise AssetError("Missing %s. Select the PC game disc ISO to import its assets." % name)
+            size = asset.stat().st_size
+            with asset.open("rb") as stream:
+                header = stream.read(8)
+                digest = None
+                if name == "SpideyPC.exe":
+                    if size > 16 * CHUNK_SIZE:
+                        raise AssetError("The PC executable is too large for this build.")
+                    stream.seek(0)
+                    digest = hashlib.sha256(stream.read()).hexdigest()
+            _validate_payload(name, header, size, digest)
+            if name.endswith(".pkr"):
+                with asset.open("rb") as stream:
+                    _validate_archive(stream, 0, size, name)
+            if name.endswith(".pkr") and not os.access(asset, os.W_OK):
+                raise AssetError("%s must be writable. Import the ISO into your user data folder." % name)
+        if not os.access(path, os.W_OK):
+            raise AssetError("The game folder must be writable so progress can be saved.")
+        return path
+    except OSError as error:
+        raise AssetError("Cannot read the game assets: %s" % error) from error
+
+
