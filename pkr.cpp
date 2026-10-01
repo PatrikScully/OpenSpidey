@@ -262,7 +262,7 @@ void dirRemoveFromPKR(
 // original code with the stack untouched; the Linux sanity build (which
 // does not need byte-matching, just to link and run) uses a plain
 // function-pointer call instead, since g++ has no naked/__asm equivalent.
-#ifdef _WIN32
+#ifdef _MSC_VER
 // @Bogus
 __declspec(naked) u32 gsub_517FB6(u8*, i32)
 {
