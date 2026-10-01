@@ -340,7 +340,8 @@ def main(argv=None):
             settings = window.result
         return run_game(binary, settings, data_path)
     except Exception as error:
-        print("OpenSpidey: %s" % error, file=sys.stderr)
+        if sys.stderr is not None:
+            print("OpenSpidey: %s" % error, file=sys.stderr)
         try:
             import tkinter as tk
             from tkinter import messagebox
