@@ -1,5 +1,5 @@
 #include "DXsound.h"
-#ifdef SPIDEY_STANDALONE
+#if defined(SPIDEY_STANDALONE) && !defined(_WIN32)
 #include <execinfo.h>
 #endif
 #ifdef SPIDEY_STANDALONE
@@ -1185,6 +1185,7 @@ void DXPOLY_DrawPoly(
 	{
 		DXERR_printf("drawing outside scene\r\n");
 #ifdef SPIDEY_STANDALONE
+#ifndef _WIN32
 		// print the first caller once so the stray draw can be found
 		static i32 shown = 0;
 		if (!shown)
@@ -1197,6 +1198,7 @@ void DXPOLY_DrawPoly(
 				printf(" %p", frames[k]);
 			printf("\n");
 		}
+#endif
 #endif
 	}
 
