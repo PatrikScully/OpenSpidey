@@ -148,3 +148,34 @@ class AssetTests(unittest.TestCase):
                                   lambda *unused: os.utime(self.iso, ns=(0, self.iso.stat().st_mtime_ns + 1000000)))
         self.assertEqual((self.destination / assets.MANIFEST_NAME).read_bytes(), before)
 
+    def test_truncated_and_malformed_iso(self):
+        for fault in ("header", "bounds", "endian", "extent", "name", "multiextent", "record", "duplicate", "cycle"):
+            with self.subTest(fault=fault):
+                offsets = make_iso(self.iso, names=list(PAYLOADS) + ["DATA.PKR"] if fault == "duplicate" else None)
+                image = bytearray(self.iso.read_bytes())
+                if fault == "header":
+                    image[16 * assets.BLOCK_SIZE + 1] = 0
+                elif fault == "bounds":
+                    image = image[:-assets.BLOCK_SIZE]
+                elif fault == "endian":
+                    image[offsets["data.pkr"] + 6] ^= 1
+                elif fault == "extent":
+                    struct.pack_into("<I", image, offsets["data.pkr"] + 2, 99)
+                    struct.pack_into(">I", image, offsets["data.pkr"] + 6, 99)
+                elif fault == "name":
+                    image[offsets["data.pkr"] + 33] = ord("/")
+                elif fault == "multiextent":
+                    image[offsets["data.pkr"] + 25] |= 0x80
+                elif fault == "cycle":
+                    end = offsets["texture.dat"] + image[offsets["texture.dat"]]
+                    record = make_record("loop", 20, assets.BLOCK_SIZE, 2)
+                    image[end:end + len(record)] = record
+                elif fault == "duplicate":
+                    pass
+                else:
+                    image[offsets["data.pkr"]] = 8
+                self.iso.write_bytes(image)
+                with self.assertRaises(assets.AssetError):
+                    assets.import_iso(self.iso, self.destination)
+                self.assertFalse(self.destination.exists())
+
