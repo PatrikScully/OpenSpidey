@@ -1494,6 +1494,48 @@ void CWeb::BreakIntoBits(void)
 	this->Die();
 }
 
+// @NotOk
+// Original 0x4F69F0. Release a tug web and simulate the loose chain.
+// 100,000 original-code fixtures pass. Branch placement still differs.
+void CWeb::SwitchToSnap(CVector &dir, CVector *pPath)
+{
+	this->field_12C->field_6E = 0;
+	this->field_12C->field_6F = 0;
+	CBody *target = static_cast<CBody*>(Mem_RecoverPointer(
+		reinterpret_cast<SHandle*>(&this->field_134)));
+	if (target)
+	{
+		if (target->mType != 50 && (target->mType == 401
+			? static_cast<i32>(static_cast<CManipOb*>(target)->TugImpulse(&this->field_114, &dir))
+			: static_cast<i32>(static_cast<CBaddy*>(target)->TugImpulse(&this->field_114, &dir, pPath))) != 0)
+		{
+			if (G_MECHLIST)
+				static_cast<CPlayer*>(G_MECHLIST)->SetFirstContactDetails();
+		}
+		else
+		{
+			this->BreakIntoBits();
+			return;
+		}
+	}
+	this->field_104 = 2;
+	print_if_false(this->field_12C != 0, "No line?");
+	i32 segments = this->field_12C->mNumSegs;
+	i32 count = segments + 1;
+	CVector *points = static_cast<CVector*>(Mem_New(sizeof(CVector) * count));
+	for (i32 i = 0; i <= segments; i++)
+		points[i] = i == 0 ? this->field_12C->mStart : this->field_12C->mSegs[i - 1].End;
+	this->field_130 = reinterpret_cast<i32>(new CChain(points, count,
+		(points[1] - points[0]).Length(), 24576, 2400, 2048));
+	Mem_Delete(points);
+	if (target)
+	{
+		print_if_false(G_MECHLIST != 0, "No Spidey?");
+		if (my_abs(G_MECHLIST->mPos.vy - target->mPos.vy) < 122880)
+			reinterpret_cast<CChain*>(this->field_130)->SetGroundY(G_MECHLIST->mPos.vy + 491520);
+	}
+}
+
 // @Ok
 // @Matching
 // Original 0x4F5E50. Unlink before freeing the web's effects.
