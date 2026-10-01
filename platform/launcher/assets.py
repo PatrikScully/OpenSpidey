@@ -185,3 +185,52 @@ def _source_state(path):
     return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
 
 
+def inspect_iso(iso_path):
+    path = Path(iso_path).expanduser().resolve()
+    try:
+        source = _source_state(path)
+        with path.open("rb") as stream:
+            entries, descriptor_hash = _scan_iso(stream, source["size"])
+            parents = set()
+            for key, entry in entries.items():
+                if not entry["directory"] and key.rsplit("/", 1)[-1] == "spideypc.exe":
+                    parents.add(key.rsplit("/", 1)[0] if "/" in key else "")
+            complete = []
+            for parent in sorted(parents):
+                candidate = {}
+                for name in REQUIRED_FILES:
+                    entry = entries.get((parent + "/" if parent else "") + name.casefold())
+                    if entry is None or entry["directory"]:
+                        break
+                    candidate[name] = entry
+                if len(candidate) == len(REQUIRED_FILES):
+                    complete.append(candidate)
+            if len(complete) != 1:
+                raise AssetError("The ISO must contain one complete Spider-Man PC installation "
+                                 "with SpideyPC.exe, data.pkr, media.pkr and texture.dat.")
+            files = complete[0]
+            for name, entry in files.items():
+                if entry["unsupported"]:
+                    raise AssetError("%s uses unsupported ISO storage." % name)
+                stream.seek(entry["offset"])
+                header = stream.read(min(entry["size"], 8))
+                digest = None
+                if name == "SpideyPC.exe":
+                    if entry["size"] > 16 * CHUNK_SIZE:
+                        raise AssetError("The PC executable is too large for this build.")
+                    stream.seek(entry["offset"])
+                    payload = stream.read(entry["size"])
+                    if len(payload) != entry["size"]:
+                        raise AssetError("The ISO executable is incomplete.")
+                    digest = hashlib.sha256(payload).hexdigest()
+                _validate_payload(name, header, entry["size"], digest)
+                if name.endswith(".pkr"):
+                    _validate_archive(stream, entry["offset"], entry["size"], name)
+        if _source_state(path) != source:
+            raise AssetError("The ISO changed while it was being checked. Try again.")
+        source["descriptors_sha256"] = descriptor_hash
+        return {"source": source, "files": files, "total_bytes": sum(item["size"] for item in files.values())}
+    except OSError as error:
+        raise AssetError("Cannot read the selected ISO: %s" % error) from error
+
+
