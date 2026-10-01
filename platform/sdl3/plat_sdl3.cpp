@@ -1053,9 +1053,14 @@ void Plat_SndSetPan(PlatSoundVoice* v, i32 hundredthsDb)
 
 void Plat_SndSetFrequency(PlatSoundVoice* v, i32 hz)
 {
+	SDL_LockMutex(gMixLock);
+	// DirectSound uses zero to restore the buffer's original sample rate.
+	if (hz == 0 && v->buf)
+		hz = v->buf->rate;
 	if (hz < 100) hz = 100;
 	if (hz > 200000) hz = 200000;
 	v->rate = hz;
+	SDL_UnlockMutex(gMixLock);
 }
 
 i32 Plat_SndGetFrequency(PlatSoundVoice* v)
