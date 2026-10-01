@@ -360,7 +360,7 @@ void PCTEX_Init(void)
 
 #if defined(_WIN32) || defined(SPIDEY_STANDALONE)
 	DDPIXELFORMAT v36[16];
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	G_D3DDEVICE7->EnumTextureFormats(enumPixelFormatsCB, v36);
 #else
 	// the four formats the platform layer accepts (PlatTexFormat order)
