@@ -324,3 +324,35 @@ def _import_lock(destination):
         os.close(descriptor)
 
 
+def _valid_cache(destination, info, progress, cancelled):
+    try:
+        manifest = json.loads((destination / MANIFEST_NAME).read_text(encoding="utf-8"))
+        if manifest.get("version") != 1 or manifest.get("source") != info["source"]:
+            return False
+        validate_game_dir(destination)
+        completed = 0
+        for name, entry in info["files"].items():
+            asset = destination / name
+            if asset.stat().st_size != entry["size"]:
+                return False
+            digest = hashlib.sha256()
+            with asset.open("rb") as stream:
+                while True:
+                    if cancelled and cancelled():
+                        raise ImportCancelled("Asset import cancelled.")
+                    block = stream.read(CHUNK_SIZE)
+                    if not block:
+                        break
+                    digest.update(block)
+                    completed += len(block)
+                    if progress:
+                        progress(completed, info["total_bytes"], "Checking " + name)
+            if digest.hexdigest() != manifest["sha256"][name]:
+                return False
+        return True
+    except ImportCancelled:
+        raise
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
