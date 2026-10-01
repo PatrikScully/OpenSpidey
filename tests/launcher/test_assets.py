@@ -72,3 +72,12 @@ def make_iso(path, joliet=False, names=None):
     return offsets
 
 
+class AssetTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="openspidey-assets-test-")
+        self.root = Path(self.temporary.name)
+        self.iso = self.root / "Spidey disc.iso"
+        self.destination = self.root / "game"
+        self.supported = mock.patch.object(assets, "SUPPORTED_EXE_SHA256", hashlib.sha256(EXE).hexdigest())
+        self.supported.start()
+
