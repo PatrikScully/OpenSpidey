@@ -1576,7 +1576,7 @@ void DXPOLY_Init(u32 a1)
 	gCurrentBlendMode = 0;
 	G_DD_SURFACE7 = 0;
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	G_D3DDEVICE7->SetRenderState(D3DRENDERSTATE_ANTIALIAS, 0);
 	G_D3DDEVICE7->SetRenderState((D3DRENDERSTATETYPE)4, 1);
 	G_D3DDEVICE7->SetRenderState((D3DRENDERSTATETYPE)7, gDxPolyRelated != 0);
