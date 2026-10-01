@@ -178,3 +178,10 @@ def _scan_iso(stream, image_size):
     return entries, descriptors.hexdigest()
 
 
+def _source_state(path):
+    stat = path.stat()
+    if not path.is_file():
+        raise AssetError("Choose an ISO file, not a folder.")
+    return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+
+
