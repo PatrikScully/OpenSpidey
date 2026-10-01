@@ -121,10 +121,6 @@ void PCMUSIC_Finish(void)
 	WinYield();
 }
 
-#ifdef SPIDEY_STANDALONE
-static i32 gStandaloneMusicPlaying;
-#endif
-
 // @Ok
 // @Matching
 i32 PCMUSIC_GetStatus(void)
@@ -271,7 +267,8 @@ void PCMUSIC_SetVolume(i32 vol)
 INLINE void PCMUSIC_Stop(void)
 {
 #ifdef SPIDEY_STANDALONE
-	gStandaloneMusicPlaying = 0;
+	Plat_MusicStop();
+	return;
 #endif
 	if (gPcMusicStatusThree)
 	{
