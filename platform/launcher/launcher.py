@@ -153,3 +153,9 @@ class SetupWindow:
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
+
+    def choice(self, page, row, text, variable, options):
+        self.ttk.Label(page, text=text).grid(row=row, column=0, sticky="w", padx=(0, 18), pady=10)
+        widget = self.ttk.Combobox(page, textvariable=variable, values=options, state="readonly", width=18)
+        widget.grid(row=row, column=1, sticky="ew", pady=10)
+        return widget
