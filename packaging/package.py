@@ -75,3 +75,94 @@ def linux_runtime(binary, output):
     (output / 'runtime-packages.json').write_text(json.dumps({'binary_packages': sorted(packages), 'source_packages': source_packages}, indent=2) + '\n')
 
 
+def package(args):
+    if args.output.exists():
+        raise RuntimeError('Choose a new output folder: ' + str(args.output))
+    work = args.output.parent / (args.output.name + '-build')
+    work.mkdir(parents=True, exist_ok=True)
+    subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--noupx',
+                    '--onedir', '--windowed', '--name', 'OpenSpidey',
+                    '--distpath', str(work / 'dist'), '--workpath', str(work / 'work'),
+                    '--specpath', str(work), str(ROOT / 'platform/launcher/launcher.py')], check=True)
+    shutil.copytree(work / 'dist/OpenSpidey', args.output, symlinks=True)
+    game_name = 'spider.exe' if args.platform == 'windows' else 'spider.bin'
+    copy_file(args.binary, args.output / game_name)
+    ffmpeg_name = 'ffmpeg.exe' if args.platform == 'windows' else 'ffmpeg'
+    copy_file(args.ffmpeg_prefix / 'bin' / ffmpeg_name, args.output / ffmpeg_name)
+    shutil.copytree(args.ffmpeg_prefix / 'share/openspidey/ffmpeg', args.output / 'licenses/ffmpeg', dirs_exist_ok=True)
+    copy_file(ROOT / 'packaging/THIRD_PARTY.md', args.output / 'licenses/THIRD_PARTY.md')
+    copy_file(ROOT / 'README.md', args.output / 'README.md')
+    copy_file(ROOT / 'packaging/QUICK_START.txt', args.output / 'START_HERE.txt')
+    if args.platform == 'windows':
+        copy_file(args.sdl_prefix / 'bin/SDL3.dll', args.output / 'SDL3.dll')
+        copy_file(args.sdl_prefix / 'share/licenses/SDL3/LICENSE.txt', args.output / 'licenses/SDL3.txt')
+        compiler = args.compiler
+        for name in ['libgcc_s_dw2-1.dll', 'libstdc++-6.dll', 'libwinpthread-1.dll', 'zlib1.dll']:
+            location = subprocess.check_output([compiler, '-print-file-name=' + name], text=True).strip()
+            if location == name:
+                location = str(Path(args.runtime_bin) / name)
+            if not Path(location).is_file():
+                raise RuntimeError('A Windows runtime dependency is missing: ' + name)
+            copy_file(location, args.output / name)
+        for name in ['gcc-libs', 'libgcc', 'libstdc++', 'winpthreads', 'zlib']:
+            location = Path(args.runtime_bin).parent / 'share/licenses' / name
+            if location.exists():
+                shutil.copytree(location, args.output / 'licenses' / name, dirs_exist_ok=True)
+        copy_file(args.output / 'OpenSpidey.exe', args.output / 'OpenSpidey Settings.exe')
+    else:
+        linux_runtime(args.binary, args.output)
+        wrapper = args.output / 'spider'
+        wrapper.write_text('''#!/bin/sh
+set -eu
+app_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ "$#" -eq 0 ] || [ "${1-}" = "--settings" ]; then
+    exec "$app_dir/OpenSpidey" "$@"
+fi
+export PATH="$app_dir:$PATH"
+export LIBGL_DRIVERS_PATH="$app_dir/runtime/lib32/dri"
+exec "$app_dir/runtime/ld-linux.so.2" --library-path "$app_dir/runtime/lib32:/usr/lib/i386-linux-gnu:/usr/lib32" "$app_dir/spider.bin" "$@"
+''')
+        wrapper.chmod(0o755)
+        copy_file(args.output / 'OpenSpidey', args.output / 'OpenSpidey-Settings')
+    for name in ['LICENSE.txt', 'LICENSE']:
+        location = Path(sys.base_prefix) / name
+        if location.is_file():
+            copy_file(location, args.output / 'licenses/Python.txt')
+            break
+    if args.platform == 'linux':
+        for package_name, license_name in [('python3.10', 'python3.10'), ('libtcl8.6', 'tcl8.6'), ('libtk8.6', 'tk8.6')]:
+            location = Path('/usr/share/doc') / package_name / 'copyright'
+            copy_file(location, args.output / 'licenses' / (license_name + '.txt'))
+    else:
+        copy_file(ROOT / 'packaging/licenses/Tcl.txt', args.output / 'licenses/tcl8.6.txt')
+        for name in ['tcl8.6', 'tk8.6']:
+            location = Path(sys.base_prefix) / 'tcl' / name / 'license.terms'
+            if location.is_file():
+                copy_file(location, args.output / 'licenses' / (name + '.txt'))
+    distribution = importlib.metadata.distribution('pyinstaller')
+    for name in distribution.files or []:
+        if str(name).endswith('COPYING.txt'):
+            copy_file(distribution.locate_file(name), args.output / 'licenses/PyInstaller.txt')
+    manifest = {'version': args.version, 'platform': args.platform, 'game_assets': False,
+                'runtime_dependencies': json.loads((ROOT / 'packaging/versions.json').read_text())}
+    (args.output / 'build-info.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    subprocess.run([sys.executable, str(ROOT / 'packaging/check_package.py'), str(args.output)], check=True)
+    forbidden = {'data.pkr', 'media.pkr', 'texture.dat', 'spideypc.exe'}
+    if any(path.name.lower() in forbidden for path in args.output.rglob('*')):
+        raise RuntimeError('The package contains game assets.')
+    print(args.output)
+
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--platform', choices=('linux', 'windows'), required=True)
+    parser.add_argument('--binary', type=Path, required=True)
+    parser.add_argument('--ffmpeg-prefix', type=Path, required=True)
+    parser.add_argument('--sdl-prefix', type=Path)
+    parser.add_argument('--runtime-bin', default='/mingw32/bin')
+    parser.add_argument('--compiler', default='g++')
+    parser.add_argument('--version', default='development')
+    parser.add_argument('--output', type=Path, required=True)
+    package(parser.parse_args())
