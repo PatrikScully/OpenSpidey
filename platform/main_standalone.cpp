@@ -44,11 +44,15 @@ static void onQuitSignal(int)
 #endif
 }
 
+// @Bogus
 int main(int argc, char** argv)
 {
 	setvbuf(stdout, 0, _IONBF, 0);   // logs survive a crash
+#ifndef _WIN32
 	signal(SIGQUIT, onQuitSignal);
 	prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);   // let gdb -p attach
+#endif
+	Launcher_Bootstrap(argc, argv);
 
 	const char* gameDir = argc > 1 ? argv[1] : getenv("SPIDEY_GAME_DIR");
 	if (gameDir && chdir(gameDir) != 0)
