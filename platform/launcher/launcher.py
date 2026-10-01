@@ -30,3 +30,26 @@ def find_binary(explicit=None):
             if candidate.is_file():
                 return candidate
     raise FileNotFoundError("The game executable is missing. Extract the complete OpenSpidey download into one folder.")
+
+def run_game(binary, settings, data_path):
+    directory = validate_game_dir(settings["game_dir"])
+    logs = Path(data_path) / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    log = logs / ("game-%s.log" % datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
+    env = game_environment(settings, binary)
+    frozen_windows = getattr(sys, "frozen", False) and os.name == "nt"
+    if frozen_windows:
+        import ctypes
+        ctypes.windll.kernel32.SetDllDirectoryW(None)
+    with log.open("w", encoding="utf-8") as output:
+        flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        try:
+            game = subprocess.Popen([str(binary), "."], cwd=directory, env=env,
+                                    stdout=output, stderr=subprocess.STDOUT, creationflags=flags)
+        finally:
+            if frozen_windows:
+                ctypes.windll.kernel32.SetDllDirectoryW(getattr(sys, "_MEIPASS", None))
+        result = game.wait()
+    if result:
+        raise RuntimeError("The game stopped unexpectedly (code %s).\n\nThe game log is saved here:\n%s" % (result, log))
+    return result
