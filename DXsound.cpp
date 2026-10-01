@@ -2320,7 +2320,7 @@ i32 DXSOUND_IsPlaying(i32 a1)
 // tried across two sessions without moving it.
 void DXSOUND_Load(char *groupName)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (!g_pDS)
 		return;
 
