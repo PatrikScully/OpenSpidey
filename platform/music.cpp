@@ -253,3 +253,14 @@ i32 Plat_MusicIsPlaying(void)
 	return active;
 }
 
+// @Bogus
+void Plat_MusicPause(i32 paused)
+{
+	pthread_mutex_lock(&gMusicLock);
+	gMusic.paused = paused != 0;
+	gMusic.lastDataAt = Plat_Ticks();
+	if (gMusic.active && gMusic.started)
+		Plat_MusicAudio(PLAT_MUSIC_AUDIO_PAUSE, 0, gMusic.paused);
+	pthread_mutex_unlock(&gMusicLock);
+}
+
