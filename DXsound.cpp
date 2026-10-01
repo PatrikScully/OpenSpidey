@@ -883,7 +883,7 @@ i32 DXINPUT_SetupForceFeedbackSineEffect(i32 magnitude, f32 period)
 // @Ok
 i32 DXINPUT_SetupKeyboard(i32 exclusive, i32 buffered)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	HRESULT hr = g_pDI->CreateDevice(GUID_SysKeyboard, &g_pKeyboard, NULL);
 	DI_ERROR_LOG_AND_QUIT(hr);
 
