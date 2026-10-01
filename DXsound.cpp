@@ -1289,7 +1289,7 @@ void DXPOLY_DrawPoly(
 // @Ok
 void DXPOLY_EnableTexAlpha(bool a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (a1 != gTexAlpha)
 	{
 		gTexAlpha = a1;
