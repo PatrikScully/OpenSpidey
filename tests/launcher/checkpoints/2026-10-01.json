@@ -1,0 +1,629 @@
+{
+  "schema": 1,
+  "date": "2026-10-01",
+  "kind": "Verified setup and packaged startup checkpoint; gameplay restoration remains unfinished",
+  "preview_version": "v0.0.3",
+  "source_revision_at_recording": "f384bb643180c4497cbe527f99a099250f7778bc",
+  "scope": "First-run import, saved setup, native display/audio preferences and bounded Linux/Windows startup",
+  "evidence_policy": "Only test metadata and file hashes are published here. Original game assets, screenshots and private machine paths are excluded.",
+  "checks": {
+    "linux_source_launcher": {
+      "status": "passed",
+      "python": "3.14.4",
+      "tests_ran": 18,
+      "tests_passed": 18,
+      "tests_skipped": 0,
+      "command": "python3 -m unittest discover -s tests/launcher -v",
+      "real_tk_widgets": true,
+      "real_iso_first_run": true,
+      "saved_start_skipped_setup": true,
+      "native_resolution": "1280x960",
+      "f12_launcher_exit": 0
+    },
+    "supported_iso_import": {
+      "status": "passed",
+      "environment": "Official Windows Python 3.12.10 under Wine 10.0",
+      "total_bytes": 458802004,
+      "progress_events": 441,
+      "sha256": {
+        "SpideyPC.exe": "0a11a49f3f63d4bb15650f322d654553fc47234b01885b852a058ff074689dea",
+        "data.pkr": "7b8a736e66de9bbd46ca72fb2e34f0d2d5e5883cfc8b99e4df6de2b5db1e27b5",
+        "media.pkr": "43d968e469bd011dc2588de908db8d5f5c4a387676b357df7744740f2ca54bee",
+        "texture.dat": "1b9adc8000913012c27a92d5423b1fcdbd95f9da590853a5cc6efca4b9a49399"
+      },
+      "unicode_destination": true,
+      "cache_reuse_preserves_save": true,
+      "copyrighted_files_published": false
+    },
+    "sdl_preferences": {
+      "status": "passed",
+      "fixture": "tests/platform/setup_sdl.cpp",
+      "environment": "SDL3, Xvfb with window manager, Mesa 26 llvmpipe, dummy audio",
+      "cases": [
+        {
+          "id": "windowed",
+          "exit_code": 0,
+          "requested_output": "1280x720",
+          "actual_mode": "windowed",
+          "actual_output": "1280x720",
+          "viewport": [
+            160,
+            0,
+            960,
+            720
+          ],
+          "resized_output": "640x360",
+          "resized_viewport": [
+            80,
+            0,
+            480,
+            360
+          ],
+          "actual_msaa": 4
+        },
+        {
+          "id": "borderless",
+          "exit_code": 0,
+          "actual_mode": "borderless",
+          "actual_output": "1920x1080",
+          "viewport": [
+            240,
+            0,
+            1440,
+            1080
+          ],
+          "actual_msaa": 4
+        },
+        {
+          "id": "exclusive",
+          "exit_code": 0,
+          "actual_mode": "fullscreen",
+          "actual_output": "1920x1080",
+          "viewport": [
+            240,
+            0,
+            1440,
+            1080
+          ],
+          "actual_msaa": 4
+        },
+        {
+          "id": "unsupported-exclusive",
+          "exit_code": 0,
+          "requested_mode": "fullscreen",
+          "requested_output": "1280x720",
+          "actual_mode": "borderless",
+          "actual_output": "1920x1080",
+          "viewport": [
+            240,
+            0,
+            1440,
+            1080
+          ],
+          "fallback_warning": true,
+          "actual_msaa": 4
+        },
+        {
+          "id": "unsupported-msaa",
+          "exit_code": 0,
+          "requested_msaa": 16,
+          "actual_msaa": 0,
+          "actual_mode": "windowed",
+          "actual_output": "1280x720",
+          "viewport": [
+            160,
+            0,
+            960,
+            720
+          ],
+          "resized_viewport": [
+            80,
+            0,
+            480,
+            360
+          ],
+          "fallback_warning": true
+        }
+      ],
+      "all_cases_verified": [
+        "Centered 4:3 scene viewport",
+        "Black border pixels",
+        "Logical 640x480 capture",
+        "Movie framebuffer pixels",
+        "Master/channel gain multiplication",
+        "Master mute on music and movie streams"
+      ],
+      "anisotropy_actual": 8,
+      "world_mipmaps_enabled": true,
+      "vsync": {
+        "requested_values": [
+          0,
+          1
+        ],
+        "actual": 0,
+        "driver_reported_unsupported": true,
+        "supported_physical_vsync_verified": false
+      },
+      "audio_gain_samples": {
+        "master_percent": 40,
+        "sfx_percent": 25,
+        "music_percent": 50,
+        "effects_stream": 0.1,
+        "music_stream": 0.2,
+        "movie_stream": 0.4
+      },
+      "audible_output_verified": false
+    },
+    "linux_frozen_package": {
+      "status": "passed",
+      "version": "v0.0.3",
+      "environment": {
+        "distribution": "Ubuntu 22.04 amd64",
+        "glibc": "2.35",
+        "host_libraries": "64-bit X11 and font libraries",
+        "host_python": false,
+        "host_tk": false,
+        "host_32_bit_runtime": false,
+        "display": "Xvfb",
+        "audio": "dummy",
+        "renderer": "Mesa 23.2.1 llvmpipe, LLVM 15.0.7"
+      },
+      "package_check": "passed",
+      "game_elf_bits": 32,
+      "launcher_elf_bits": 64,
+      "settings_elf_bits": 64,
+      "all_required_runtime_licenses": true,
+      "bink_decoder_source_included": true,
+      "game_assets_bundled": false,
+      "bundled_loader_and_matching_dri_used": true,
+      "first_run_gui": "passed",
+      "settings_shortcut": "passed",
+      "saved_autostart": "passed",
+      "menu_difficulty_level_1": "passed",
+      "resolution": "800x600",
+      "msaa": 0,
+      "anisotropy": 8,
+      "mipmaps": true,
+      "movies": "skipped",
+      "f12_launcher_exit": 0,
+      "artifacts_sha256": {
+        "launcher": "cff583acd0b0b1e6526a6080d43412c558086e31010a6f9dd59e102d038054e8",
+        "game": "f93cff0e0b2077515b87206ab6cd0df65e0b6cf789eb08f38d48de92f6a65f65"
+      },
+      "harness_notes": "An earlier capture run intentionally stopped its container with code 137. The final bounded run exited naturally through F12 with code 0."
+    },
+    "windows_frozen_package": {
+      "status": "passed_under_wine",
+      "environment": {
+        "host": "Linux x86_64",
+        "compatibility": "wine-10.0 (Ubuntu 10.0~repack-12ubuntu1)",
+        "isolated_prefix": true,
+        "display": "Xvfb 1280x960",
+        "python": "3.12.10 AMD64 official installer",
+        "pyinstaller": "6.22.3",
+        "launcher": "Windows x86_64 frozen onedir/windowed",
+        "game": "MinGW Windows i686 native SDL3"
+      },
+      "artifacts_sha256": {
+        "frozen_exe_sha256": "50482714e50c1d9be2f1a318238107f865795d77dc5ac012b4db4ffdcaec21a9",
+        "game_sha256": "f6505c649399eb4a582c0f94f6fd4b7565e6623725c467854d36e14991504c49",
+        "launcher_source_sha256": "ae2d6faadd8a3cf24dfb27b05b73276349e3fe1c3eee290cb2be93fb38846280"
+      },
+      "source_tests": {
+        "ran": 18,
+        "passed": 17,
+        "skipped": 1,
+        "skip_reason": "POSIX executable fixture"
+      },
+      "native_save_fixture": {
+        "status": "passed",
+        "round_trip_bytes": 512,
+        "ascii_cwd": true,
+        "accent_chinese_emoji_cwd": true,
+        "callbacks_and_error_returns": true
+      },
+      "frozen_first_run_gui": {
+        "status": "passed",
+        "native_iso_dialog": true,
+        "pages": [
+          "Game files",
+          "Video",
+          "Sound",
+          "Controls"
+        ],
+        "chosen_settings": {
+          "resolution": "800x600",
+          "msaa": 0,
+          "master_volume": 0
+        }
+      },
+      "settings_shortcut": {
+        "status": "passed",
+        "reopens_saved_video_preferences": true
+      },
+      "saved_autostart": {
+        "status": "passed",
+        "no_setup_window": true,
+        "unicode_cache_cwd": true,
+        "child_argument": ".",
+        "movies_rendered": true,
+        "latest_frozen_package_retested": true
+      },
+      "escape_movie": {
+        "status": "passed",
+        "via_windows_keyboard_event": true
+      },
+      "error_handling": {
+        "missing_executable_dialog": "passed",
+        "native_crash_dialog_and_log_path": "passed"
+      },
+      "main_menu": {
+        "status": "passed",
+        "previous_constructor_fault": "Fixed after comparison with the original face-record stride.",
+        "animated_preview": true,
+        "latest_game_sha256": "f6505c649399eb4a582c0f94f6fd4b7565e6623725c467854d36e14991504c49"
+      },
+      "level_1_route": {
+        "status": "passed",
+        "route": [
+          "Title",
+          "New Game",
+          "Normal",
+          "Intro movie",
+          "Level 1 rooftop"
+        ],
+        "rooftop_player_hud": true,
+        "unicode_asset_cache": true
+      },
+      "bounded_input": {
+        "status": "passed_smoke_only",
+        "movement_observed": true,
+        "left_and_right_mouse_input_delivered": true,
+        "no_game_fault": true,
+        "enemy_hit_or_web_ball_visibility": "not verified",
+        "final_run_launcher_exit": 0,
+        "trace_animation_changes_observed": true,
+        "visible_punch_pose": true
+      },
+      "black_cat_trace": {
+        "status": "observed_in_trace",
+        "cat_state_reports": 14,
+        "player_scene_animation_ids": [
+          33,
+          34,
+          35,
+          36
+        ],
+        "full_visual_animation_comparison": "not performed in this launcher check"
+      },
+      "f12_exit": {
+        "status": "passed",
+        "launcher_exit": 0,
+        "final_gameplay_run_seconds": 162.98
+      },
+      "physical_windows_verified": false,
+      "harness_notes": [
+        "First gameplay monitor reached its 240 second bound and terminated the launcher. The native game stayed responsive and was closed with F12. A shorter follow-up run records the final supervisor exit.",
+        "The follow-up run completed normally with F12 and launcher exit 0 in 162.98 seconds."
+      ],
+      "source_test_follow_up": "Hosted Windows CI exposed a short-path temporary-directory alias in two test expectations. The expectations now resolve their fixture paths, matching existing production canonicalization; no tests were removed. The repeated hosted result is checked separately."
+    },
+    "original_binary_comparisons": {
+      "status": "preserved",
+      "method": "Clean MSVC6 DLL builds and cmpsum against tools/functions original bytes",
+      "native_branch_functions_compared": 45,
+      "functions": [
+        {
+          "function": "DXINPUT_PollController",
+          "original_address": "0x501e50",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_PollKeyboard",
+          "original_address": "0x501b80",
+          "mnemonic_diffs_before": 20,
+          "mnemonic_diffs_after": 20
+        },
+        {
+          "function": "DXINPUT_PollMouse",
+          "original_address": "0x501cc0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_Release",
+          "original_address": "0x501440",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_SetupController",
+          "original_address": "0x501890",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_SetupForceFeedbackSineEffect",
+          "original_address": "0x501fc0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_SetupKeyboard",
+          "original_address": "0x501590",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_SetupMouse",
+          "original_address": "0x501710",
+          "mnemonic_diffs_before": 40,
+          "mnemonic_diffs_after": 40
+        },
+        {
+          "function": "DXINPUT_StartForceFeedbackEffect",
+          "original_address": "0x5021a0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINPUT_StopForceFeedbackEffect",
+          "original_address": "0x5021e0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXPOLY_BeginScene",
+          "original_address": "0x5027b0",
+          "mnemonic_diffs_before": 83,
+          "mnemonic_diffs_after": 83
+        },
+        {
+          "function": "DXPOLY_DrawPoly",
+          "original_address": "0x503100",
+          "mnemonic_diffs_before": 201,
+          "mnemonic_diffs_after": 201
+        },
+        {
+          "function": "DXPOLY_EndScene",
+          "original_address": "0x502a40",
+          "mnemonic_diffs_before": 220,
+          "mnemonic_diffs_after": 220
+        },
+        {
+          "function": "DXPOLY_Flip",
+          "original_address": "0x502990",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXPOLY_Init",
+          "original_address": "0x502220",
+          "mnemonic_diffs_before": 395,
+          "mnemonic_diffs_after": 395
+        },
+        {
+          "function": "DXPOLY_SaveScreen",
+          "original_address": "0x5033e0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXPOLY_SetBlendMode",
+          "original_address": "0x502d60",
+          "mnemonic_diffs_before": 78,
+          "mnemonic_diffs_after": 78
+        },
+        {
+          "function": "DXPOLY_SetDepthCompare",
+          "original_address": "0x502fb0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXPOLY_SetDepthWriting",
+          "original_address": "0x503070",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXPOLY_SetFilterMode",
+          "original_address": "0x502ec0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXPOLY_SetTexture",
+          "original_address": "0x502f30",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_Close",
+          "original_address": "0x5041c0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_Init",
+          "original_address": "0x5039f0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_IsPlaying",
+          "original_address": "0x504420",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_Load",
+          "original_address": "0x503b40",
+          "mnemonic_diffs_before": 238,
+          "mnemonic_diffs_after": 238
+        },
+        {
+          "function": "DXSOUND_Open",
+          "original_address": "0x504110",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_Play",
+          "original_address": "0x504230",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_SetPan",
+          "original_address": "0x504350",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_SetPitch",
+          "original_address": "0x5043b0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_SetVolume",
+          "original_address": "0x5042f0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_ShutDown",
+          "original_address": "0x503af0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_Stop",
+          "original_address": "0x5042a0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXSOUND_Unload",
+          "original_address": "0x504050",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "PCTEX_Init",
+          "original_address": "0x5101b0",
+          "mnemonic_diffs_before": 89,
+          "mnemonic_diffs_after": 89
+        },
+        {
+          "function": "PCTex_InitSystemTextures",
+          "original_address": "0x50f040",
+          "mnemonic_diffs_before": 3,
+          "mnemonic_diffs_after": 3
+        },
+        {
+          "function": "PCTex_ReleaseSysTexture",
+          "original_address": "0x50f230",
+          "mnemonic_diffs_before": 37,
+          "mnemonic_diffs_after": 37
+        },
+        {
+          "function": "PCTex_UpdateForSoftwareRenderer",
+          "original_address": "0x510770",
+          "mnemonic_diffs_before": 3,
+          "mnemonic_diffs_after": 3
+        },
+        {
+          "function": "PCTex_CreateTexturePVRInId",
+          "original_address": "0x50f6d0",
+          "mnemonic_diffs_before": 599,
+          "mnemonic_diffs_after": 599
+        },
+        {
+          "function": "WinYield",
+          "original_address": "0x515480",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "DXINIT_SetDisplayOptions",
+          "original_address": "0x500250",
+          "mnemonic_diffs_before": 6,
+          "mnemonic_diffs_after": 6
+        },
+        {
+          "function": "shutdownDirect3D7",
+          "original_address": "0x4fd850",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "shutdownDirectSound8",
+          "original_address": "0x5000f0",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "PCMOVIE_Init",
+          "original_address": "0x50b0f0",
+          "mnemonic_diffs_before": 10,
+          "mnemonic_diffs_after": 10
+        },
+        {
+          "function": "buInit",
+          "original_address": "0x504660",
+          "mnemonic_diffs_before": 0,
+          "mnemonic_diffs_after": 0
+        },
+        {
+          "function": "PCMUSIC_Init",
+          "original_address": "0x50b990",
+          "mnemonic_diffs_before": 8,
+          "mnemonic_diffs_after": 8
+        }
+      ],
+      "inline_helpers_checked_via_container_and_phase1_text": [
+        "DXPOLY_EnableTexAlpha",
+        "DXPOLY_SetAddressUAndV",
+        "renderScene"
+      ],
+      "native_branch_phase1_text_before_after": "byte identical",
+      "native_branch_phase1_text_sha256": "438d03779e120b249f44d34ce1eb7bc35bfab2a4313654c273e5a96a123f8f18",
+      "byte_identity_scope": "Native Windows branch and setup guards, before the separate CDummy correction; this does not assert byte identity of the final entire DLL.",
+      "menu_model_correction": {
+        "function": "CDummy::CDummy",
+        "original_address": "0x490df0",
+        "original_stride_instruction": "0x490fae",
+        "correction": "Advance compressed face records in DWORD units using the original stride.",
+        "mnemonic_diffs_before": 326,
+        "mnemonic_diffs_after": 326,
+        "matching_claim": false
+      },
+      "interpretation": "Existing nonzero comparison counts were preserved. This checkpoint does not claim these functions all match the original."
+    },
+    "release_version_gate": {
+      "status": "passed",
+      "current_tag": "v0.0.3",
+      "current_tag_exit": 0,
+      "unprepared_future_tag": "v0.0.4",
+      "unprepared_future_tag_exit": 1,
+      "command": "python3 packaging/release_notes.py VERSION",
+      "required": "Matching release notes and changelog before a new version tag",
+      "release_status": "preview",
+      "public_tag_ci_result": "not part of this local checkpoint"
+    }
+  },
+  "limits": [
+    "Windows GUI and native game checks ran under Wine on Linux, not on a physical Windows host.",
+    "Menu-to-level-1 routes are bounded smoke coverage, not completed missions or campaign validation.",
+    "Windows movement and attack-button delivery changed animations without a fault; enemy hits and web-ball visibility were not verified in this launcher run.",
+    "The Black Cat scene produced CAT/player animation traces; a full visual comparison with the original was not performed in this launcher check.",
+    "Audio preference tests inspect actual SDL gains using dummy audio. Audible output, physical device changes and long-term synchronization require separate checks.",
+    "Xvfb did not support changing swap interval; physical vsync and high-DPI desktop behavior need device testing.",
+    "New preview publication and both hosted CI builds must be checked separately after the approved tag workflow runs."
+  ],
+  "follow_up_scenarios": "tests/launcher/scenarios.json",
+  "existing_gameplay_checkpoint": "tests/gameplay/checkpoints/2026-10-01.json"
+}
