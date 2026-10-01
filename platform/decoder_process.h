@@ -187,4 +187,35 @@ static i32 Plat_DecoderStart(PlatDecoder* decoder, const char* const* args)
 	return 1;
 }
 
+// @Bogus
+static i32 Plat_DecoderRead(PlatDecoder* decoder, void* data, u32 size)
+{
+#ifdef _WIN32
+	DWORD available = 0;
+	if (!PeekNamedPipe(decoder->fd, 0, 0, 0, &available, 0))
+	{
+		if (GetLastError() == ERROR_BROKEN_PIPE)
+			return 0;
+		errno = EIO;
+		return -1;
+	}
+	if (!available)
+	{
+		if (WaitForSingleObject(decoder->pid, 0) == WAIT_OBJECT_0)
+			return 0;
+		errno = EAGAIN;
+		return -1;
+	}
+	DWORD count = 0;
+	if (!ReadFile(decoder->fd, data, size < available ? size : available, &count, 0))
+	{
+		errno = EIO;
+		return -1;
+	}
+	return count;
+#else
+	return read(decoder->fd, data, size);
+#endif
+}
+
 #endif
