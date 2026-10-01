@@ -1,4 +1,5 @@
 #include "../plat.h"
+#include "audio_settings.h"
 #include <SDL3/SDL.h>
 
 // @Bogus
@@ -18,6 +19,8 @@ i32 Plat_MusicAudio(PlatMusicAudioOp op, const void* pcm, i32 value)
 			SDL_DestroyAudioStream(stream);
 		SDL_AudioSpec spec = { SDL_AUDIO_S16, 2, 44100 };
 		stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, 0, 0);
+		if (stream)
+			SDL_SetAudioStreamGain(stream, Plat_AudioGain("SPIDEY_MUSIC_VOLUME"));
 		return stream != 0;
 	}
 	if (!stream)
@@ -33,7 +36,7 @@ i32 Plat_MusicAudio(PlatMusicAudioOp op, const void* pcm, i32 value)
 		case PLAT_MUSIC_AUDIO_PAUSE:
 			return value ? SDL_PauseAudioStreamDevice(stream) : SDL_ResumeAudioStreamDevice(stream);
 		case PLAT_MUSIC_AUDIO_VOLUME:
-			return SDL_SetAudioStreamGain(stream, value / 32768.0f);
+			return SDL_SetAudioStreamGain(stream, value / 32768.0f * Plat_AudioGain("SPIDEY_MUSIC_VOLUME"));
 		case PLAT_MUSIC_AUDIO_FLUSH:
 			return SDL_FlushAudioStream(stream);
 		default:
