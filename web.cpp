@@ -1992,6 +1992,35 @@ CImpactWeb::CImpactWeb(
 }
 
 // @Ok
+// @Matching
+// Original 0x4F9790. The web ball impact ring uses animation 9, frame 1.
+CImpactRing::CImpactRing(const CVector &pos, u8 red, u8 green, u8 blue,
+        i32 size, i32 growRate)
+{
+    this->mPos = pos;
+    this->mTargetScale = size;
+    this->mGrowRate = growRate;
+    print_if_false(growRate != 0, "Zero GrowRate sent to CImpactRing");
+    i32 frames = size / growRate;
+    if (growRate * frames < size)
+        frames++;
+    print_if_false(frames != 0, "Zero n");
+    i32 largest = red;
+    if (green > largest)
+        largest = green;
+    if (blue > largest)
+        largest = blue;
+    this->mColorDecay = largest / frames;
+    this->SetTint(red, green, blue);
+    this->mFrigDeltaZ = 100;
+    this->mPostScale = 0x0A001000;
+    this->SetAnim(9);
+    this->SetFrame(1);
+    this->SetSemiTransparent();
+    this->mScale = 0;
+}
+
+// @Ok
 // 0x4FAD50, 205 bytes. Called by CPlayer::PriorToVenomDistanceAttack. Pops
 // the dome: a web dome (field_104 == 0) shatters the item it trapped, then
 // the dome switches to mode 3, spawns the shockwave and the ring, and dies.
