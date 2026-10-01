@@ -1,0 +1,14 @@
+.git
+.gitignore
+.ida-mcp
+.pi
+out
+out-*
+Release
+Debug
+build.log
+__pycache__
+*.pkr
+*.iso
+*.bik
+SpideyPC.exe

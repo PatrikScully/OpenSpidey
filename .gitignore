@@ -15,3 +15,12 @@ tags
 *.vpw
 *.vtg
 *.md
+__pycache__/
+*.pyc
+
+# Public setup and release helpers.
+!/packaging/*.sh
+!/packaging/*.md
+!/docs/*.md
+!/CHANGELOG.md
+!/CONTRIBUTING.md

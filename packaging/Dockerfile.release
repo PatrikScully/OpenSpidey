@@ -1,0 +1,51 @@
+# Release builds use an older glibc for wider desktop support.
+FROM ubuntu:22.04 AS app
+ENV DEBIAN_FRONTEND=noninteractive
+RUN dpkg --add-architecture i386 \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+    ca-certificates g++ g++-multilib cmake make pkg-config xz-utils \
+    python3 python3-tk python3-pip python3-venv pax-utils \
+    libx11-dev:i386 libxext-dev:i386 libxcursor-dev:i386 libxi-dev:i386 \
+    libxrandr-dev:i386 libxss-dev:i386 libxfixes-dev:i386 \
+    libpulse-dev:i386 libasound2-dev:i386 libudev-dev:i386 \
+    libgl1-mesa-dev:i386 libgl1-mesa-dri:i386 libglx-mesa0:i386 \
+ && rm -rf /var/lib/apt/lists/*
+COPY packaging/versions.json packaging/download.py /build/packaging/
+RUN python3 /build/packaging/download.py sdl /build/downloads \
+ && tar -xf /build/downloads/SDL3-3.4.16.tar.gz -C /build \
+ && cmake -S /build/SDL3-3.4.16 -B /build/sdl \
+    -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib/i386-linux-gnu \
+    -DSDL_WAYLAND=OFF -DSDL_X11_XTEST=OFF -DSDL_SHARED=ON -DSDL_STATIC=OFF \
+ && cmake --build /build/sdl -j8 \
+ && cmake --install /build/sdl
+COPY packaging/build_ffmpeg.sh /build/packaging/
+RUN bash /build/packaging/build_ffmpeg.sh /build/ffmpeg /build/ffmpeg-install linux
+RUN python3 -m venv /build/python \
+ && /build/python/bin/pip install --no-cache-dir PyInstaller==6.22.3
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libpython3.10 \
+ && rm -rf /var/lib/apt/lists/*
+COPY . /src
+WORKDIR /src
+RUN cmake -S /src -B /build/game -DSPIDEY_STANDALONE=ON \
+    -DSPIDEY_BACKEND=sdl3 -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+ && cmake --build /build/game -j8
+ARG BUILD_VERSION=development
+RUN python3 -c "import os; from pathlib import Path; Path('/src/platform/launcher/_version.py').write_text('VERSION = ' + repr(os.environ['BUILD_VERSION'].lstrip('v')) + '\\n')"
+RUN /build/python/bin/python packaging/package.py --platform linux \
+    --binary /build/game/spider --ffmpeg-prefix /build/ffmpeg-install \
+    --version "$BUILD_VERSION" --output /out/openspidey-linux-x86_64 \
+ && cp /build/SDL3-3.4.16/LICENSE.txt /out/openspidey-linux-x86_64/licenses/SDL3.txt
+# Keep the corresponding runtime sources separate from the playable download.
+FROM app AS release
+RUN sed -n 's/^deb /deb-src /p' /etc/apt/sources.list >> /etc/apt/sources.list \
+ && apt-get update \
+ && mkdir /out/runtime-sources \
+ && mkdir /build/runtime-sources
+RUN --mount=type=cache,target=/build/runtime-sources \
+    cd /build/runtime-sources \
+ && python3 /src/packaging/runtime_sources.py /out/openspidey-linux-x86_64/runtime-packages.json \
+ && cp /build/runtime-sources/* /out/runtime-sources/
