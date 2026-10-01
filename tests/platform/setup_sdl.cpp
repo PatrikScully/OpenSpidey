@@ -21,3 +21,6 @@ void Plat_MusicStop(void) {}
 
 // @Bogus
 void Plat_MovieStop(void) {}
+
+// @Bogus
+extern "C" void __wrap__Z12Plat_GfxFlipv(void) {}
