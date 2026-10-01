@@ -246,6 +246,13 @@ u8 PCMUSIC_Play(i32 a1)
 // @Matching
 void PCMUSIC_SetVolume(i32 vol)
 {
+#ifdef SPIDEY_STANDALONE
+	if (vol < -179)
+		vol = -179;
+	f32 volume = static_cast<f32>(vol);
+	Plat_MusicSetVolume(static_cast<i32>(((volume + 179.0) / 179.0 * 49152.0)));
+	return;
+#endif
 	if (g_pDS)
 	{
 		if (vol < -179)
