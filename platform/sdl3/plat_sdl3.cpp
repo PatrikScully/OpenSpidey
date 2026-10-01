@@ -51,9 +51,6 @@ typedef void (APIENTRY *GenerateMipmapProc)(GLenum);
 static GenerateMipmapProc gGenerateMipmap;
 static i32 gWidth = 640, gHeight = 480;
 static i32 gViewportX, gViewportY, gViewportWidth = 640, gViewportHeight = 480;
-// Window scale: the game renders in 640x480 units, the window is this many
-// times bigger (SPIDEY_SCALE, default 2, 1 in fullscreen).
-static i32 gScale = 1;
 static i32 gQuit;
 
 // @Bogus
@@ -707,29 +704,33 @@ void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
 	glEnd();
 }
 
+// @Bogus
 i32 Plat_GfxReadPixels(u8* dst, i32 width, i32 height)
 {
-	if (width != gWidth || height != gHeight)
+	if (!dst || width != gWidth || height != gHeight)
 		return 0;
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	if (gScale == 1)
+	if (gViewportWidth == width && gViewportHeight == height)
 	{
-		glReadPixels(0, 0, width, height, GL_BGR, GL_UNSIGNED_BYTE, dst);
+		glReadPixels(gViewportX, gViewportY, width, height, GL_BGR, GL_UNSIGNED_BYTE, dst);
 	}
 	else
 	{
-		// scaled window: read the whole framebuffer and pick every gScale-th pixel
-		i32 fw = width * gScale, fh = height * gScale;
+		i32 fw = gViewportWidth, fh = gViewportHeight;
 		u8* big = (u8*)malloc(fw * fh * 3);
-		glReadPixels(0, 0, fw, fh, GL_BGR, GL_UNSIGNED_BYTE, big);
+		if (!big)
+			return 0;
+		glReadPixels(gViewportX, gViewportY, fw, fh, GL_BGR, GL_UNSIGNED_BYTE, big);
 		for (i32 y = 0; y < height; y++)
 			for (i32 x = 0; x < width; x++)
-				memcpy(dst + (y * width + x) * 3, big + (y * gScale * fw + x * gScale) * 3, 3);
+				memcpy(dst + (y * width + x) * 3, big + ((y * fh / height) * fw + x * fw / width) * 3, 3);
 		free(big);
 	}
 	// GL rows are bottom up, the caller wants top down
 	i32 rowBytes = width * 3;
 	u8* tmp = (u8*)malloc(rowBytes);
+	if (!tmp)
+		return 0;
 	for (i32 y = 0; y < height / 2; y++)
 	{
 		memcpy(tmp, dst + y * rowBytes, rowBytes);
