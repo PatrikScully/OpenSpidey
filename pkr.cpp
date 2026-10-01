@@ -281,7 +281,7 @@ u32 gsub_517FB6(u8* buf, i32 len)
 }
 #endif
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 // @Bogus
 __declspec(naked) u8* gsub_51AC61(NODE_FILEINFO*, u8*, i32)
 {
