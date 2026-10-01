@@ -28,12 +28,18 @@ asm(".section .exemem,\"b\"\n.balign 4096\n.globl _spideyExeData\n_spideyExeData
 static i32 gExeMemSeeded = 0;
 static i32 gExeMemMapped = 0;
 
-#ifndef _WIN32
 // Static initializers already read exe addresses (PCGfx.cpp: "i32 x =
 // G_GAME_RESOLUTION_X;"), so the block has to exist before main. glibc
 // passes argc/argv to constructors; priority 101 runs before the
 // compiler-generated ones. Same argument handling as main_standalone.cpp.
+// @Bogus
 __attribute__((constructor(101)))
+#ifdef _WIN32
+static void exeMemEarlyInit(void)
+{
+	int argc = __argc;
+	char** argv = __argv;
+#else
 static void exeMemEarlyInit(int argc, char** argv)
 {
 	// The PSX heritage masks pointers with 0x7FFFFFFF (db.cpp: G_PPOLY =
@@ -43,15 +49,17 @@ static void exeMemEarlyInit(int argc, char** argv)
 	// (which grows from right after the binary, far below 2 GB).
 	mallopt(M_MMAP_MAX, 0);
 	mallopt(M_TRIM_THRESHOLD, -1);
+#endif
+	Launcher_Bootstrap(argc, argv);
 
 	const char* gameDir = argc > 1 ? argv[1] : getenv("SPIDEY_GAME_DIR");
 	if (gameDir && chdir(gameDir) != 0)
 		perror(gameDir);
 
 	const char* exe = getenv("SPIDEY_EXE");
-	ExeMem_Init(exe ? exe : "SpideyPC.exe");
+	if (!ExeMem_Init(exe ? exe : "SpideyPC.exe"))
+		exit(1);
 }
-#endif
 
 // Minimal PE section reader. Only needs the three fields per section that
 // matter for copying the initialized bytes to their virtual address.
