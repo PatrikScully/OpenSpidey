@@ -41,3 +41,36 @@ def _validate_payload(name, header, size, digest=None):
         raise AssetError("texture.dat is missing or damaged.")
 
 
+def _validate_archive(stream, offset, size, name):
+    stream.seek(offset)
+    header = stream.read(8)
+    _validate_payload(name, header, size)
+    directory = struct.unpack_from("<I", header, 4)[0]
+    stream.seek(offset + directory)
+    footer = stream.read(12)
+    if len(footer) != 12:
+        raise AssetError("%s has an incomplete archive index." % name)
+    unused_alignment, directories, files = struct.unpack("<III", footer)
+    if not 1 <= directories <= 16384 or not 1 <= files <= 100000:
+        raise AssetError("%s has invalid archive counts." % name)
+    index_size = 12 + directories * 40 + files * 52
+    if index_size > size - directory:
+        raise AssetError("%s has an incomplete archive index." % name)
+    total_files = 0
+    for unused in range(directories):
+        record = stream.read(40)
+        start, count = struct.unpack_from("<II", record, 32)
+        if b"\x00" not in record[:32] or start != total_files or count > files - total_files:
+            raise AssetError("%s has a damaged directory index." % name)
+        total_files += count
+    if total_files != files:
+        raise AssetError("%s has inconsistent archive counts." % name)
+    for unused in range(files):
+        record = stream.read(52)
+        method, position, expanded, compressed = struct.unpack_from("<IIII", record, 36)
+        if (b"\x00" not in record[:32] or method not in (0, 1, 2, 3, 0xFFFFFFFE)
+                or position < 8 or position > directory or compressed > directory - position
+                or compressed == 0 or expanded == 0):
+            raise AssetError("%s has an invalid asset entry." % name)
+
+
