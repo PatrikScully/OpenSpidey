@@ -6,7 +6,7 @@ import struct
 
 root = Path(sys.argv[1])
 info = json.loads((root / 'build-info.json').read_text())
-required = ['_internal/_tcl_data/init.tcl', '_internal/_tk_data/tk.tcl', 'START_HERE.txt', 'README.md', 'licenses/THIRD_PARTY.md', 'licenses/ffmpeg/ffmpeg-8.0.1.tar.xz', 'licenses/tcl8.6.txt', 'licenses/tk8.6.txt', 'licenses/PyInstaller.txt', '_internal']
+required = ['_internal/_tcl_data/init.tcl', '_internal/_tk_data/tk.tcl', 'START_HERE.txt', 'README.md', 'licenses/THIRD_PARTY.md', 'licenses/ffmpeg/ffmpeg-8.0.1.tar.xz', 'licenses/ffmpeg/COPYING.LGPLv2.1', 'licenses/SDL3.txt', 'licenses/tcl8.6.txt', 'licenses/tk8.6.txt', 'licenses/PyInstaller.txt', '_internal']
 if info['platform'] == 'windows':
     required += ['OpenSpidey.exe', 'OpenSpidey Settings.exe', 'spider.exe', 'SDL3.dll', 'ffmpeg.exe', 'libwinpthread-1.dll', 'libstdc++-6.dll', 'libgcc_s_dw2-1.dll', 'zlib1.dll']
 else:

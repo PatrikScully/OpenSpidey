@@ -37,8 +37,8 @@ ARG BUILD_VERSION=development
 RUN python3 -c "import os; from pathlib import Path; Path('/src/platform/launcher/_version.py').write_text('VERSION = ' + repr(os.environ['BUILD_VERSION'].lstrip('v')) + '\\n')"
 RUN /build/python/bin/python packaging/package.py --platform linux \
     --binary /build/game/spider --ffmpeg-prefix /build/ffmpeg-install \
-    --version "$BUILD_VERSION" --output /out/openspidey-linux-x86_64 \
- && cp /build/SDL3-3.4.16/LICENSE.txt /out/openspidey-linux-x86_64/licenses/SDL3.txt
+    --sdl-license /build/SDL3-3.4.16/LICENSE.txt \
+    --version "$BUILD_VERSION" --output /out/openspidey-linux-x86_64
 # Keep the corresponding runtime sources separate from the playable download.
 FROM app AS release
 RUN sed -n 's/^deb /deb-src /p' /etc/apt/sources.list >> /etc/apt/sources.list \

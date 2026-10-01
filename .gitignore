@@ -17,6 +17,7 @@ tags
 *.md
 __pycache__/
 *.pyc
+/platform/launcher/_version.py
 
 # Public setup and release helpers.
 !/packaging/*.sh

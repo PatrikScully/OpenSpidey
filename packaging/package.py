@@ -113,6 +113,7 @@ def package(args):
         copy_file(args.output / 'OpenSpidey.exe', args.output / 'OpenSpidey Settings.exe')
     else:
         linux_runtime(args.binary, args.output)
+        copy_file(args.sdl_license, args.output / 'licenses/SDL3.txt')
         wrapper = args.output / 'spider'
         wrapper.write_text('''#!/bin/sh
 set -eu
@@ -163,6 +164,7 @@ if __name__ == '__main__':
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--ffmpeg-prefix', type=Path, required=True)
     parser.add_argument('--sdl-prefix', type=Path)
+    parser.add_argument('--sdl-license', type=Path)
     parser.add_argument('--runtime-bin', default='/mingw32/bin')
     parser.add_argument('--compiler', default='g++')
     parser.add_argument('--version', default='development')
