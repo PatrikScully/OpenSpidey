@@ -180,3 +180,14 @@ class SetupWindow:
         self.ttk.Label(page, text="Antialiasing: 0 = off, 2 / 4 / 8 = samples.\nTexture filtering: 1 = standard, higher values sharpen distant textures.", style="Hint.TLabel", wraplength=530).grid(row=6, column=0, columnspan=2, sticky="w", pady=10)
         self.ttk.Checkbutton(page, text="Smooth distant textures", variable=self.vars["mipmaps"]).grid(row=7, column=0, columnspan=2, sticky="w", pady=7)
         self.ttk.Checkbutton(page, text="VSync (reduce screen tearing)", variable=self.vars["vsync"]).grid(row=8, column=0, columnspan=2, sticky="w", pady=7)
+
+    def build_sound(self):
+        page = self.pages["Sound"]
+        self.heading(page, "Every quip. Every swing.", "Set the overall volume and balance the original music, voices and sound effects.")
+        for row, (key, label) in enumerate((("master_volume", "Master volume"), ("music_volume", "Music and voices"), ("sfx_volume", "Sound effects")), 2):
+            self.ttk.Label(page, text=label).grid(row=row, column=0, sticky="w", padx=(0, 18), pady=16)
+            control = self.ttk.Frame(page)
+            control.grid(row=row, column=1, sticky="ew", pady=16)
+            self.ttk.Scale(control, from_=0, to=100, command=lambda value, variable=self.vars[key]: variable.set(round(float(value))), variable=self.vars[key]).pack(side="left", fill="x", expand=True)
+            self.ttk.Label(control, textvariable=self.vars[key], width=4, anchor="e").pack(side="right")
+        self.ttk.Label(page, text="Set Master volume to 0 to mute all audio, including cinematics.", style="Hint.TLabel", wraplength=530).grid(row=5, column=0, columnspan=2, sticky="w", pady=20)
