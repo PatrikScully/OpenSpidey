@@ -15,3 +15,6 @@ extern "C" bool __wrap_SDL_SetAudioStreamGain(SDL_AudioStream* stream, float gai
 		gains.push_back(SDL_GetAudioStreamGain(stream));
 	return result;
 }
+
+// @Bogus
+void Plat_MusicStop(void) {}
