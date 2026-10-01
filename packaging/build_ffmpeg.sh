@@ -10,6 +10,7 @@ mkdir -p "$build_dir" "$install_dir"
 build_dir=$(cd "$build_dir" && pwd)
 install_dir=$(cd "$install_dir" && pwd)
 archive=$("${SPIDEY_PYTHON:-python3}" "$repo_dir/packaging/download.py" ffmpeg "$build_dir/downloads")
+archive=${archive%$'\r'}
 if command -v cygpath >/dev/null 2>&1; then
   archive=$(cygpath -u "$archive")
 fi
