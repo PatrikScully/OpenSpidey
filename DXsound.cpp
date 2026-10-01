@@ -1501,7 +1501,7 @@ void DXPOLY_Flip(void)
 	// standalone build does not have; once per presented frame is enough
 	WinYield();
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gDxOptionRelated)
 	{
 		DDBLTFX v4;
