@@ -1,135 +1,131 @@
-# Spidey Decomp
+# OpenSpidey
 
-Decompilation of Spider-Man (2000) for PC. The game was made by Neversoft and
-ported to Windows by LTI Gray Matter. The goal is readable, buildable C++
-that does what the original binary does, function by function, and a native
-build of the game that runs on today's systems.
+**Your friendly neighborhood PC rebuild.**
 
-This repository is a fork of [krystalgamer/spidey-decomp](https://github.com/krystalgamer/spidey-decomp),
-the original project. All the groundwork, the tooling and the reverse
-engineering method come from there. Functions that are finished here go back
-upstream as pull requests. This fork adds the standalone build (no original
-exe code runs, only its data files are used) and uses AI coding agents for a
-lot of the decompiling and debugging work, with the original game running
-under Wine as the reference.
+OpenSpidey brings Spider-Man (2000) for PC to a native SDL3 and OpenGL engine.
+Choose your game files, set up the picture, sound and controls, then press
+**Start game**. The app remembers your choices.
 
-## What you need
+[Download the latest release](https://github.com/PatrikScully/OpenSpidey/releases/latest)
+· [What changed](CHANGELOG.md)
+· [Build from source](docs/BUILDING.md)
+· [Report a problem](https://github.com/PatrikScully/OpenSpidey/issues)
 
-The game data from your own copy of Spider-Man (2000) for PC. The build
-never ships game data. From the installed game directory you need:
+![OpenSpidey setup window](docs/images/setup.png)
 
-- `data.pkr` and `media.pkr` (the archives with models, textures, sounds)
-- `texture.dat`
-- `SpideyPC.exe` (only its data section is read, no code from it runs)
+## Start playing
 
-Put them in one directory. That directory is the "game dir" below.
+1. Download the **Linux** or **Windows** app from the release page.
+2. Extract the whole archive into one folder.
+3. Open **OpenSpidey** on Linux or **OpenSpidey.exe** on Windows.
+4. Choose your Spider-Man (2000) **PC disc ISO**, or its installed game folder.
+5. Pick your video, sound and control settings, then press **Start game**.
 
-## How it runs
+Setup imports the files it needs from an ISO. You do not need to mount the
+disc, run the original installer or copy files by hand. The app reads your
+original executable's data; it does not run code from that executable.
+Only the supported original PC executable is accepted. Other editions,
+regional builds or modified executables may need further support.
 
-Two builds come out of this repository.
+The next launch uses your saved settings. To change them, open
+**OpenSpidey-Settings** on Linux or **OpenSpidey Settings.exe** on Windows.
+You can also select **Show setup every time** in the setup window.
 
-1. The standalone game (`spider`). A 32 bit native binary with an SDL3 and
-   OpenGL backend. Everything it does is our decompiled code. This is the
-   Phase 2 build. It renders the maps, runs player and enemy logic, plays
-   sound effects, streamed dialogue, music and movies. Mission progression
-   and remaining gameplay functions are still being restored and tested.
-2. The Phase 1 DLL (`binkw32.dll`). A drop in for the game's Bink DLL on
-   Windows (or Wine). It loads the original game and hooks the decompiled
-   functions into it, one by one. This is how each function is checked
-   against the original.
+## Pick your settings
 
-## Linux
+| Page | Options |
+| --- | --- |
+| Game files | PC disc ISO or installed folder |
+| Video | Windowed, borderless fullscreen or fullscreen; resolution; antialiasing; texture filtering; smooth distant textures; VSync |
+| Sound | Master volume, music and voices, sound effects |
+| Controls | Modern controls, mouse sensitivity, vertical mouse inversion, opening movie skip |
 
-Build with Docker (no 32 bit packages needed on the host):
+The game keeps its original picture proportions, with black bars where
+needed. Distant loaded buildings stay visible by default. Antialiasing and
+world texture filtering reduce jagged edges and texture shimmer.
 
-```
-git archive --format=tar --prefix=src/ HEAD > /tmp/ctx.tar
-tar -rf /tmp/ctx.tar --transform 's,^platform/,,' platform/Dockerfile.sdl3
-docker build -t spidey-sa -f Dockerfile.sdl3 - < /tmp/ctx.tar
-id=$(docker create spidey-sa); docker cp $id:/out ./sa-run; docker rm $id
-```
+## Controls
 
-`sa-run/` then holds `spider` and the i386 `libSDL3.so.0` it needs. Run it:
+| Action | Default control |
+| --- | --- |
+| Move | WASD or arrow keys |
+| Look | Mouse |
+| Jump | Space |
+| Punch | Left mouse button |
+| Shoot webs | Right mouse button |
+| Select | Enter |
+| Pause or skip an eligible scene | Escape |
+| Release or capture the mouse | F1 |
+| Quit | F12 |
 
-```
-cd sa-run
-LD_LIBRARY_PATH=. ./spider /path/to/game-dir
-```
+Turn off **Modern controls** in setup to use the original keyboard layout.
 
-Or build natively. You need a 32 bit toolchain and SDL3 for i386
-(`g++-multilib cmake libsdl3-dev:i386 libgl-dev:i386` on Ubuntu 25.04 or
-newer):
+## Downloads and requirements
 
-```
-cmake -B out-sa -DSPIDEY_STANDALONE=ON -DSPIDEY_BACKEND=sdl3 -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build out-sa -j8
-./out-sa/spider /path/to/game-dir
-```
+| Download | Use |
+| --- | --- |
+| `openspidey-v0.0.3-linux-x86_64.tar.gz` | Linux app for a 64 bit x86 desktop with glibc 2.35 or newer, such as Ubuntu 22.04 or newer |
+| `openspidey-v0.0.3-windows-x86_64.zip` | Native app for 64 bit Windows 10 or newer |
+| `openspidey-v0.0.3-windows-binkw32.zip` | Separate developer DLL for the original Windows game |
+| Source archives | Build or study OpenSpidey and its bundled runtime |
 
-Keys: Enter selects, WASD or the arrow keys move, Space jumps, left mouse
-punches and right mouse fires webs. The mouse moves the camera. Escape
-pauses or skips an eligible scene; F12 quits. `SPIDEY_MOUSE_SENSITIVITY`
-sets camera speed (default 3), and `SPIDEY_MODERN_CONTROLS=0` restores the
-original keyboard controls. Set `SPIDEY_FULLSCREEN=1` for fullscreen.
-`SPIDEY_BACKEND=null` builds a headless version that runs the
-game logic without a window (used for tests and CI).
+The app packages include their setup launcher, SDL3 and the movie/audio
+decoder. You do not need Python or a separate FFmpeg install to use them.
+The game itself is 32 bit; the setup launcher is 64 bit.
 
-Install `ffmpeg` on the machine running the game to decode the original
-Bink movies, dialogue and streamed music. Playback reports a failure if
-the decoder or requested original asset is unavailable. `SPIDEY_TRACE_MUSIC=1`
-logs streamed track names and completion.
+The Linux package includes a 32 bit runtime and a Mesa software rendering
+fallback. Hardware acceleration needs compatible 32 bit graphics drivers.
+Software rendering can be slower. There is no native macOS build.
 
-The SDL3 renderer smooths distant repeating world surfaces with mipmaps and
-up to 8x anisotropic filtering. `SPIDEY_MIPMAPS=0` restores the original
-filtering; `SPIDEY_ANISOTROPY=1` disables anisotropy. Sprites and atlas regions
-keep their original sampling.
+**You need your own PC game data.** Downloads contain no original game
+assets. An installed folder must contain `SpideyPC.exe`, `data.pkr`,
+`media.pkr` and `texture.dat`, and must be writable so the game can load
+archives and save progress.
 
-Debugging switches (environment variables): `SPIDEY_KEYS="6000:enter,4000:enter"`
-presses keys at the given times in ms, `SPIDEY_QUIT_MS=N` ends the run after N
-ms, `SPIDEY_TRACE_PLAYER=1` prints the player and camera state once per frame,
-`SPIDEY_DUMPPOLYS=N` with `SPIDEY_DUMPPOLYS_AT=ms` prints the polygons of N
-frames, `SPIDEY_NOCULL=1`, `SPIDEY_NODEPTH=1` and `SPIDEY_GLDEBUG=ms` change or
-log the OpenGL state in the SDL3 backend.
+## Saves, settings and logs
 
-The plain `cmake -B out && cmake --build out && ./out/spider` build is the
-compile check every function has to pass on Linux. It does not run the game.
+ISO imports, saves and game logs are kept in your user data folder. Updating
+the app or choosing another ISO preserves the imported game's `save` folder.
+An installed folder remains the game's working folder and holds its saves.
 
-## Windows
+| System | Settings | Imported game and logs |
+| --- | --- | --- |
+| Linux | `~/.config/openspidey/settings.json` | `~/.local/share/openspidey/` |
+| Windows | `%APPDATA%\OpenSpidey\settings.json` | `%LOCALAPPDATA%\OpenSpidey\` |
 
-The Phase 1 DLL is built with the same MSVC 6 toolchain the game used.
-Download it from the
-[spidey-decomp-vs release](https://github.com/krystalgamer/spidey-decomp-vs/releases),
-extract it to `C:\vs` and run `build.bat`. The result is `Release\spider.dll`.
-In your game directory rename the original `binkw32.dll` to `binkw32_.dll`
-and copy `spider.dll` there as `binkw32.dll`. Start `SpideyPC.exe` as usual.
-The CI builds this DLL on every push and attaches it to releases.
+Linux also follows `XDG_CONFIG_HOME` and `XDG_DATA_HOME`. Once an ISO has been
+imported, its cached files can be used even if the ISO is moved. A failed
+game run shows the path to its log. Include that log, your map and the last
+action you took when reporting a problem.
 
-The standalone game has Windows code paths (see `platform/exemem.cpp`) but a
-Windows build of it with SDL3 has not been tested yet.
+## Current progress
 
-## macOS
+This is a **development preview**. Rendering, player controls, thug behavior,
+web effects, sound, dialogue and cinematics have advanced since v0.0.2.
+The full game restoration and matching decompilation are still unfinished.
 
-There is no native macOS build. The game and both builds are 32 bit x86,
-and macOS dropped 32 bit support. Run the Linux build in a Linux virtual
-machine, or use the Windows DLL through Wine or CrossOver with your own copy
-of the game.
+The latest Linux gameplay checkpoint loaded **68 map entries and 23 training
+configurations** and checked short idle gameplay. Separate tests checked
+melee attacks, web balls, tug release, camera turns, audio and texture
+filtering. These checks do not mean every mission, boss, spawn wave or
+training objective has been completed. Police AI and other game functions
+still need work. Native Windows gameplay validation is in progress.
 
-## Working on the code
+Detailed results are in the [gameplay checkpoint](tests/gameplay/checkpoints/2026-10-01.json)
+and [test scenarios](tests/gameplay/scenarios.json).
 
-- Every function carries one tag comment (`@Ok`, `@NotOk`, `@SMALLTODO`,
-  `@MEDIUMTODO`, `@BIGTODO`, `@Bogus`). `python tools/dunno.py` checks them
-  (needs `tree-sitter` and `tree-sitter-cpp`).
-- `tools/differ.py` and `tools/compare.py` compare the built functions
-  against the original bytes in `tools/functions/`.
-- `tobey_validator` from
-  [krystalgamer/tobey-validator](https://github.com/krystalgamer/tobey-validator)
-  checks the struct layouts (`VALIDATE` macros) in the built DLL.
-- The standalone build keeps the exe's data block mapped at its original
-  address (`platform/exemem.cpp`) and replays the exe's static initializers
-  (`platform/exe_static_init.cpp`, generated by `platform/gen_exe_static_init.py`).
+## Development and credits
 
-## Credits
+Read [the build guide](docs/BUILDING.md) and [contribution guide](CONTRIBUTING.md)
+to work on the engine or decompilation. CI builds native Linux and Windows
+apps and checks the separate original-game DLL. Runtime libraries and their
+licenses are listed in [the packaging notes](packaging/THIRD_PARTY.md).
 
-- [krystalgamer](https://github.com/krystalgamer) started and leads the
-  original spidey-decomp project. Go there to get involved.
-- Everyone who contributed matches, tools and notes upstream.
+OpenSpidey is built on [krystalgamer/spidey-decomp](https://github.com/krystalgamer/spidey-decomp).
+Credit for the original decompilation project, its tools and reverse
+engineering work belongs to krystalgamer and its contributors. This project
+continues that work with a native app and uses the original binary as a
+reference. AI coding agents assist with implementation and testing.
+
+Spider-Man (2000) was made by Neversoft and ported to PC by LTI Gray Matter.
+Spider-Man and the original game assets belong to their respective owners.
