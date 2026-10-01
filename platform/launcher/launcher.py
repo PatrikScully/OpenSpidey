@@ -227,3 +227,9 @@ class SetupWindow:
         if selected:
             self.vars["source_path"].set(selected)
             self.status.set("Ready to check your game files.")
+
+    def read_values(self):
+        values = {key: variable.get() for key, variable in self.vars.items()}
+        values["window_mode"] = MODES[self.mode_label.get()]
+        values["source_mode"] = "iso" if self.source_label.get() == "ISO disc image" else "directory"
+        return normalise_settings(values)
