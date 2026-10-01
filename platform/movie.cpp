@@ -160,7 +160,7 @@ static void feedMovieAudio(void)
 		i32 room = (44100 - queued) & ~3;
 		if (room <= 0)
 			break;
-		i32 count = read(gMovie.audio.fd, pcm, room < sizeof(pcm) ? room : sizeof(pcm));
+		i32 count = Plat_DecoderRead(&gMovie.audio, pcm, room < sizeof(pcm) ? room : sizeof(pcm));
 		if (count == 0 || (count < 0 && errno != EAGAIN && errno != EINTR))
 		{
 			gMovie.audioEnded = 1;
