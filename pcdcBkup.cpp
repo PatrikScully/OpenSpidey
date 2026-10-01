@@ -4,6 +4,13 @@
 #include "validate.h"
 
 #include <cstring>
+#ifdef SPIDEY_STANDALONE
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+#endif
 
 EXPORT CHAR gMemorycardPath[688];
 
@@ -1439,9 +1446,19 @@ char* MUSICTRACKS_GetTrackName(i32 a1)
 // @Matching
 i32 buInit(i32, i32, void*, void (*a4)(void))
 {
+#ifdef SPIDEY_STANDALONE
+	// Keep native save paths relative and use the same separator on both systems.
+	strcpy(gMemorycardPath, "save/");
+#ifdef _WIN32
+	_mkdir("save");
+#else
+	mkdir("save", 0700);
+#endif
+#else
 	GetCurrentDirectoryA(0x104u, gMemorycardPath);
 	strcat(gMemorycardPath, "\\save\\");
 	CreateDirectoryA(gMemorycardPath, 0);
+#endif
 	a4();
 	return 0;
 }
