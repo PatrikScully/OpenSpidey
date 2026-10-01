@@ -1140,9 +1140,9 @@ void SFX_Unpause(void)
 	}
 }
 
-// @Ok
-// @AlmostMatching: FreeVoice was not inlined in the OG...
-// diff by 1 byte, epilogue and prologue and diff but overall all good
+// @NotOk
+// Original pitch and call fixtures pass. Matching remains unfinished:
+// 198 instruction diffs against 0x472490, including inlining and registers.
 u32 playSFX(
 		u32 sfx,
 		u8 pitch,
