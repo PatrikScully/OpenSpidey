@@ -102,3 +102,16 @@ class AssetTests(unittest.TestCase):
                 self.assertEqual([event[0] for event in progress], sorted(event[0] for event in progress))
                 self.assertEqual(len(json.loads((result / assets.MANIFEST_NAME).read_text())["sha256"]), 4)
 
+    def test_cache_reuse_and_repair(self):
+        make_iso(self.iso)
+        assets.import_iso(self.iso, self.destination)
+        inode = (self.destination / "data.pkr").stat().st_ino
+        with mock.patch.object(assets, "_copy_asset", side_effect=AssertionError("Cache was copied again")):
+            assets.import_iso(self.iso, self.destination)
+        self.assertEqual((self.destination / "data.pkr").stat().st_ino, inode)
+        damaged = bytearray(ARCHIVE)
+        damaged[8] ^= 1
+        (self.destination / "data.pkr").write_bytes(damaged)
+        assets.import_iso(self.iso, self.destination)
+        self.assertEqual((self.destination / "data.pkr").read_bytes(), ARCHIVE)
+
