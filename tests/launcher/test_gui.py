@@ -22,3 +22,10 @@ class LauncherGuiTests(unittest.TestCase):
         self.path = Path(self.temp.name)
         self.window = launcher.SetupWindow(self.root, dict(config.DEFAULTS), self.path / "settings.json", self.path)
         self.root.update()
+
+    def tearDown(self):
+        try:
+            self.root.destroy()
+        except self.window.tk.TclError:
+            pass
+        self.temp.cleanup()
