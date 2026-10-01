@@ -48,9 +48,11 @@ void Plat_MusicStop(void)
 		stopMusicDecoder(&gMusic.decoder);
 	Plat_MusicAudio(PLAT_MUSIC_AUDIO_CLOSE, 0, 0);
 	if (gMusic.path[0])
-		unlink(gMusic.path);
+		Plat_DecoderRemove(gMusic.path);
 	memset(&gMusic, 0, sizeof(gMusic));
+#ifndef _WIN32
 	gMusic.decoder.fd = -1;
+#endif
 }
 
 // @Bogus
