@@ -44,6 +44,8 @@ def linux_runtime(binary, output):
             target = output / 'runtime/lib32' / library.name
         identity = (library.stat().st_dev, library.stat().st_ino)
         if identity in copied:
+            if copied[identity] == target:
+                continue
             target.parent.mkdir(parents=True, exist_ok=True)
             os.link(copied[identity], target)
         else:
