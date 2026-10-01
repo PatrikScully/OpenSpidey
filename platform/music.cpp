@@ -244,3 +244,12 @@ i32 Plat_MusicOpen(const char* path, u32 offset, u32 bytes)
 	return 1;
 }
 
+// @Bogus
+i32 Plat_MusicIsPlaying(void)
+{
+	pthread_mutex_lock(&gMusicLock);
+	i32 active = gMusic.active;
+	pthread_mutex_unlock(&gMusicLock);
+	return active;
+}
+
