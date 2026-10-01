@@ -17,6 +17,7 @@ class CKnottedWebFrag : public CKnottedWeb
 	public:
 		EXPORT CKnottedWebFrag(const CVector &start, const CVector &end,
 			const CVector &startVelocity, const CVector &endVelocity);
+		EXPORT virtual void Move(void) OVERRIDE;
 
 		CVector mEndVelocity;
 		CVector mEndPos;

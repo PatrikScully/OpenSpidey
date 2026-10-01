@@ -1372,6 +1372,53 @@ CKnottedWebFrag::CKnottedWebFrag(const CVector &start, const CVector &end,
 	this->mRestDistance = Utils_Dist(this->mPos, this->mEndPos) >> 3;
 }
 
+// @Ok
+// @Matching
+// Original 0x4F64B0. Move both ends and ease the broken strand together.
+void CKnottedWebFrag::Move(void)
+{
+	this->mPos += this->mVel;
+	this->mVel.vy += 29584;
+	if (this->mPos.vy > this->mGroundY)
+	{
+		this->mPos.vy = this->mGroundY;
+		this->mVel.vy = 0;
+		this->mVel.vx >>= 1;
+		this->mVel.vz >>= 1;
+	}
+	this->mEndPos += this->mEndVelocity;
+	this->mEndVelocity.vy += 29584;
+	if (this->mEndPos.vy > this->mGroundY)
+	{
+		this->mEndPos.vy = this->mGroundY;
+		this->mEndVelocity.vy = 0;
+		this->mEndVelocity.vx >>= 1;
+		this->mEndVelocity.vz >>= 1;
+	}
+	i32 distance = Utils_Dist(this->mPos, this->mEndPos);
+	CVector middle = (this->mPos + this->mEndPos) >> 1;
+	// This scalar overload reads only the first word of its left vector.
+	CVector correction = ((middle +
+		(*reinterpret_cast<const CVector*>(&this->mRestDistance) * (this->mPos - middle)) / distance)
+		- this->mPos) >> 4;
+	this->mPos += correction;
+	this->mEndPos -= correction;
+	this->SetStartAndEnd(&this->mPos, &this->mEndPos);
+	Utils_CalcUnitFacingCamera(&this->mPos, &this->mEndPos,
+		reinterpret_cast<CVector*>(&this->field_58));
+	i32 *extra = reinterpret_cast<i32*>(this->mpExtraSegs);
+	i32 *seg = reinterpret_cast<i32*>(this->mSegs);
+	for (i32 i = 0; i < this->mNumSegs; extra += 7, seg += 4, i++)
+	{
+		extra[0] = seg[0];
+		extra[1] = seg[1];
+		extra[2] = seg[2];
+	}
+	this->CKnottedWeb::Move();
+	if (++this->mAge > 30)
+		this->Die();
+}
+
 // Turns a live web into a blob: mode field_104 goes to 3 and, unless the
 // attached item is type 401, bit 3 of the attached item's flag word at 0x2A8
 // is cleared (the "web attached" flag on the target, going by the fact that
