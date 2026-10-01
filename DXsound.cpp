@@ -1938,7 +1938,7 @@ void DXPOLY_SetBackgroundColor(u32 color)
 void DXPOLY_SetBlendMode(u32 a1)
 {
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	u32 newBlendMode = a1;
 	if (gCurrentBlendMode != a1)
 	{
