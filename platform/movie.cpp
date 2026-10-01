@@ -186,7 +186,7 @@ i32 Plat_MovieNextFrame(void)
 	u32 now = Plat_Ticks();
 	while (gMovie.filled < gMovie.frameBytes && !gMovie.videoEnded)
 	{
-		i32 count = read(gMovie.video.fd, gMovie.pixels + gMovie.filled,
+		i32 count = Plat_DecoderRead(&gMovie.video, gMovie.pixels + gMovie.filled,
 			gMovie.frameBytes - gMovie.filled);
 		if (count == 0 || (count < 0 && errno != EAGAIN && errno != EINTR))
 		{
