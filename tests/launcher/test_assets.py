@@ -115,3 +115,17 @@ class AssetTests(unittest.TestCase):
         assets.import_iso(self.iso, self.destination)
         self.assertEqual((self.destination / "data.pkr").read_bytes(), ARCHIVE)
 
+    def test_source_change_preserves_saves(self):
+        make_iso(self.iso)
+        assets.import_iso(self.iso, self.destination)
+        saves = self.destination / "save"
+        saves.mkdir()
+        (saves / "SPIDRMAN.DAT").write_bytes(b"player progress")
+        previous = json.loads((self.destination / assets.MANIFEST_NAME).read_text())["source"]
+        stat = self.iso.stat()
+        os.utime(self.iso, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1000000))
+        assets.import_iso(self.iso, self.destination)
+        current = json.loads((self.destination / assets.MANIFEST_NAME).read_text())["source"]
+        self.assertNotEqual(previous, current)
+        self.assertEqual((saves / "SPIDRMAN.DAT").read_bytes(), b"player progress")
+
