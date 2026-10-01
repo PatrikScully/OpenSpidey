@@ -81,3 +81,7 @@ class AssetTests(unittest.TestCase):
         self.supported = mock.patch.object(assets, "SUPPORTED_EXE_SHA256", hashlib.sha256(EXE).hexdigest())
         self.supported.start()
 
+    def tearDown(self):
+        self.supported.stop()
+        self.temporary.cleanup()
+
