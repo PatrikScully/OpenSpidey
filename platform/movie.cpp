@@ -93,18 +93,9 @@ i32 Plat_MovieOpen(const char* path, u32 offset, u32 bytes)
 		fclose(source);
 		return 0;
 	}
-	strcpy(gMovie.path, "/tmp/spidey-movie-XXXXXX");
-	i32 temp = mkstemp(gMovie.path);
-	if (temp < 0)
-	{
-		fclose(source);
-		Plat_MovieStop();
-		return 0;
-	}
-	FILE* output = fdopen(temp, "wb");
+	FILE* output = Plat_DecoderTemp(gMovie.path, "spidey-movie");
 	if (!output)
 	{
-		close(temp);
 		fclose(source);
 		Plat_MovieStop();
 		return 0;
