@@ -46,3 +46,9 @@ class LauncherGuiTests(unittest.TestCase):
         self.assertEqual(values["mouse_sensitivity"], 5)
         self.assertTrue(values["invert_mouse_y"])
         self.assertLess(self.window.start_button.winfo_rooty() + self.window.start_button.winfo_height(), self.root.winfo_rooty() + self.root.winfo_height())
+
+    def test_missing_source_does_not_save_or_start(self):
+        self.window.start()
+        self.assertFalse(self.window.busy)
+        self.assertIsNone(self.window.result)
+        self.assertFalse((self.path / "settings.json").exists())
