@@ -45,7 +45,7 @@
         "Original Wine game with the same menu input schedule."
       ],
       "minimum_seconds": 210,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "escape_skip",
@@ -68,7 +68,7 @@
         "Original cutscene eligibility flags and cleanup function disassembly."
       ],
       "minimum_seconds": 45,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "black_cat_animation",
@@ -94,7 +94,7 @@
         "~/Documents/spidey-work/refcap.sh"
       ],
       "minimum_seconds": 90,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "map_visibility",
@@ -120,7 +120,7 @@
         "Original model/region tables; standalone-only full-map policy is an intentional difference."
       ],
       "minimum_seconds": 90,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "camera_sweep",
@@ -145,7 +145,7 @@
         "Original camera math disassembly; modern input policy is intentional."
       ],
       "minimum_seconds": 60,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "enemy_spawn_parity",
@@ -170,7 +170,7 @@
         "Original Wine process state sampled by a parent-launched oracle at the same trigger/tick."
       ],
       "minimum_seconds": 180,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "combat_visibility",
@@ -195,7 +195,7 @@
         "Original hit/AI functions and Wine combat captures."
       ],
       "minimum_seconds": 120,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "web_ball_hit",
@@ -220,7 +220,7 @@
         "Original CImpactWeb::Move at 0x4F9BD0 and its supporting vtables."
       ],
       "minimum_seconds": 60,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "web_ball_miss",
@@ -243,7 +243,7 @@
         "Original constructor/Move, CSplat and CSwitch behavior."
       ],
       "minimum_seconds": 60,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "tug_release",
@@ -268,7 +268,7 @@
         "Original CWeb::SwitchToSnap 0x4F69F0 and original-machine-code differential fixtures."
       ],
       "minimum_seconds": 60,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "tug_rejected",
@@ -292,7 +292,7 @@
         "Original BreakIntoBits, fragment constructor/Move, Mem_RecoverPointer."
       ],
       "minimum_seconds": 60,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "swing_zip",
@@ -315,7 +315,7 @@
         "Original CPlayer/CSwinger functions and matched Wine key script."
       ],
       "minimum_seconds": 120,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "pickups_triggers",
@@ -337,7 +337,7 @@
         "Original trigger/script functions and Wine route capture."
       ],
       "minimum_seconds": 120,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "audio_effects",
@@ -360,7 +360,7 @@
         "Original playSFX/DXSOUND_SetPitch disassembly and real SDL callback fixture."
       ],
       "minimum_seconds": 60,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "audio_streams",
@@ -384,7 +384,7 @@
         "Original PCMUSIC/ADXT calls and real Bink assets."
       ],
       "minimum_seconds": 120,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "mission_completion",
@@ -406,7 +406,7 @@
         "Original full mission route recorded under Wine."
       ],
       "minimum_seconds": 300,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "graphics_quality",
@@ -429,7 +429,7 @@
         "Original point/bilinear filter policy; optional standalone quality change measured independently."
       ],
       "minimum_seconds": 90,
-      "status": "pending"
+      "status": "not_run"
     },
     {
       "id": "training_objectives",
@@ -450,7 +450,55 @@
         "Original training table, scripts and Wine challenge completion."
       ],
       "minimum_seconds": 180,
-      "status": "pending"
+      "status": "not_run"
+    },
+    {
+      "id": "death_retry_exit",
+      "applies_to": "all_playable_maps",
+      "setup": [
+        "Use an unchanged enemy and normal difficulty. Record player health, level status, menu state and timer ticks."
+      ],
+      "steps": [
+        "Enter active combat and allow a real enemy to defeat Spider-Man.",
+        "Let the Game Over menu render. Wait for at least 30 advancing menu frames.",
+        "Press Enter on Retry. Observe the selected result and wait for the map to reload and regain player control.",
+        "Repeat death on a fresh run. Press Down then Enter on Quit and observe return to the expected shell/menu."
+      ],
+      "checks": [
+        "Menu timer and selection advance; a paused stack snapshot alone does not prove a hang.",
+        "Retry and Quit return their original distinct results.",
+        "Retry reloads objects and audio without stale pointers or a crash.",
+        "The new player is unlocked and has the original starting health."
+      ],
+      "reference": [
+        "Original Front_ContinueExit and Pause disassembly. Original Wine menu selection and map reload."
+      ],
+      "minimum_seconds": 90,
+      "status": "not_run"
+    },
+    {
+      "id": "sprite_projection",
+      "applies_to": "all_maps_with_effects",
+      "setup": [
+        "Capture the exact camera matrices and sprite world positions. Run once with fixed camera and once during a left/right and up/down mouse sweep."
+      ],
+      "steps": [
+        "Fire a web ball at a nearby enemy, at a distant wall and into clear space.",
+        "Record each projectile Move, draw submission, impact ring/fragment allocation and retirement.",
+        "Repeat with ordinary webs, damage effects and pickups, at several positive camera depths and behind the camera."
+      ],
+      "checks": [
+        "Projected depth uses the transformed third row and the original projection distance.",
+        "Homogeneous world position has W=1 and the active camera matrix is refreshed before projection.",
+        "Visible sprites submit finite quads overlapping the viewport with valid texture handles and positive reciprocal depth.",
+        "Sprites behind the camera obey the original clip rules.",
+        "Effects neither stretch to a window corner nor use stale depth after camera rotation."
+      ],
+      "reference": [
+        "Original gte_rtps 0x46DBC0 and DisplayFlatBitList 0x40DBD0 disassembly, plus matching Wine frames."
+      ],
+      "minimum_seconds": 45,
+      "status": "not_run"
     }
   ],
   "maps": [
@@ -478,7 +526,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -506,7 +556,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -534,7 +586,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -562,7 +616,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -590,7 +646,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -618,7 +676,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -646,7 +706,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -674,7 +736,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -702,7 +766,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -730,7 +796,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -758,7 +826,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -786,7 +856,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -814,7 +886,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -842,7 +916,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -870,7 +946,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -898,7 +976,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -926,7 +1006,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -954,7 +1036,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -982,7 +1066,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1010,7 +1096,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1038,7 +1126,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1066,7 +1156,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1094,7 +1186,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1122,7 +1216,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1150,7 +1246,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1178,7 +1276,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1206,7 +1306,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1234,7 +1336,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1262,7 +1366,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1290,7 +1396,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1318,7 +1426,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1346,7 +1456,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1374,7 +1486,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1402,7 +1516,9 @@
         "audio_effects",
         "audio_streams",
         "mission_completion",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1422,7 +1538,9 @@
         "tug_release",
         "audio_effects",
         "audio_streams",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1442,7 +1560,9 @@
         "tug_release",
         "audio_effects",
         "audio_streams",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1462,7 +1582,9 @@
         "tug_release",
         "audio_effects",
         "audio_streams",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1482,7 +1604,9 @@
         "tug_release",
         "audio_effects",
         "audio_streams",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1502,7 +1626,9 @@
         "tug_release",
         "audio_effects",
         "audio_streams",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1522,7 +1648,9 @@
         "tug_release",
         "audio_effects",
         "audio_streams",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1545,7 +1673,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1568,7 +1698,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1591,7 +1723,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1614,7 +1748,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1637,7 +1773,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1660,7 +1798,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1683,7 +1823,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1706,7 +1848,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1729,7 +1873,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1752,7 +1898,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1775,7 +1923,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1798,7 +1948,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1821,7 +1973,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1844,7 +1998,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1867,7 +2023,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1890,7 +2048,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1913,7 +2073,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1936,7 +2098,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1959,7 +2123,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -1982,7 +2148,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2005,7 +2173,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2028,7 +2198,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2051,7 +2223,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2074,7 +2248,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2097,7 +2273,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2120,7 +2298,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
@@ -2143,7 +2323,9 @@
         "audio_effects",
         "audio_streams",
         "training_objectives",
-        "graphics_quality"
+        "graphics_quality",
+        "death_retry_exit",
+        "sprite_projection"
       ],
       "result": "not_run"
     },
