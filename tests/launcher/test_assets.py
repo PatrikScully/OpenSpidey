@@ -179,3 +179,21 @@ class AssetTests(unittest.TestCase):
                     assets.import_iso(self.iso, self.destination)
                 self.assertFalse(self.destination.exists())
 
+    def test_wrong_disc_and_invalid_archives(self):
+        for fault in ("missing", "exe", "magic", "count", "asset"):
+            with self.subTest(fault=fault):
+                make_iso(self.iso, names=list(PAYLOADS)[:-1] if fault == "missing" else None)
+                image = bytearray(self.iso.read_bytes())
+                if fault == "exe":
+                    image[24 * assets.BLOCK_SIZE + 8] ^= 1
+                elif fault == "magic":
+                    image[25 * assets.BLOCK_SIZE] = 0
+                elif fault == "count":
+                    struct.pack_into("<I", image, 25 * assets.BLOCK_SIZE + 8 + len(PAYLOAD) + 8, 0xFFFFFFFF)
+                elif fault == "asset":
+                    struct.pack_into("<I", image, 25 * assets.BLOCK_SIZE + 8 + len(PAYLOAD) + 12 + 40 + 40,
+                                     0xFFFFFFF0)
+                self.iso.write_bytes(image)
+                with self.assertRaises(assets.AssetError):
+                    assets.inspect_iso(self.iso)
+
