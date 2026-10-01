@@ -35,3 +35,16 @@ class LauncherConfigTests(unittest.TestCase):
                     config.save_settings(path, values)
             self.assertEqual(path.read_text(), "broken json")
             self.assertEqual(list(path.parent.iterdir()), [path])
+
+    def test_invalid_values_cannot_reach_the_game(self):
+        values = config.normalise_settings({"window_mode": "invalid", "resolution": "-1x9999999", "msaa": True,
+                                           "mouse_sensitivity": float("nan"), "master_volume": -2, "music_volume": 130,
+                                           "show_setup": "false", "anisotropy": 64})
+        self.assertEqual(values["window_mode"], "windowed")
+        self.assertEqual(values["resolution"], "1280x960")
+        self.assertEqual(values["msaa"], 4)
+        self.assertEqual(values["mouse_sensitivity"], 3)
+        self.assertEqual((values["master_volume"], values["music_volume"]), (0, 100))
+        self.assertIs(values["show_setup"], False)
+        with self.assertRaises(ValueError):
+            config.normalise_settings({"schema": 2})
