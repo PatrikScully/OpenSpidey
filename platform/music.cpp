@@ -31,3 +31,18 @@ struct MusicState
 static MusicState gMusic;
 static pthread_mutex_t gMusicLock = PTHREAD_MUTEX_INITIALIZER;
 
+// @Bogus
+static void stopMusicDecoder(MusicDecoder* decoder)
+{
+	if (decoder->pid > 0)
+	{
+		kill(decoder->pid, SIGKILL);
+		while (waitpid(decoder->pid, 0, 0) < 0 && errno == EINTR)
+			;
+	}
+	if (decoder->fd >= 0)
+		close(decoder->fd);
+	decoder->fd = -1;
+	decoder->pid = 0;
+}
+
