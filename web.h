@@ -84,6 +84,7 @@ class CImpactRing : public CFlatBit
 	public:
 		EXPORT CImpactRing(const CVector &pos, u8 red, u8 green, u8 blue,
 			i32 size, i32 growRate);
+		EXPORT virtual void Move(void) OVERRIDE;
 
 		i32 mTargetScale;
 		i32 mGrowRate;

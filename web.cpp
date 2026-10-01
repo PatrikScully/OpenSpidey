@@ -2021,6 +2021,17 @@ CImpactRing::CImpactRing(const CVector &pos, u8 red, u8 green, u8 blue,
 }
 
 // @Ok
+// @Matching
+// Original 0x4F98E0, vtable 0x53C7A0 slot 1.
+void CImpactRing::Move(void)
+{
+    this->mScale += static_cast<i16>(this->mGrowRate);
+    if (this->mScale > this->mTargetScale)
+        this->Die();
+    Bit_ReduceRGB(&this->mCodeBGR, this->mColorDecay);
+}
+
+// @Ok
 // 0x4FAD50, 205 bytes. Called by CPlayer::PriorToVenomDistanceAttack. Pops
 // the dome: a web dome (field_104 == 0) shatters the item it trapped, then
 // the dome switches to mode 3, spawns the shockwave and the ring, and dies.
