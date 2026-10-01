@@ -169,3 +169,14 @@ class SetupWindow:
         self.ttk.Button(page, text="Browse…", command=self.browse).grid(row=4, column=1, sticky="e", pady=(0, 20))
         self.ttk.Label(page, text="ISO files are imported once. Keep the disc image anywhere you like; no mounting or Windows installer is needed.", style="Hint.TLabel", wraplength=530).grid(row=5, column=0, columnspan=2, sticky="w", pady=12)
         self.ttk.Label(page, text="Settings, imported files and game logs are stored in your user folder.", style="Hint.TLabel", wraplength=530).grid(row=6, column=0, columnspan=2, sticky="w", pady=12)
+
+    def build_video(self):
+        page = self.pages["Video"]
+        self.heading(page, "Make the city look its best.", "Choose how the game appears on your screen. The original picture proportions are preserved.")
+        self.choice(page, 2, "Display mode", self.mode_label, tuple(MODES))
+        self.choice(page, 3, "Resolution", self.vars["resolution"], RESOLUTIONS)
+        self.choice(page, 4, "Antialiasing", self.vars["msaa"], (0, 2, 4, 8))
+        self.choice(page, 5, "Texture filtering", self.vars["anisotropy"], (1, 2, 4, 8, 16))
+        self.ttk.Label(page, text="Antialiasing: 0 = off, 2 / 4 / 8 = samples.\nTexture filtering: 1 = standard, higher values sharpen distant textures.", style="Hint.TLabel", wraplength=530).grid(row=6, column=0, columnspan=2, sticky="w", pady=10)
+        self.ttk.Checkbutton(page, text="Smooth distant textures", variable=self.vars["mipmaps"]).grid(row=7, column=0, columnspan=2, sticky="w", pady=7)
+        self.ttk.Checkbutton(page, text="VSync (reduce screen tearing)", variable=self.vars["vsync"]).grid(row=8, column=0, columnspan=2, sticky="w", pady=7)
