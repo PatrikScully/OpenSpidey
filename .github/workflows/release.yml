@@ -7,29 +7,26 @@ on:
 permissions:
   contents: write
 
+env:
+  BUILD_VERSION: ${{ github.ref_name }}
+
 jobs:
 
-  linux:
+  notes:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the SDL3 game in Docker
-      run: |
-        git archive --format=tar --prefix=src/ HEAD > /tmp/ctx.tar
-        tar -rf /tmp/ctx.tar --transform 's,^platform/,,' platform/Dockerfile.sdl3
-        docker build -t spidey-sa -f Dockerfile.sdl3 - < /tmp/ctx.tar
-        id=$(docker create spidey-sa)
-        docker cp $id:/out ./spidey-linux-x86
-        docker rm $id
-        cp README.md spidey-linux-x86/
-        tar -czf spidey-${{ github.ref_name }}-linux-x86-sdl3.tar.gz spidey-linux-x86
-    - uses: actions/upload-artifact@v4
-      with:
-        name: linux
-        path: spidey-${{ github.ref_name }}-linux-x86-sdl3.tar.gz
+      - uses: actions/checkout@v4
+      - name: Require notes for this version
+        run: python3 packaging/release_notes.py "$BUILD_VERSION"
+
+  apps:
+    needs: notes
+    uses: ./.github/workflows/packages.yml
+    with:
+      version: ${{ github.ref_name }}
 
   windows:
+    needs: notes
     runs-on: windows-2025
     timeout-minutes: 15
     steps:
@@ -51,30 +48,32 @@ jobs:
           mkdir spidey-windows-dll
           copy Release\spider.dll spidey-windows-dll\binkw32.dll
           copy README.md spidey-windows-dll\
-          7z a spidey-${{ github.ref_name }}-windows-binkw32.zip spidey-windows-dll
+          7z a "openspidey-%BUILD_VERSION%-windows-binkw32.zip" spidey-windows-dll
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: spidey-${{ github.ref_name }}-windows-binkw32.zip
+          path: openspidey-${{ github.ref_name }}-windows-binkw32.zip
 
   source:
+    needs: notes
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v4
     - name: Pack the sources
       run: |
-        git archive --format=tar.gz --prefix=spidey-decomp-${{ github.ref_name }}/ -o spidey-${{ github.ref_name }}-source.tar.gz HEAD
-        git archive --format=zip --prefix=spidey-decomp-${{ github.ref_name }}/ -o spidey-${{ github.ref_name }}-source.zip HEAD
+        [[ "$BUILD_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
+        git archive --format=tar.gz --prefix="OpenSpidey-$BUILD_VERSION/" -o "openspidey-$BUILD_VERSION-source.tar.gz" HEAD
+        git archive --format=zip --prefix="OpenSpidey-$BUILD_VERSION/" -o "openspidey-$BUILD_VERSION-source.zip" HEAD
     - uses: actions/upload-artifact@v4
       with:
         name: source
         path: |
-          spidey-${{ github.ref_name }}-source.tar.gz
-          spidey-${{ github.ref_name }}-source.zip
+          openspidey-${{ github.ref_name }}-source.tar.gz
+          openspidey-${{ github.ref_name }}-source.zip
 
   publish:
-    needs: [linux, windows, source]
+    needs: [apps, windows, source]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -83,9 +82,12 @@ jobs:
       with:
         path: dist
         merge-multiple: true
+    - name: Write download checksums
+      run: cd dist && sha256sum * > SHA256SUMS
     - name: Create the release
       uses: softprops/action-gh-release@v2
       with:
-        name: Spidey Decomp ${{ github.ref_name }}
+        name: OpenSpidey ${{ github.ref_name }}
+        prerelease: true
         body_path: .github/release-notes.md
         files: dist/*

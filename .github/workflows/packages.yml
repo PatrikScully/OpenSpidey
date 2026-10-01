@@ -1,0 +1,106 @@
+name: App packages
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: development
+
+permissions:
+  contents: read
+
+env:
+  BUILD_VERSION: ${{ inputs.version }}
+
+jobs:
+  linux-app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Linux app and its private runtime
+        run: |
+          [[ "$BUILD_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
+          docker build -t openspidey-release -f packaging/Dockerfile.release --build-arg BUILD_VERSION="$BUILD_VERSION" .
+          container=$(docker create openspidey-release)
+          docker cp "$container:/out/openspidey-linux-x86_64" .
+          docker cp "$container:/out/runtime-sources" ./linux-runtime-sources
+          docker rm "$container"
+      - name: Check the native game startup and package contents
+        run: |
+          openspidey-linux-x86_64/spider --help
+          python3 packaging/check_package.py openspidey-linux-x86_64
+      - name: Pack the app and corresponding runtime sources
+        run: |
+          tar -czf "openspidey-$BUILD_VERSION-linux-x86_64.tar.gz" openspidey-linux-x86_64
+          tar -cJf "openspidey-$BUILD_VERSION-linux-runtime-source.tar.xz" linux-runtime-sources
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openspidey-linux
+          path: |
+            openspidey-${{ inputs.version }}-linux-x86_64.tar.gz
+            openspidey-${{ inputs.version }}-linux-runtime-source.tar.xz
+
+  windows-app:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Check setup, settings and asset import
+        shell: pwsh
+        run: python -m unittest discover -s tests/launcher -v
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          update: true
+          path-type: inherit
+          install: >-
+            mingw-w64-i686-gcc
+            mingw-w64-i686-cmake
+            mingw-w64-i686-zlib
+            mingw-w64-i686-pkgconf
+            mingw-w64-i686-ninja
+            make
+            tar
+            xz
+      - name: Download and verify the official SDL3 development package
+        shell: pwsh
+        run: |
+          if ($env:BUILD_VERSION -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') { throw 'Invalid build version' }
+          python packaging/download.py sdl_mingw out/downloads
+          New-Item -ItemType Directory -Force out/sdl | Out-Null
+          tar -xf out/downloads/SDL3-devel-3.4.16-mingw.tar.gz -C out/sdl
+      - name: Build the native Windows game and Bink decoder
+        shell: msys2 {0}
+        run: |
+          export SPIDEY_PYTHON=python
+          export PKG_CONFIG_PATH="$PWD/out/sdl/SDL3-3.4.16/i686-w64-mingw32/lib/pkgconfig"
+          cmake -S . -B out/game -G Ninja -DSPIDEY_STANDALONE=ON -DSPIDEY_BACKEND=sdl3 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build out/game -j8
+          bash packaging/build_ffmpeg.sh out/ffmpeg out/ffmpeg-install windows
+      - name: Freeze the setup app and include the game runtime
+        shell: pwsh
+        run: |
+          python -m pip install PyInstaller==6.22.3
+          $version = $env:BUILD_VERSION.TrimStart('v')
+          "VERSION = '$version'" | Set-Content platform/launcher/_version.py -Encoding utf8
+          python packaging/package.py --platform windows --binary out/game/spider.exe --ffmpeg-prefix out/ffmpeg-install --sdl-prefix out/sdl/SDL3-3.4.16/i686-w64-mingw32 --runtime-bin C:/msys64/mingw32/bin --compiler C:/msys64/mingw32/bin/g++.exe --version "$env:BUILD_VERSION" --output out/openspidey-windows-x86_64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & out/openspidey-windows-x86_64/spider.exe --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & out/openspidey-windows-x86_64/ffmpeg.exe -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python packaging/check_package.py out/openspidey-windows-x86_64
+      - name: Pack the Windows app
+        shell: pwsh
+        run: |
+          Compress-Archive -Path out/openspidey-windows-x86_64 -DestinationPath "openspidey-$env:BUILD_VERSION-windows-x86_64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openspidey-windows
+          path: openspidey-${{ inputs.version }}-windows-x86_64.zip

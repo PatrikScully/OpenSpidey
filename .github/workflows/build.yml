@@ -21,6 +21,11 @@ jobs:
       run: pip install tree-sitter tree-sitter-cpp
     - name: Check the function tags
       run: python tools/dunno.py
+    - name: Check the setup app
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk xvfb
+        xvfb-run -a python -m unittest discover -s tests/launcher -v
 
   build-linux-check:
     needs: validate-repo
@@ -43,26 +48,11 @@ jobs:
     - name: Run
       run: ./out/spider
 
-  build-standalone-linux:
+  build-apps:
     needs: validate-repo
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build the SDL3 game in Docker
-      run: |
-        git archive --format=tar --prefix=src/ HEAD > /tmp/ctx.tar
-        tar -rf /tmp/ctx.tar --transform 's,^platform/,,' platform/Dockerfile.sdl3
-        docker build -t spidey-sa -f Dockerfile.sdl3 - < /tmp/ctx.tar
-        id=$(docker create spidey-sa)
-        docker cp $id:/out ./spidey-linux-x86
-        docker rm $id
-        cp README.md spidey-linux-x86/
-        tar -czf spidey-linux-x86-sdl3.tar.gz spidey-linux-x86
-    - uses: actions/upload-artifact@v4
-      with:
-        name: spidey-linux-x86-sdl3
-        path: spidey-linux-x86-sdl3.tar.gz
+    uses: ./.github/workflows/packages.yml
+    with:
+      version: development
 
   build-windows-dll:
     needs: validate-repo
