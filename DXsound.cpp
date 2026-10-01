@@ -803,7 +803,7 @@ i32 DXINPUT_SetupController(void)
 // @Matching
 i32 DXINPUT_SetupForceFeedbackSineEffect(i32 magnitude, f32 period)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (!gDxInputRelated || !gControllerRelated)
 	{
 		return 0;
