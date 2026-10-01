@@ -1311,7 +1311,7 @@ scannedSoft:
 		}
 		else
 		{
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 			i32 width = G_GLOBAL_TEXTURES[a1].mSizeOne;
 			i32 height = G_GLOBAL_TEXTURES[a1].mSizeTwo;
 
