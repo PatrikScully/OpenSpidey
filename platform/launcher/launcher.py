@@ -200,3 +200,11 @@ class SetupWindow:
         self.ttk.Checkbutton(page, text="Invert vertical mouse look", variable=self.vars["invert_mouse_y"]).grid(row=4, column=0, columnspan=2, sticky="w", pady=10)
         self.ttk.Checkbutton(page, text="Skip opening movies", variable=self.vars["skip_movies"]).grid(row=5, column=0, columnspan=2, sticky="w", pady=10)
         self.ttk.Label(page, text="WASD / arrows     Move\nSpace                   Jump\nLeft mouse            Punch\nRight mouse          Shoot webs\nEnter                    Select\nEsc                       Pause / skip eligible scenes\nF1                         Release or capture the mouse\nF12                       Quit", style="Hint.TLabel", justify="left").grid(row=6, column=0, columnspan=2, sticky="w", pady=(15, 0))
+
+    def show_page(self, title):
+        for page in self.pages.values():
+            page.grid_remove()
+        self.pages[title].grid(row=0, column=0, sticky="nsew")
+        self.canvas.yview_moveto(0)
+        for name, button in self.navigation.items():
+            button.configure(background="#29394e" if name == title else "#172334", foreground="white" if name == title else "#bac6d6")
