@@ -2210,7 +2210,7 @@ void PCTex_UpdateForSoftwareRenderer(void)
 			}
 		}
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 		G_MAX_TEXTURE_WIDTH = G_D3DDEV_CAPS.dwMaxTextureWidth;
 		G_TEXTURE_HEIGHT = G_D3DDEV_CAPS.dwMaxTextureHeight;
 		G_MAX_TEXTURE_ASPECT_RATIO = G_D3DDEV_CAPS.dwMaxTextureAspectRatio;
