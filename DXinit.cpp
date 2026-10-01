@@ -2448,7 +2448,7 @@ INLINE void initDirectSound8(HWND hwnd)
 // they do not run DXINIT_ShutDown like the other error checks
 void shutdownDirect3D7(i32 releaseAll)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	HRESULT hr;
 
 	if (G_D3DDEVICE7)
