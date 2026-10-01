@@ -269,3 +269,33 @@ class SetupWindow:
             self.events.put(("ready", values))
         except Exception as error:
             self.events.put(("error", error))
+
+    def poll(self):
+        from tkinter import messagebox
+        try:
+            while True:
+                kind, value = self.events.get_nowait()
+                if kind == "progress":
+                    done, total, name = value
+                    self.progress["value"] = done / max(1, total) * 100
+                    self.status.set("Importing %s · %d%%" % (name, done / max(1, total) * 100))
+                elif kind == "ready":
+                    self.busy = False
+                    if not self.closing:
+                        self.result = value
+                    self.root.destroy()
+                    return
+                else:
+                    self.busy = False
+                    self.progress["value"] = 0
+                    self.start_button.configure(state="normal")
+                    self.cancel_button.configure(text="Close")
+                    self.status.set(str(value))
+                    if self.closing:
+                        self.root.destroy()
+                        return
+                    if not isinstance(value, ImportCancelled):
+                        messagebox.showerror("Game files could not be prepared", str(value), parent=self.root)
+        except queue.Empty:
+            pass
+        self.root.after(75, self.poll)
