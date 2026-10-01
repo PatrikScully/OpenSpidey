@@ -71,3 +71,20 @@ def load_settings(path):
         return dict(DEFAULTS), ""
     except (OSError, ValueError) as error:
         return dict(DEFAULTS), "Saved settings could not be read: %s" % error
+
+def save_settings(path, values):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                         prefix=".settings-", delete=False) as stream:
+            temporary = Path(stream.name)
+            json.dump(normalise_settings(values), stream, indent=2, ensure_ascii=False)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
