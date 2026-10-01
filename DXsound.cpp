@@ -2071,7 +2071,7 @@ void DXPOLY_SetDepthCompare(u32 a1)
 // @Matching
 void DXPOLY_SetDepthWriting(bool a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gDxPolyRelated && a1 != gDepthWriting)
 	{
 		G_D3DDEVICE7->SetRenderState(D3DRENDERSTATE_ZWRITEENABLE, a1);
