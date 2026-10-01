@@ -11,6 +11,19 @@
 
 struct SModel;
 
+// Original 0x4F6290. A loose web strand with two moving endpoints.
+class CKnottedWebFrag : public CKnottedWeb
+{
+	public:
+		EXPORT CKnottedWebFrag(const CVector &start, const CVector &end,
+			const CVector &startVelocity, const CVector &endVelocity);
+
+		CVector mEndVelocity;
+		CVector mEndPos;
+		i32 mGroundY;
+		u32 mRestDistance;
+};
+
 // The three live at 0x006B55A0..0x006B55AB, next to each other. CWeb::CWeb
 // (0x4F5DA0) pushes 0x6B55A0 into CBody::AttachTo, and CDome::CDome /
 // CDome::~CDome (0x4FA640 / 0x4FA770) bump 0x6B55A4 (the fire-dome count,

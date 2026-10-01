@@ -1164,6 +1164,12 @@ void validate_CDomeRing(void){
 }
 
 void validate_CWeb(void){
+	VALIDATE_SIZE(CKnottedWebFrag, 0x98);
+	VALIDATE(CKnottedWebFrag, mEndVelocity, 0x78);
+	VALIDATE(CKnottedWebFrag, mEndPos, 0x84);
+	VALIDATE(CKnottedWebFrag, mGroundY, 0x90);
+	VALIDATE(CKnottedWebFrag, mRestDistance, 0x94);
+
 	VALIDATE_SIZE(CWeb, 0x13C);
 
 
@@ -1332,6 +1338,40 @@ void CSwinger_SwingBack(CSwinger *a1)
 		pWeb->field_74 = a1->field_F8;
 	}
 }
+// @NotOk
+// Original 0x4F6290. Give each endpoint its speed and find the ground below.
+// Six instruction diffs remain in the ray setup and hit selection.
+CKnottedWebFrag::CKnottedWebFrag(const CVector &start, const CVector &end,
+	const CVector &startVelocity, const CVector &endVelocity)
+	: CKnottedWeb(start, end)
+{
+	this->mPos = start;
+	this->mEndPos = end;
+	this->mVel = startVelocity;
+	this->mEndVelocity = endVelocity;
+
+	const CVector &middle = (start + end) >> 1;
+	i32 x = middle.vx;
+	i32 y = middle.vy;
+	i32 z = middle.vz;
+	G_LINE_INFO.StartCoords.vy = y;
+	y += 0x1388000;
+	G_LINE_INFO.StartCoords.vx = x;
+	G_LINE_INFO.StartCoords.vz = z;
+	G_LINE_INFO.EndCoords.vx = x;
+	G_LINE_INFO.EndCoords.vy = y;
+	G_LINE_INFO.EndCoords.vz = z;
+	M3dColij_InitLineInfo(&G_LINE_INFO);
+	M3dZone_LineToItem(&G_LINE_INFO, 1);
+	i32 ground = G_LINE_INFO.Position.vy;
+	if (!G_LINE_INFO.pItem)
+		ground = G_LINE_INFO.EndCoords.vy;
+	this->mGroundY = ground;
+	this->field_6E = 1;
+	this->field_70 = 2;
+	this->mRestDistance = Utils_Dist(this->mPos, this->mEndPos) >> 3;
+}
+
 // Turns a live web into a blob: mode field_104 goes to 3 and, unless the
 // attached item is type 401, bit 3 of the attached item's flag word at 0x2A8
 // is cleared (the "web attached" flag on the target, going by the fact that
