@@ -28,6 +28,8 @@ This development preview includes the work since v0.0.2, released on
   stitched lighting colors and the original ambient color order.
 - Fix texture perspective, billboard vertices, sprite depth and vertical
   projection. Correct scratch buffer pointers used by effect rendering.
+- Fix the main-menu model reader's face stride, which caused a native
+  menu crash.
 - Add MSAA with a fallback when the requested sample count is unsupported.
 - Add mipmaps and anisotropic filtering for suitable repeating world
   surfaces. Preserve character, sprite and HUD texture sampling.
