@@ -52,3 +52,17 @@ class LauncherGuiTests(unittest.TestCase):
         self.assertFalse(self.window.busy)
         self.assertIsNone(self.window.result)
         self.assertFalse((self.path / "settings.json").exists())
+
+    def test_worker_reports_progress_and_saves_after_validation(self):
+        self.window.vars["source_path"].set(str(self.path / "disc.iso"))
+        def importer(source, destination, progress, cancelled):
+            progress(50, 100, "data.pkr")
+            return Path(destination)
+        with mock.patch("launcher.import_iso", side_effect=importer):
+            self.window.start()
+            deadline = time.monotonic() + 3
+            while self.window.result is None and time.monotonic() < deadline:
+                self.root.update()
+                time.sleep(0.01)
+        self.assertIsNotNone(self.window.result)
+        self.assertEqual(config.load_settings(self.path / "settings.json")[0]["game_dir"], str(self.path / "game"))
