@@ -248,3 +248,24 @@ class SetupWindow:
         self.cancel_button.configure(text="Cancel")
         self.status.set("Checking game files…")
         threading.Thread(target=self.prepare_assets, args=(values,), daemon=False).start()
+
+    def prepare_assets(self, values):
+        try:
+            if values["source_mode"] == "iso":
+                destination = self.data_path / "game"
+                same_source = values["source_mode"] == self.settings["source_mode"] and values["source_path"] == self.settings["source_path"]
+                if same_source and self.settings["game_dir"] and not Path(values["source_path"]).expanduser().exists():
+                    directory = validate_game_dir(self.settings["game_dir"])
+                else:
+                    directory = import_iso(values["source_path"], destination,
+                                           progress=lambda done, total, name: self.events.put(("progress", (done, total, name))),
+                                           cancelled=self.cancelled.is_set)
+            else:
+                directory = validate_game_dir(Path(values["source_path"]).expanduser())
+            if self.cancelled.is_set():
+                raise ImportCancelled("Import cancelled.")
+            values["game_dir"] = str(directory.resolve())
+            save_settings(self.config_path, values)
+            self.events.put(("ready", values))
+        except Exception as error:
+            self.events.put(("error", error))
