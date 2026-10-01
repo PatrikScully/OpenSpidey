@@ -988,7 +988,7 @@ i32 DXINPUT_StartForceFeedbackEffect(void)
 // @Matching
 i32 DXINPUT_StopForceFeedbackEffect(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gDxInputRelated && gControllerRelated && gForceFeedbackRelated)
 	{
 		gForceFeedbackRelated->Stop();
