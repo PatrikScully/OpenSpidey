@@ -326,6 +326,7 @@ class CWebFrag : public CGLine
 				const CVector &SuperPos,
 				i32 Speed,
 				i32 Jitter);
+		EXPORT virtual ~CWebFrag(void) OVERRIDE;
 		EXPORT virtual void Move(void) OVERRIDE;
 
 		// Three copies of the same vector: (HookA - SuperPos) scaled to

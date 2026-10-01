@@ -981,6 +981,14 @@ CWebFrag::CWebFrag(
 
 // @Ok
 // @Matching
+// Original 0x4FA2E0. The companion line is protected from the global bit cleanup.
+CWebFrag::~CWebFrag(void)
+{
+    delete this->field_84;
+}
+
+// @Ok
+// @Matching
 // Original 0x4FA340. Move all three strand ends, then fade both lines.
 void CWebFrag::Move(void)
 {
