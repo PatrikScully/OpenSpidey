@@ -80,3 +80,26 @@ class LauncherConfigTests(unittest.TestCase):
                  mock.patch("launcher.run_game", return_value=0) as run:
                 self.assertEqual(launcher.main([]), 0)
                 run.assert_called_once_with(Path("/app/spider"), values, Path(temp))
+
+    @unittest.skipIf(os.name == "nt", "POSIX executable fixture")
+    def test_process_uses_argument_list_and_persistent_logs(self):
+        with tempfile.TemporaryDirectory(prefix="launcher path ") as temp:
+            root = Path(temp)
+            binary = root / "spider"
+            binary.write_text("#!/usr/bin/env python3\nimport json,os,sys\nprint(json.dumps({'argv':sys.argv,'cwd':os.getcwd(),'volume':os.getenv('SPIDEY_MASTER_VOLUME')}))\n")
+            binary.chmod(0o700)
+            values = dict(config.DEFAULTS, game_dir=str(root), master_volume=37)
+            with mock.patch("launcher.validate_game_dir", return_value=root):
+                self.assertEqual(launcher.run_game(binary, values, root), 0)
+            log = next((root / "logs").iterdir())
+            result = json.loads(log.read_text())
+            self.assertEqual(result["argv"], [str(binary), "."])
+            self.assertEqual(result["cwd"], str(root))
+            self.assertEqual(result["volume"], "37")
+            binary.write_text("#!/bin/sh\nexit 7\n")
+            with mock.patch("launcher.validate_game_dir", return_value=root), self.assertRaisesRegex(RuntimeError, "code 7"):
+                launcher.run_game(binary, values, root)
+
+
+if __name__ == "__main__":
+    unittest.main()
