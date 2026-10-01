@@ -13,6 +13,7 @@
 // Needs libsdl3-dev:i386 and libgl-dev:i386 (32 bit build).
 
 #include "../plat.h"
+#include "audio_settings.h"
 #include "../../DXsound.h"   // SDXPolyField
 #include "../../PCInput.h"
 #include "../../spidey.h"
@@ -1086,6 +1087,7 @@ static void SDLCALL mixCallback(void*, SDL_AudioStream* stream, int additional, 
 	free(out);
 }
 
+// @Bogus
 i32 Plat_SndInit(void)
 {
 	SDL_AudioSpec spec;
@@ -1099,6 +1101,7 @@ i32 Plat_SndInit(void)
 		printf("Plat(sdl3): no audio device: %s\n", SDL_GetError());
 		return 0;
 	}
+	SDL_SetAudioStreamGain(gStream, Plat_AudioGain("SPIDEY_SFX_VOLUME"));
 	SDL_ResumeAudioStreamDevice(gStream);
 	return 1;
 }
