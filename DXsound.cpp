@@ -2096,7 +2096,7 @@ void DXPOLY_SetDepthWriting(bool a1)
 // @Matching
 void DXPOLY_SetFilterMode(u32 filterIndex)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (filterIndex != gCurrentFilterIndex)
 	{
 		G_D3DDEVICE7->SetTextureStageState(0, D3DTSS_MAGFILTER, gMagFilters[filterIndex]);
