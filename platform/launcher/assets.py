@@ -301,3 +301,26 @@ def _preserve_saves(destination, staging):
     shutil.copytree(saves, staging / "save")
 
 
+@contextmanager
+def _import_lock(destination):
+    lock_path = destination.parent / ("." + destination.name + ".import-lock")
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        if os.fstat(descriptor).st_size == 0:
+            os.write(descriptor, b" ")
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            raise AssetError("Another asset import is using this folder. "
+                             "Close the other setup window and try again.") from error
+        yield
+    finally:
+        os.close(descriptor)
+
+
