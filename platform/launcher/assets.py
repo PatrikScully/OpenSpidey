@@ -102,3 +102,79 @@ def _directory_record(record, image_size, joliet):
             "unsupported": bool(record[25] & 0x84 or record[26] or record[27])}
 
 
+def _scan_iso(stream, image_size):
+    primary = None
+    supplementary = None
+    descriptors = hashlib.sha256()
+    terminated = False
+    for sector in range(16, 80):
+        stream.seek(sector * BLOCK_SIZE)
+        descriptor = stream.read(BLOCK_SIZE)
+        if len(descriptor) != BLOCK_SIZE or descriptor[1:6] != b"CD001" or descriptor[6] != 1:
+            raise AssetError("Choose an ISO image of the Spider-Man (2000) PC disc.")
+        descriptors.update(descriptor)
+        if descriptor[0] == 255:
+            terminated = True
+            break
+        if descriptor[0] == 1:
+            primary = descriptor
+        elif descriptor[0] == 2 and descriptor[88:91] in (b"%/@", b"%/C", b"%/E"):
+            supplementary = descriptor
+    if primary is None or not terminated:
+        raise AssetError("The ISO volume descriptors are incomplete.")
+    descriptor = supplementary or primary
+    joliet = supplementary is not None
+    block_size = struct.unpack_from("<H", descriptor, 128)[0]
+    big_block_size = struct.unpack_from(">H", descriptor, 130)[0]
+    volume_blocks = struct.unpack_from("<I", descriptor, 80)[0]
+    big_volume_blocks = struct.unpack_from(">I", descriptor, 84)[0]
+    if block_size != BLOCK_SIZE or big_block_size != BLOCK_SIZE:
+        raise AssetError("This ISO uses an unsupported block size.")
+    volume_size = volume_blocks * BLOCK_SIZE
+    if volume_blocks != big_volume_blocks or volume_size > image_size or volume_size < 19 * BLOCK_SIZE:
+        raise AssetError("The ISO is incomplete or has invalid volume bounds.")
+    root_length = descriptor[156]
+    root = _directory_record(descriptor[156:156 + root_length], volume_size, joliet)
+    if not root["directory"] or root["unsupported"]:
+        raise AssetError("The ISO root directory is invalid.")
+    pending = [((), root)]
+    visited = set()
+    entries = {}
+    count = 0
+    while pending:
+        parent, directory = pending.pop()
+        key = (directory["offset"], directory["size"])
+        if key in visited or len(parent) > 32 or directory["size"] > 16 * CHUNK_SIZE:
+            raise AssetError("The ISO has an invalid directory tree.")
+        visited.add(key)
+        stream.seek(directory["offset"])
+        data = stream.read(directory["size"])
+        if len(data) != directory["size"]:
+            raise AssetError("The ISO directory is incomplete.")
+        position = 0
+        while position < len(data):
+            length = data[position]
+            if length == 0:
+                position = (position // BLOCK_SIZE + 1) * BLOCK_SIZE
+                continue
+            if position % BLOCK_SIZE + length > BLOCK_SIZE:
+                raise AssetError("An ISO directory record crosses a block boundary.")
+            record = _directory_record(data[position:position + length], volume_size, joliet)
+            position += length
+            if record["name"] is None:
+                continue
+            count += 1
+            if count > 16384:
+                raise AssetError("The ISO directory tree is too large.")
+            path = parent + (record["name"],)
+            normalized = "/".join(path).casefold()
+            if normalized in entries:
+                raise AssetError("The ISO has duplicate file names.")
+            entries[normalized] = record
+            if record["directory"]:
+                if record["unsupported"]:
+                    raise AssetError("The ISO uses unsupported directory storage.")
+                pending.append((path, record))
+    return entries, descriptors.hexdigest()
+
+
