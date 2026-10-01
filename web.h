@@ -56,6 +56,7 @@ class CImpactWeb : public CFlatBit
 		// __ct__10CImpactWebFRC7CVectorRC8CSVectoriii gives the parameter
 		// list. The web splat left on a wall when a web shot misses.
 		EXPORT CImpactWeb(const CVector &Pos, const CSVector &Normal, i32 Speed, i32 Damage, i32 Lifetime);
+		EXPORT virtual void Move(void) OVERRIDE;
 
 		// Fields recovered from the constructor's own stores (0x4F9940),
 		// which is the only decompiled user of this class so far.

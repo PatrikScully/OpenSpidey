@@ -7,6 +7,9 @@
 
 EXPORT extern u32 HeapDefs[2][2];
 EXPORT extern i32 LowMemory;
+// Read by the fragment loop in CImpactWeb::Move (0x4F9F3C).
+//#define G_LOW_MEMORY (LowMemory)
+#define G_LOW_MEMORY (*reinterpret_cast<i32*>(0x0060D224))
 
 
 struct SHandle

@@ -14,6 +14,8 @@
 #include "chain.h"
 #include "manipob.h"
 #include "exp.h"
+#include "switch.h"
+#include "ps2lowsfx.h"
 
 #include "validate.h"
 
@@ -2036,6 +2038,114 @@ CImpactWeb::CImpactWeb(
 	this->mPostScale = 0x0A001000;
 
 	this->field_5A = Rnd(2) != 0 ? 768 : -768;
+}
+
+// @NotOk
+// Original 0x4F9BD0, CImpactWeb vtable 0x53C7B0 slot 1.
+void CImpactWeb::Move(void)
+{
+    this->mScale += 150;
+    if (this->mScale > 500)
+        this->mScale = 500;
+    this->mAngle += this->field_5A;
+    CVector previous = this->mPos;
+    i32 elapsed = G_TIMER_RELATED - this->mStartTime;
+    this->mStartTime = G_TIMER_RELATED;
+    this->mPos.vx += elapsed * this->mVel.vx;
+    this->mPos.vy += elapsed * this->mVel.vy;
+    this->mPos.vz += elapsed * this->mVel.vz;
+    CVector impact = previous;
+    i32 mode = 0;
+    SHitInfo hit;
+    CBody *body = Utils_CheckObjectCollision(&previous, &this->mPos, G_BADDY_LIST, 0);
+    if (body)
+        mode = 2;
+    else
+    {
+        this->mAge += elapsed;
+        if (this->mAge >= this->mLifetime)
+            mode = this->mpHitItem ? 3 : 1;
+    }
+    switch (mode)
+    {
+    case 3:
+        SFX_PlayPos(16, &this->mPos, 0);
+        impact = this->mHitPos;
+        impact.vx += 10 * this->mHitNormal.vx;
+        impact.vy += 10 * this->mHitNormal.vy;
+        impact.vz += 10 * this->mHitNormal.vz;
+        new CSplat(impact, *reinterpret_cast<SVECTOR*>(&this->mHitNormal));
+        if (!(this->mpHitItem->mFlags & 1) && (this->mpHitFace[3] & 0x2000000))
+        {
+            CSwitch *pSwitch = Switch_GetCSwitchObjectFromItem(this->mpHitItem);
+            if (pSwitch && pSwitch->field_100)
+                pSwitch->Flick();
+        }
+        break;
+    case 2:
+    {
+        CPlayer *pPlayer = G_MECHLIST_PLAYER;
+        if (pPlayer)
+        {
+            pPlayer->field_534 = 360;
+            pPlayer->field_52C = (pPlayer->field_528 + 11) << 10;
+            G_MECHLIST_PLAYER->SetFirstContactDetails();
+        }
+        hit.field_C.vz = this->mVel.vz >> 12;
+        hit.field_C.vx = this->mVel.vx >> 12;
+        hit.field_C.vy = 0;
+        VectorNormal(reinterpret_cast<VECTOR*>(&hit.field_C), reinterpret_cast<VECTOR*>(&hit.field_C));
+        hit.field_8 = this->mDamage;
+        hit.field_0 = 30;
+        hit.field_4 = 6;
+        hit.field_18 = 300;
+        hit.field_1A = 12;
+        body->Hit(&hit);
+        SFX_PlayPos(16, &this->mPos, 0);
+        break;
+    }
+    }
+    if (mode)
+    {
+        new CImpactRing(impact, 200, 210, 255, 3216, 316);
+        if (mode == 2)
+        {
+            i32 y = impact.vy;
+            i32 x = impact.vx;
+            i32 z = impact.vz;
+            G_LINE_INFO.StartCoords.vy = y;
+            y += 0x1388000;
+            G_LINE_INFO.StartCoords.vx = x;
+            G_LINE_INFO.StartCoords.vz = z;
+            G_LINE_INFO.EndCoords.vx = x;
+            G_LINE_INFO.EndCoords.vy = y;
+            G_LINE_INFO.EndCoords.vz = z;
+            M3dColij_InitLineInfo(&G_LINE_INFO);
+            M3dZone_LineToItem(&G_LINE_INFO, 1);
+            i32 ground = G_LINE_INFO.pItem ? G_LINE_INFO.Position.vy : G_LINE_INFO.EndCoords.vy;
+            for (i32 i = 0; i < 30; i++)
+            {
+                if (G_LOW_MEMORY)
+                    break;
+                CVector a;
+                CVector b;
+                a.vx = (Rnd(21) - 10) << 12;
+                a.vy = (Rnd(21) - 10) << 12;
+                a.vz = (Rnd(21) - 10) << 12;
+                b.vx = (Rnd(21) - 10) << 12;
+                b.vy = (Rnd(21) - 10) << 12;
+                b.vz = (Rnd(21) - 10) << 12;
+                a.vx += impact.vx;
+                a.vy += impact.vy;
+                a.vz += impact.vz;
+                b.vx += impact.vx;
+                b.vy += impact.vy;
+                b.vz += impact.vz;
+                new CWebFrag(ground, impact, a, b, impact, 25, 1);
+            }
+        }
+        this->Die();
+    }
 }
 
 // @Bogus
