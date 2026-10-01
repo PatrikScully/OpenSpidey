@@ -129,3 +129,22 @@ class AssetTests(unittest.TestCase):
         self.assertNotEqual(previous, current)
         self.assertEqual((saves / "SPIDRMAN.DAT").read_bytes(), b"player progress")
 
+    def test_cancel_and_changed_source_leave_existing_game(self):
+        make_iso(self.iso)
+        assets.import_iso(self.iso, self.destination)
+        before = (self.destination / assets.MANIFEST_NAME).read_bytes()
+        with self.assertRaises(assets.ImportCancelled):
+            assets.import_iso(self.iso, self.destination, cancelled=lambda: True)
+        with mock.patch.object(assets, "_valid_cache", return_value=False):
+            progress = []
+            with self.assertRaises(assets.ImportCancelled):
+                assets.import_iso(self.iso, self.destination, lambda *event: progress.append(event),
+                                  lambda: bool(progress and progress[-1][0]))
+        self.assertEqual((self.destination / assets.MANIFEST_NAME).read_bytes(), before)
+        self.assertEqual(list(self.root.glob(".game.import-*")), [self.root / ".game.import-lock"])
+        with mock.patch.object(assets, "_valid_cache", return_value=False):
+            with self.assertRaisesRegex(assets.AssetError, "changed during import"):
+                assets.import_iso(self.iso, self.destination,
+                                  lambda *unused: os.utime(self.iso, ns=(0, self.iso.stat().st_mtime_ns + 1000000)))
+        self.assertEqual((self.destination / assets.MANIFEST_NAME).read_bytes(), before)
+
