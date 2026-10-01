@@ -2303,8 +2303,8 @@ void DisplayTextBoxList(void** a1)
 //   blend mode 0) - read straight from the bit instead of round-tripping through the dead scratch
 //   record. Clut for PCGfx_UseTexture is mpPSXFrame->pTexture->clut (Texture::clut, texture.h).
 // - Only the sprite centre (CBit::mPos) goes through the camera-space GTE transform
-//   (gte_ldlv0/gte_rtps) and the separate Algebra_Transform4/invZ pass (RefreshGfxMatrix already
-//   run for this frame by an earlier Display*List call, same as DisplayChunkBitList); all 4
+//   (gte_ldlv0/gte_rtps) and the separate inverse-depth pass. The original refreshes the camera
+//   matrix at entry and adds the homogeneous translation term once; all 4
 //   corners share that single invZ. The 4 corners' screen positions are built directly from
 //   SAnimFrame::OffX/OffY/Width/Height (mpPSXFrame->pTexture's owning frame), CFT4Bit::mScale
 //   (perspective falloff with raw depth), CFlatBit::mPostScale (packed lo/hi u16 X/Y scale) and,
@@ -2315,8 +2315,9 @@ void DisplayTextBoxList(void** a1)
 // - Single PCGfx_DrawQPoly3D call per bit (no back-face pass, unlike DisplayQuadBitList/
 //   DisplayGlassList), standard 0.01/0.99 texture-bleed-inset UVs, gated on
 //   `mpPSXFrame->pTexture->clut != 0 && corners-all-in-range`.
-void DisplayFlatBitList(void** a1)
+EXPORT void DisplayFlatBitList(void** a1)
 {
+	RefreshGfxMatrix();
 	u8* clip = G_VIEW_CLIP_INFO;
 	i32 farLimit = *(u16*)(clip + 0xA);
 	i32 halfLimit = *(u16*)(clip + 0xE) >> 1;
@@ -2337,10 +2338,11 @@ void DisplayFlatBitList(void** a1)
 		rawPos[1] = (f32)pBit->mPos.vy / 4096.0f;
 		rawPos[2] = (f32)pBit->mPos.vz / 4096.0f;
 
-		f32 xf[4];
-		Algebra_Transform4(xf, rawPos);
-
-		f32 invZ = (fabsf(xf[3]) > 0.00000001f) ? 1.0f / xf[3] : -1.0e12f;
+		// The original adds the translation term directly, so homogeneous w is 1.
+		f32 inverseW = gFrameProjMatrix[3] * rawPos[0]
+				+ gFrameProjMatrix[11] * rawPos[2]
+				+ gFrameProjMatrix[7] * rawPos[1] + gFrameProjMatrix[15];
+		f32 invZ = (fabsf(inverseW) > 0.00000001f) ? 1.0f / inverseW : -1.0e12f;
 
 		u8* rec = reinterpret_cast<u8*>(G_PPOLY);
 		if (rec + 40 > G_POLY_BUFFER_END)
