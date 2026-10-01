@@ -8,6 +8,7 @@
 
 #include "exemem.h"
 #include "plat.h"
+#include "launcher.h"
 
 #include "../SpideyDX.h"
 #include "../DXinit.h"
@@ -17,22 +18,30 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
 #include <signal.h>
+#ifdef _WIN32
+#include <direct.h>
+#define chdir _chdir
+#else
+#include <unistd.h>
 #include <execinfo.h>
 #include <sys/prctl.h>
+#endif
 
 void compile_time_assertions(void);   // main.cpp
 
 // Debug aid: "kill -QUIT <pid>" (or timeout -s QUIT) prints where the main
 // thread is, for hangs the null backend cannot show otherwise.
+// @Bogus
 static void onQuitSignal(int)
 {
+#ifndef _WIN32
 	void* frames[64];
 	int n = backtrace(frames, 64);
 	fputs("---- SIGQUIT backtrace ----\n", stderr);
 	backtrace_symbols_fd(frames, n, 2);
 	_exit(3);
+#endif
 }
 
 int main(int argc, char** argv)
