@@ -147,8 +147,10 @@ INLINE void PCMUSIC_Init(void)
 	{
 		if (!gPcMusicInited)
 		{
+#ifndef SPIDEY_STANDALONE
 			BinkSetSoundSystem(BinkOpenDirectSound, g_pDS);
 			BinkSetIOSize(256);
+#endif
 
 			gPcMusicInited = 1;
 		}
