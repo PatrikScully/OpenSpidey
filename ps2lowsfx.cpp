@@ -1151,6 +1151,7 @@ u32 playSFX(
 		i32 pitch_offset,
 		u16 volMod)
 {
+	bool looped = (sfx & 0x80000000) != 0;
 	u16 assetIndex = (sfx >> 0x10) & 0x7F;
 
 	SSFXBank *pBank = &G_SFX_RELATED_OUT_LEVEL;
@@ -1191,7 +1192,7 @@ u32 playSFX(
 
 	i32 v19 = SFX_AllocVoice(
 			assetIndex,
-			(sfx & 0x80000000) != 0);
+			looped);
 	if (v19 < 0)
 		return 0;
 
@@ -1200,7 +1201,7 @@ u32 playSFX(
 	G_SFX_ENTRIES[v19].field_16 = v14;
 	G_SFX_ENTRIES[v19].field_14 = pitch;
 
-	i32 newPitch = PSXPitchToDCPitch((100 * (pitch - 60)) & 0xFF);
+	u8 newPitch = PSXPitchToDCPitch((100 * (pitch - 60)) & 0xFF);
 	G_SFX_ENTRIES[v19].field_20 = newPitch;
 	i32 newVol = DCSFX_AdjustVol(v14);
 	DXSOUND_Open(
