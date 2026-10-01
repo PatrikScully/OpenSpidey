@@ -2702,7 +2702,7 @@ void DXSOUND_Stop(i32 a1)
 // @Matching
 void DXSOUND_Unload(char *a1, i32 a2)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (a2)
 	{
 		for (i32 i = 0; i < 0x80; i++)
