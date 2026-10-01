@@ -1717,7 +1717,7 @@ void DXPOLY_SaveScreen(void)
 	}
 	return;
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	char v7[32];
 	sprintf(v7, "scrn%4.4i.bmp", ++gScreenshotNumber);
 
