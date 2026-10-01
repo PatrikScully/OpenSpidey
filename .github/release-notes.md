@@ -1,3 +1,5 @@
+# OpenSpidey v0.0.3
+
 Your friendly neighborhood PC rebuild now has a setup app.
 
 Download the Linux or Windows app, extract the whole archive, open

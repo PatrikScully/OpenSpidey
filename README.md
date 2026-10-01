@@ -6,7 +6,7 @@ OpenSpidey brings Spider-Man (2000) for PC to a native SDL3 and OpenGL engine.
 Choose your game files, set up the picture, sound and controls, then press
 **Start game**. The app remembers your choices.
 
-[Download the latest release](https://github.com/PatrikScully/OpenSpidey/releases/latest)
+[Download OpenSpidey](https://github.com/PatrikScully/OpenSpidey/releases)
 · [What changed](CHANGELOG.md)
 · [Build from source](docs/BUILDING.md)
 · [Report a problem](https://github.com/PatrikScully/OpenSpidey/issues)
@@ -64,9 +64,9 @@ Turn off **Modern controls** in setup to use the original keyboard layout.
 
 | Download | Use |
 | --- | --- |
-| `openspidey-v0.0.3-linux-x86_64.tar.gz` | Linux app for a 64 bit x86 desktop with glibc 2.35 or newer, such as Ubuntu 22.04 or newer |
-| `openspidey-v0.0.3-windows-x86_64.zip` | Native app for 64 bit Windows 10 or newer |
-| `openspidey-v0.0.3-windows-binkw32.zip` | Separate developer DLL for the original Windows game |
+| `openspidey-<version>-linux-x86_64.tar.gz` | Linux app for a 64 bit x86 desktop with glibc 2.35 or newer, such as Ubuntu 22.04 or newer |
+| `openspidey-<version>-windows-x86_64.zip` | Native app for 64 bit Windows 10 or newer |
+| `openspidey-<version>-windows-binkw32.zip` | Separate developer DLL for the original Windows game |
 | Source archives | Build or study OpenSpidey and its bundled runtime |
 
 The app packages include their setup launcher, SDL3 and the movie/audio
