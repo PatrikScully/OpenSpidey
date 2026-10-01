@@ -68,4 +68,32 @@ static void Plat_DecoderRemove(const char* path)
 #endif
 }
 
+// @Bogus
+static void Plat_DecoderStop(PlatDecoder* decoder)
+{
+#ifdef _WIN32
+	if (decoder->fd && decoder->fd != INVALID_HANDLE_VALUE)
+		CloseHandle(decoder->fd);
+	decoder->fd = 0;
+	if (decoder->pid)
+	{
+		if (WaitForSingleObject(decoder->pid, 0) == WAIT_TIMEOUT)
+			TerminateProcess(decoder->pid, 1);
+		WaitForSingleObject(decoder->pid, INFINITE);
+		CloseHandle(decoder->pid);
+	}
+#else
+	if (decoder->fd >= 0)
+		close(decoder->fd);
+	decoder->fd = -1;
+	if (decoder->pid > 0)
+	{
+		kill(decoder->pid, SIGKILL);
+		while (waitpid(decoder->pid, 0, 0) < 0 && errno == EINTR)
+			;
+	}
+#endif
+	decoder->pid = 0;
+}
+
 #endif
