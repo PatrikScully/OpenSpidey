@@ -2994,7 +2994,7 @@ u8* loadWAV(char *fileName, tWAVEFORMATEX *pwfx, long *pSize)
 // @Ok
 void DXPOLY_SetAddressUAndV(DWORD addressU, DWORD addressV)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (addressU != gAddressU)
 	{
 		G_D3DDEVICE7->SetTextureStageState(0, D3DTSS_ADDRESSU, addressU);
