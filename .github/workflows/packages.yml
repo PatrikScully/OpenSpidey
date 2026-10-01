@@ -46,6 +46,8 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 40
     steps:
+      - name: Keep shell scripts with Unix line endings
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -55,6 +57,7 @@ jobs:
         shell: pwsh
         run: python -m unittest discover -s tests/launcher -v
       - uses: msys2/setup-msys2@v2
+        id: msys2
         with:
           msystem: MINGW32
           update: true
@@ -85,11 +88,15 @@ jobs:
           bash packaging/build_ffmpeg.sh out/ffmpeg out/ffmpeg-install windows
       - name: Freeze the setup app and include the game runtime
         shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: |
           python -m pip install PyInstaller==6.22.3
           $version = $env:BUILD_VERSION.TrimStart('v')
           "VERSION = '$version'" | Set-Content platform/launcher/_version.py -Encoding utf8
-          python packaging/package.py --platform windows --binary out/game/spider.exe --ffmpeg-prefix out/ffmpeg-install --sdl-prefix out/sdl/SDL3-3.4.16/i686-w64-mingw32 --runtime-bin C:/msys64/mingw32/bin --compiler C:/msys64/mingw32/bin/g++.exe --version "$env:BUILD_VERSION" --output out/openspidey-windows-x86_64
+          $runtime = Join-Path $env:MSYS2_LOCATION 'mingw32/bin'
+          $compiler = Join-Path $runtime 'g++.exe'
+          python packaging/package.py --platform windows --binary out/game/spider.exe --ffmpeg-prefix out/ffmpeg-install --sdl-prefix out/sdl/SDL3-3.4.16/i686-w64-mingw32 --runtime-bin "$runtime" --compiler "$compiler" --version "$env:BUILD_VERSION" --output out/openspidey-windows-x86_64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & out/openspidey-windows-x86_64/spider.exe --help
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
