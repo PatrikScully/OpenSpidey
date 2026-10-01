@@ -204,12 +204,23 @@ u8 PCMUSIC_Play(i32 a1)
 	if (!g_pDS)
 		return 0;
 #ifdef SPIDEY_STANDALONE
-	// @TODO Phase 2b: music tracks are Bink audio files; no Bink player yet
-	// (my_bink.cpp's BinkOpen stub locks up on purpose). Pretend the track
-	// plays, or the shell restarts it every frame.
-	printf("PCMUSIC_Play(%d): skipping %s\n", a1, MUSICTRACKS_GetTrackName(a1));
-	gStandaloneMusicPlaying = 1;
-	return 1;
+	PCMUSIC_Stop();
+	if (a1 < 0 || a1 >= 1264)
+		return 0;
+	char* name = MUSICTRACKS_GetTrackName(a1);
+	if (!strcmp(name, "blank.bik"))
+		return 0;
+	if (getenv("SPIDEY_TRACE_MUSIC"))
+		fprintf(stderr, "MUSIC track=%d file=%s\n", a1, name);
+	if (G_DATA_PKR)
+	{
+		PKR_FILEINFO info;
+		if (PKR_GetFileInfo(G_DATA_PKR, "data\\Voice\\", name, &info) && info.compressed == -2)
+			return Plat_MusicOpen(G_DATA_PKR->name, info.fileOffset, info.uncompressedSize) != 0;
+	}
+	char path[256];
+	snprintf(path, sizeof(path), "data/Voice/%s", name);
+	return Plat_MusicOpen(path, 0, 0) != 0;
 #endif
 	PCMUSIC_Stop();
 
