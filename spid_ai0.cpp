@@ -175,10 +175,14 @@ struct SWebSwitchToSnapAdapter
 // @Bogus
 static void gCWeb_SwitchToSnap(CWeb *pWeb, CVector &dir, CVector *pPath)
 {
+#ifdef SPIDEY_STANDALONE
+	pWeb->SwitchToSnap(dir, pPath);
+#else
 	typedef void (SWebSwitchToSnapAdapter::*memfn)(CVector&, CVector*);
 	union { memfn m; void *p; } u;
 	u.p = (void*)0x004F69F0;
 	(reinterpret_cast<SWebSwitchToSnapAdapter*>(pWeb)->*u.m)(dir, pPath);
+#endif
 }
 
 // @Bogus
