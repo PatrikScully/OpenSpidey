@@ -224,6 +224,7 @@ class CWeb : public CBody
 		i32 field_138;
 
 		EXPORT void SwitchToBlob(void);
+		EXPORT void BreakIntoBits(void);
 
 		// Original 0x4F5ED0. Mac mangled name
 		// Fire__4CWebFR7CVectorR7CVectorP5CBodybR8CSVector gives the

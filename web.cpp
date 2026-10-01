@@ -13,6 +13,7 @@
 #include "ps2funcs.h"
 #include "chain.h"
 #include "manipob.h"
+#include "exp.h"
 
 #include "validate.h"
 
@@ -1443,6 +1444,54 @@ void CWeb::SwitchToBlob(void)
 	// known yet (CWeb only ever sees it through this handle), so it stays a
 	// raw offset rather than a guessed field name.
 	*reinterpret_cast<i32*>(reinterpret_cast<u8*>(pTarget) + 0x2A8) &= ~8;
+}
+
+// @Ok
+// @Matching
+// Original 0x4F66A0. Break a rejected tug into loose strands.
+void CWeb::BreakIntoBits(void)
+{
+	if (this->field_12C)
+	{
+		CVector side;
+		CVector start = this->field_12C->mStart;
+		CVector end = this->field_12C->mSegs[this->field_12C->mNumSegs - 1].End;
+		Utils_CalcUnitFacingCamera(&start, &end, &side);
+		i32 count = 6;
+		i32 distance = Utils_Dist(start, end);
+		if (distance / count < 100)
+			count = distance / 100;
+		if (!count)
+			count = 1;
+		CVector step = (end - start) / count;
+		end = start + step;
+		for (i32 i = 0; i < count; i++)
+		{
+			CVector startVelocity = (Rnd(10) + 10) * side;
+			CVector endVelocity = (Rnd(10) + 10) * side;
+			if (Rnd(2))
+			{
+				startVelocity.vx = -startVelocity.vx;
+				startVelocity.vy = -startVelocity.vy;
+				startVelocity.vz = -startVelocity.vz;
+				endVelocity.vx = -endVelocity.vx;
+				endVelocity.vy = -endVelocity.vy;
+				endVelocity.vz = -endVelocity.vz;
+			}
+			startVelocity.vy -= Rnd(20) << 12;
+			endVelocity.vy -= Rnd(20) << 12;
+			new CKnottedWebFrag(start, end, startVelocity, endVelocity);
+			if (i & 1)
+			{
+				CGlowFlash *flash = new CGlowFlash(&end, 5, 255, 255, 255,
+					0, 128, 128, 128, 0, 9, 0, 1, 12, 40, 6, 20, 1, 1);
+				flash->mAngle = Rnd(4096);
+			}
+			start += step;
+			end += step;
+		}
+	}
+	this->Die();
 }
 
 // @Ok
