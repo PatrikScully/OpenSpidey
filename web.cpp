@@ -1993,6 +1993,31 @@ CImpactWeb::CImpactWeb(
 
 // @Ok
 // @Matching
+// Original 0x420BB0, shared with CSniperSplat::Move.
+void CSplat::Move(void)
+{
+    switch (this->mMode)
+    {
+        case 0:
+            this->mMode = 1;
+            break;
+        case 1:
+            if (++this->mAge > 30)
+                this->mMode = 2;
+            break;
+        case 2:
+            Bit_ReduceRGB(&this->mTint, 3);
+            if (!(0xFFFFFF & this->mTint))
+                this->Die();
+            break;
+        default:
+            print_if_false(0, "Bad CSplat mode");
+            break;
+    }
+}
+
+// @Ok
+// @Matching
 // Original 0x4F9790. The web ball impact ring uses animation 9, frame 1.
 CImpactRing::CImpactRing(const CVector &pos, u8 red, u8 green, u8 blue,
         i32 size, i32 growRate)

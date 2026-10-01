@@ -297,6 +297,9 @@ EXPORT void CSwinger_SwingBack(CSwinger *a1);
 class CSplat : public CQuadBit
 {
 	public:
+		EXPORT virtual void Move(void) OVERRIDE;
+		u8 mMode;
+		PADDING(3);
 };
 
 // Reverse engineered 2026-08-31 (session working on CTrapWebEffect::Burst,
