@@ -56,6 +56,19 @@ static i32 gScale = 1;
 static i32 gQuit;
 
 // @Bogus
+static i32 VideoSetting(const char* name, i32 fallback, i32 minimum, i32 maximum)
+{
+	const char* setting = getenv(name);
+	if (!setting || !*setting)
+		return fallback;
+	char* end = 0;
+	long value = strtol(setting, &end, 10);
+	if (*end || value < minimum || value > maximum)
+		return fallback;
+	return (i32)value;
+}
+
+// @Bogus
 i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 {
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD))
