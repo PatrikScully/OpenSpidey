@@ -303,8 +303,10 @@ INLINE void PCMOVIE_Init(void)
 {
 	if (!G_PC_MOVIE_INITED)
 	{
+#ifndef SPIDEY_STANDALONE
 		BinkSetSoundSystem(BinkOpenDirectSound, G_PDS);
 		BinkSetIOSize(256);
+#endif
 		G_PC_MOVIE_INITED = 1;
 	}
 }
