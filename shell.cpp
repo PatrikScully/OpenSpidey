@@ -8731,7 +8731,7 @@ CDummy::CDummy(const char* pName, i16 mTypeArg, i16 scale, i32 posY, i32 default
 			{
 				if ((*pFace & 4) != 0)
 					hasSpark = true;
-				pFace += 2 * (*pFace >> 18);
+				pFace += *pFace >> 18;
 			}
 			pModel = reinterpret_cast<SModel*>(pFace);
 		}
