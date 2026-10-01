@@ -2270,7 +2270,7 @@ i32 DXSOUND_IsPlaying(i32 a1)
 {
 	DWORD v5 = 0;
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 
 	LPDIRECTSOUNDBUFFER pDSB = gDxSoundHolder[a1].pDSB;
 	if (!pDSB)
