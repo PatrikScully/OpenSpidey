@@ -94,14 +94,20 @@ This development preview includes the work since v0.0.2, released on
 - Checked decoded audio, pitch fixtures, pause/mute/cleanup, world texture
   filtering, character/HUD sampling and build/layout checks.
 - Check native save-file creation, write/read, size and callbacks under
-  normal, Unicode and long Linux working folders. Full in-game save and
-  reload progression still needs testing.
+  normal, Unicode and long Linux working folders, and Unicode Windows
+  working folders under Wine. Full in-game save and reload progression
+  still needs testing.
+- Test the frozen Windows setup, ISO import, saved settings, movie skip,
+  main menu and short level-one movement and attack input under Wine.
+  Test the Linux app in a clean Ubuntu 22.04 container without Python,
+  Tkinter or a system 32 bit runtime.
 - Full campaign routes, bosses, collectibles, save/reload flows, remaining
   NPC behavior and compiler matching still need work.
 - Twelve voice-table references were absent from the available original
   installation. Missing assets are reported rather than replaced.
 - The legacy Windows/Wine proxy still has a known late stack-overflow
-  fault. Native Windows runtime validation is separate and in progress.
+  fault. The native Windows app is separate and still needs full mission
+  and physical Windows testing.
 
 See [the recorded checkpoint](tests/gameplay/checkpoints/2026-10-01.json)
 and [scenario inventory](tests/gameplay/scenarios.json) for the exact scope.

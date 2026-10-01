@@ -55,9 +55,10 @@ loaded 68 map entries and 23 training configurations and checked short idle
 gameplay. Separate checks covered attacks, web effects, camera movement,
 audio and texture filtering. These checks do not mean the full campaign,
 every boss or all later enemy spawns are complete. Police AI and other game
-functions remain unfinished. Native Windows gameplay validation is in
-progress; the legacy Windows/Wine proxy still has a known late stack-overflow
-fault.
+functions remain unfinished. The native Windows app passed setup, movies,
+the main menu and short level-one checks under Wine. Physical Windows
+testing and complete missions remain. The legacy Windows/Wine proxy still
+has a known late stack-overflow fault.
 
 See [the recorded test results](https://github.com/PatrikScully/OpenSpidey/blob/main/tests/gameplay/checkpoints/2026-10-01.json).
 Please report problems with the map, your last action and the game log.

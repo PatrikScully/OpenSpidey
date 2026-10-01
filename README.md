@@ -109,7 +109,9 @@ configurations** and checked short idle gameplay. Separate tests checked
 melee attacks, web balls, tug release, camera turns, audio and texture
 filtering. These checks do not mean every mission, boss, spawn wave or
 training objective has been completed. Police AI and other game functions
-still need work. Native Windows gameplay validation is in progress.
+still need work. The native Windows app passed setup, movies, main-menu
+and short level-one checks under Wine. It still needs testing on Windows
+hardware and across complete missions.
 
 Detailed results are in the [gameplay checkpoint](tests/gameplay/checkpoints/2026-10-01.json)
 and [test scenarios](tests/gameplay/scenarios.json).
