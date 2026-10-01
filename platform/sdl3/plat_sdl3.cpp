@@ -50,6 +50,7 @@ static GLfloat gTextureAnisotropy;
 typedef void (APIENTRY *GenerateMipmapProc)(GLenum);
 static GenerateMipmapProc gGenerateMipmap;
 static i32 gWidth = 640, gHeight = 480;
+static i32 gViewportX, gViewportY, gViewportWidth = 640, gViewportHeight = 480;
 // Window scale: the game renders in 640x480 units, the window is this many
 // times bigger (SPIDEY_SCALE, default 2, 1 in fullscreen).
 static i32 gScale = 1;
@@ -66,6 +67,25 @@ static i32 VideoSetting(const char* name, i32 fallback, i32 minimum, i32 maximum
 	if (*end || value < minimum || value > maximum)
 		return fallback;
 	return (i32)value;
+}
+
+// @Bogus
+static void UpdateViewport(void)
+{
+	i32 width = 0, height = 0;
+	if (!gWindow || !SDL_GetWindowSizeInPixels(gWindow, &width, &height) || width <= 0 || height <= 0)
+		return;
+	gViewportWidth = width;
+	gViewportHeight = height;
+	if ((f64)width / height > (f64)gWidth / gHeight)
+		gViewportWidth = (i32)((f64)height * gWidth / gHeight);
+	else
+		gViewportHeight = (i32)((f64)width * gHeight / gWidth);
+	if (gViewportWidth < 1) gViewportWidth = 1;
+	if (gViewportHeight < 1) gViewportHeight = 1;
+	gViewportX = (width - gViewportWidth) / 2;
+	gViewportY = (height - gViewportHeight) / 2;
+	glViewport(gViewportX, gViewportY, gViewportWidth, gViewportHeight);
 }
 
 // @Bogus
