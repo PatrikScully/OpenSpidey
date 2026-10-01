@@ -1,0 +1,965 @@
+{
+  "schema": 1,
+  "scope": "First-run setup, saved settings and packaged native startup",
+  "coverage_policy": "Passed fixture results prove only their stated fixture behavior. Native smoke under Wine is distinct from physical Windows, audible device output and complete gameplay parity.",
+  "run_automated": "python3 -m unittest discover -s tests/launcher -v",
+  "requirements": {
+    "automated": [
+      "Python 3.10 or newer",
+      "Tkinter and a display server for GUI cases"
+    ],
+    "runtime": [
+      "The native build or extracted app package",
+      "A legally owned supported game ISO or installed assets",
+      "Private writable settings, asset cache and test save directories"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "first-run-iso",
+      "title": "Import a supported disc on first start",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use a fresh per-user configuration and asset cache.",
+        "Use a legally owned supported PC disc ISO."
+      ],
+      "steps": [
+        "Open OpenSpidey without arguments.",
+        "Choose the ISO through the native file dialog.",
+        "Visit Game files, Video, Sound and Controls.",
+        "Choose output size and volume, then press Start.",
+        "Wait for import progress and launch."
+      ],
+      "expected": [
+        "Setup appears before the first game run.",
+        "All four required files are imported to a writable cache.",
+        "Progress completes before preferences are saved or the game starts.",
+        "The ISO is not mounted, modified, or included in a release.",
+        "The game receives the saved settings."
+      ],
+      "automated_tests": [
+        "test_gui.LauncherGuiTests.test_worker_reports_progress_and_saves_after_validation"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "real Linux source GUI and frozen Windows GUI under Wine",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "installed-folder",
+      "title": "Validate an existing installed game folder",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Prepare a supported writable game folder and separate missing, damaged and read-only fixtures."
+      ],
+      "steps": [
+        "Choose the installed-folder source option.",
+        "Select each fixture and press Start.",
+        "Finally select the valid folder."
+      ],
+      "expected": [
+        "Invalid folders report the missing, damaged or non-writable requirement.",
+        "Invalid selections do not save settings or start a child.",
+        "The valid folder becomes the game working directory."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_missing_and_read_only_installed_assets",
+        "test_gui.LauncherGuiTests.test_missing_source_does_not_save_or_start"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "iso-directory-formats",
+      "title": "Read ISO9660 and Joliet file trees",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use synthetic ISO9660 and Joliet discs with the required four payloads."
+      ],
+      "steps": [
+        "Inspect each disc.",
+        "Import each disc to a new cache.",
+        "Validate the imported folder and manifest."
+      ],
+      "expected": [
+        "Both supported directory formats locate the same required files.",
+        "Imported payloads match the fixtures byte for byte and are writable.",
+        "Manifest records four SHA256 values.",
+        "Progress is monotonic and ends at the expected byte count."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_iso_trees_and_import"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "reject-malformed-disc",
+      "title": "Reject truncated and malformed disc structures",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use synthetic corrupt descriptors, extents, directory records and names."
+      ],
+      "steps": [
+        "Try truncated images, conflicting endian sizes, out-of-range extents, short records, duplicate names and directory cycles.",
+        "Try unsupported multi-extent files and path separators in names."
+      ],
+      "expected": [
+        "Each malformed image fails with an asset error.",
+        "No completed destination or launch is created."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_truncated_and_malformed_iso"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "reject-wrong-disc",
+      "title": "Reject an unsupported executable or invalid PKR",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use synthetic missing-file, changed-executable and invalid-PKR fixtures."
+      ],
+      "steps": [
+        "Inspect each fixture before import.",
+        "Check PKR magic, counts and payload bounds."
+      ],
+      "expected": [
+        "The supported executable identity is required.",
+        "Missing assets and invalid archive structure are rejected before launching."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_wrong_disc_and_invalid_archives"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "import-space-lock",
+      "title": "Handle insufficient space and concurrent imports",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use a private temporary destination with disk-space and lock fixtures."
+      ],
+      "steps": [
+        "Report zero free space during import.",
+        "Hold the destination import lock and attempt another import.",
+        "Attempt an ISO located inside the destination; on Linux also try a symlink destination."
+      ],
+      "expected": [
+        "A useful error is returned for each invalid condition.",
+        "No second import overwrites the active cache.",
+        "The source cannot be overwritten by its own import."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_space_lock_and_destination_errors"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "cancel-import",
+      "title": "Cancel import without losing an existing cache",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Prepare a valid cache and saved settings, then force another import."
+      ],
+      "steps": [
+        "Cancel before copying starts.",
+        "Cancel again after a progress event.",
+        "Close the setup window while the import worker is active."
+      ],
+      "expected": [
+        "The previous manifest and cache remain intact.",
+        "Temporary import files are cleaned up.",
+        "Settings are not overwritten and no child starts.",
+        "The GUI waits for the worker to acknowledge cancellation."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_cancel_and_changed_source_leave_existing_game",
+        "test_gui.LauncherGuiTests.test_cancelled_import_does_not_start_game"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "source-changes-during-import",
+      "title": "Detect a disc changed while importing",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Prepare a valid cache and force reimport from a synthetic ISO."
+      ],
+      "steps": [
+        "Change the ISO modification time during a progress callback.",
+        "Inspect the cache manifest afterward."
+      ],
+      "expected": [
+        "Import fails because the source changed.",
+        "The previous completed cache is preserved."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_cancel_and_changed_source_leave_existing_game"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "cache-reuse-repair",
+      "title": "Reuse verified assets and repair a damaged cache",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Import a valid disc once."
+      ],
+      "steps": [
+        "Import the same unchanged source again.",
+        "Confirm unchanged assets are not recopied.",
+        "Damage an imported asset and retry the import."
+      ],
+      "expected": [
+        "A valid cache is reused.",
+        "A damaged asset is detected and restored from the disc.",
+        "Real Windows import also preserves an existing saved payload on cache reuse."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_cache_reuse_and_repair"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "synthetic tests and real supported ISO under Windows Wine",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "source-change-preserves-saves",
+      "title": "Refresh assets without deleting saves",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Prepare an imported cache containing save/SPIDRMAN.DAT."
+      ],
+      "steps": [
+        "Change the source fingerprint and reimport.",
+        "Compare the saved payload before and afterward."
+      ],
+      "expected": [
+        "The manifest adopts the changed source fingerprint.",
+        "Existing saved progress remains byte identical."
+      ],
+      "automated_tests": [
+        "test_assets.AssetTests.test_source_change_preserves_saves"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "moved-iso-cache",
+      "title": "Start from a valid cache after the ISO is moved",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Save setup with a valid imported game cache and then make the ISO path unavailable."
+      ],
+      "steps": [
+        "Reopen setup.",
+        "Press Start without choosing the ISO again."
+      ],
+      "expected": [
+        "A validated completed cache can launch without the original ISO path.",
+        "No new import is attempted."
+      ],
+      "automated_tests": [
+        "test_gui.LauncherGuiTests.test_saved_cache_works_when_iso_has_moved"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "preferences-recovery",
+      "title": "Save preferences atomically and recover invalid settings",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use a private per-user settings file."
+      ],
+      "steps": [
+        "Round-trip display and source preferences.",
+        "Replace the file with invalid JSON.",
+        "Simulate a failure during atomic replacement."
+      ],
+      "expected": [
+        "Valid preferences round-trip exactly.",
+        "Broken settings return safe defaults with a warning.",
+        "Failed saves retain the old file and leave no temporary settings file."
+      ],
+      "automated_tests": [
+        "test_config.LauncherConfigTests.test_preferences_recover_and_round_trip"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "settings-validation",
+      "title": "Keep invalid settings out of the native game",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Prepare out-of-range settings and conflicting inherited environment variables."
+      ],
+      "steps": [
+        "Load an unknown window mode, invalid resolution, boolean MSAA, NaN sensitivity and invalid volume.",
+        "Build the child environment from normalized values."
+      ],
+      "expected": [
+        "Resolution, sample count and sensitivity recover to supported values.",
+        "Volumes are bounded to zero through one hundred.",
+        "Unsupported settings schema is rejected.",
+        "Saved preferences control the child environment; stale legacy flags do not override them."
+      ],
+      "automated_tests": [
+        "test_config.LauncherConfigTests.test_invalid_values_cannot_reach_the_game",
+        "test_config.LauncherConfigTests.test_platform_paths_and_child_environment"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "automated fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "saved-autostart",
+      "title": "Skip setup after successful configuration",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Complete setup and save a valid cache with show_setup disabled."
+      ],
+      "steps": [
+        "Close the game.",
+        "Open OpenSpidey again without arguments.",
+        "Exit the child with F12."
+      ],
+      "expected": [
+        "The saved game starts without an extra setup window.",
+        "The child receives one game-directory argument and does not recursively open setup.",
+        "A successful child exit returns code zero."
+      ],
+      "automated_tests": [
+        "test_config.LauncherConfigTests.test_saved_setup_autostarts_without_gui"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "real Linux source GUI and frozen Windows app under Wine",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "settings-shortcut",
+      "title": "Reopen setup from the Settings shortcut",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Complete setup with non-default video preferences."
+      ],
+      "steps": [
+        "Open OpenSpidey-Settings on Linux or OpenSpidey Settings.exe on Windows.",
+        "Visit Video and inspect saved values.",
+        "Change one preference and start again."
+      ],
+      "expected": [
+        "The shortcut opens setup even when normal launches autostart.",
+        "Saved preferences are displayed.",
+        "The child uses the newly saved setting."
+      ],
+      "automated_tests": [
+        "test_gui.LauncherGuiTests.test_pages_and_controls_save_values"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "real frozen Linux and Windows GUI under Wine",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "unicode-paths",
+      "title": "Import and launch from non-ASCII Windows paths",
+      "platforms": [
+        "windows"
+      ],
+      "setup": [
+        "Use an import destination containing an accent, Chinese characters and an emoji."
+      ],
+      "steps": [
+        "Import the real supported ISO.",
+        "Save settings with the Unicode cache folder.",
+        "Autostart the frozen app and run the native save fixture from that working directory."
+      ],
+      "expected": [
+        "All four asset hashes match the known supported disc.",
+        "The child working directory is preserved.",
+        "Native save write and read round-trip the fixture bytes."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real Windows frozen app and native save fixture under Wine",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "native-save-round-trip",
+      "title": "Create and read native backup saves",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Build tests/platform/save_paths.cpp with the real native save routines.",
+        "Use a private writable working directory."
+      ],
+      "steps": [
+        "Run with no save directory.",
+        "Create, write, close and reopen a fixture save.",
+        "Check callbacks, invalid handles and error returns."
+      ],
+      "expected": [
+        "The native save directory is created.",
+        "A 512-byte payload round-trips.",
+        "Callbacks and error return values satisfy the fixture.",
+        "The Windows case additionally covers ASCII and Unicode working directories."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "native Linux and Windows save fixtures",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "windowed-letterbox",
+      "title": "Resize a window while preserving the game aspect ratio",
+      "platforms": [
+        "linux"
+      ],
+      "setup": [
+        "Run tests/platform/setup_sdl.cpp on a 1920x1080 X11 display with a window manager and dummy audio."
+      ],
+      "steps": [
+        "Request a 1280x720 output window with four samples.",
+        "Read the GL viewport and check border pixels.",
+        "Capture the logical 640x480 frame.",
+        "Resize the output to 640x360 and redraw."
+      ],
+      "expected": [
+        "The initial viewport is 160,0,960,720.",
+        "The resized viewport is 80,0,480,360.",
+        "Borders remain black and both scene and movie occupy the 4:3 viewport.",
+        "Logical capture includes the game view without the outer bars."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real SDL3 OpenGL framebuffer fixture",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "borderless-letterbox",
+      "title": "Use desktop borderless fullscreen",
+      "platforms": [
+        "linux"
+      ],
+      "setup": [
+        "Use the same SDL fixture on a 1920x1080 desktop."
+      ],
+      "steps": [
+        "Request borderless mode.",
+        "Check SDL fullscreen flags and selected fullscreen mode.",
+        "Check the drawable viewport and movie pixels."
+      ],
+      "expected": [
+        "The window occupies the desktop without an exclusive display mode.",
+        "Output is 1920x1080 with viewport 240,0,1440,1080.",
+        "Scene, movie and capture preserve 4:3."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real SDL3 OpenGL framebuffer fixture",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "exclusive-fullscreen",
+      "title": "Select a supported exclusive fullscreen mode",
+      "platforms": [
+        "linux"
+      ],
+      "setup": [
+        "Use the same SDL fixture with a reported 1920x1080 display mode."
+      ],
+      "steps": [
+        "Request fullscreen at 1920x1080.",
+        "Check the selected SDL display mode and fullscreen flags.",
+        "Read the game viewport."
+      ],
+      "expected": [
+        "The requested exclusive mode is selected.",
+        "Output is 1920x1080 with viewport 240,0,1440,1080.",
+        "A zero reported refresh rate is never used as a divisor."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real SDL3 OpenGL framebuffer fixture",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "unsupported-video-fallback",
+      "title": "Recover from unsupported fullscreen and antialiasing",
+      "platforms": [
+        "linux"
+      ],
+      "setup": [
+        "Use the same SDL fixture where 1280x720 exclusive mode and sixteen samples are unavailable."
+      ],
+      "steps": [
+        "Request the unavailable exclusive mode.",
+        "Separately request sixteen MSAA samples.",
+        "Check actual output mode, sample count and warnings."
+      ],
+      "expected": [
+        "Unsupported exclusive mode falls back to desktop borderless.",
+        "Unsupported MSAA retries with zero samples and creates a working context.",
+        "The log reports requested failures and actual settings.",
+        "Both fallbacks still pass scene, movie, capture and audio gain checks."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "two real SDL3 fallback runs",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "vsync-physical-display",
+      "title": "Verify supported vertical synchronization",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use a physical monitor and driver which support swap interval changes."
+      ],
+      "steps": [
+        "Enable vsync in setup and start the game.",
+        "Inspect the actual reported swap interval and frame presentation.",
+        "Disable vsync and repeat."
+      ],
+      "expected": [
+        "Supported settings match the requested swap interval.",
+        "Unsupported drivers report the failure and actual interval.",
+        "Pacing and tearing are assessed on the physical display."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "planned",
+        "method": "physical display check required; Xvfb reported unsupported vsync",
+        "checkpoint": null
+      }
+    },
+    {
+      "id": "audio-stream-gains",
+      "title": "Apply master, music and effects settings to actual SDL streams",
+      "platforms": [
+        "linux"
+      ],
+      "setup": [
+        "Run tests/platform/setup_sdl.cpp with SDL dummy audio."
+      ],
+      "steps": [
+        "Set master to forty percent, effects to twenty-five and music to fifty.",
+        "Open effects, music and movie streams.",
+        "Change per-stream music and movie volume.",
+        "Mute master and repeat the music and movie volume calls."
+      ],
+      "expected": [
+        "Effects stream gain is 0.1 and music initial gain is 0.2.",
+        "Movie initial gain is 0.4.",
+        "Per-stream volume multiplies the saved master/channel gains.",
+        "Master mute produces zero music and movie gains.",
+        "This verifies sink settings without claiming audible device output."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real SDL stream gain inspection",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "audio-device-listening",
+      "title": "Listen to dialogue, effects and movies on a real output device",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use working speakers or headphones and a supported physical audio device."
+      ],
+      "steps": [
+        "Compare master, Music and voices, and Sound effects at zero, fifty and one hundred.",
+        "Play menu music, dialogue, a movie and repeated game effects.",
+        "Change the default output device between launches."
+      ],
+      "expected": [
+        "Each channel responds independently to its setup setting.",
+        "Master affects all channels.",
+        "No clipping, stale stream, missing dialogue or accumulating delay is heard.",
+        "A missing device fails gracefully."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "planned",
+        "method": "physical audio check required; setup runtime smoke used mute or dummy audio",
+        "checkpoint": null
+      }
+    },
+    {
+      "id": "modern-controls-camera",
+      "title": "Verify mouse direction, sensitivity and action bindings",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Configure modern controls and enter a safe section of level 1."
+      ],
+      "steps": [
+        "Test mouse look horizontally and vertically at two sensitivity settings.",
+        "Toggle vertical inversion through Settings and repeat.",
+        "Test movement, jump, punch and web bindings.",
+        "Compare the same route with modern controls disabled."
+      ],
+      "expected": [
+        "Camera direction follows the configured inversion and sensitivity.",
+        "Bindings trigger the expected actions without rotation drift or a crash.",
+        "A short scripted key attempt alone does not prove attack visibility, collision or damage."
+      ],
+      "automated_tests": [
+        "test_gui.LauncherGuiTests.test_pages_and_controls_save_values",
+        "test_config.LauncherConfigTests.test_platform_paths_and_child_environment"
+      ],
+      "verification": {
+        "status": "planned",
+        "method": "preferences automated; complete gameplay assessment still required",
+        "checkpoint": null
+      }
+    },
+    {
+      "id": "movies-aspect-escape",
+      "title": "Render a movie in the selected viewport and skip with Escape",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use a legally owned game cache with movies enabled.",
+        "For aspect checks also run the SDL movie framebuffer fixture."
+      ],
+      "steps": [
+        "Start a movie from a saved launcher configuration.",
+        "Inspect its viewport and border pixels in the fixture.",
+        "Press Escape using native game input.",
+        "Press F12 to finish the bounded run."
+      ],
+      "expected": [
+        "Movie output preserves the game aspect ratio.",
+        "Escape returns from playback.",
+        "F12 returns a successful child exit in the tested Windows Wine run.",
+        "The movie decoder is packaged rather than depending on an external Bink DLL."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "Linux SDL movie pixels and frozen Windows movie/keyboard smoke under Wine",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "child-errors-logs",
+      "title": "Report a child failure with a persistent log",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use a private fixture executable that exits with a nonzero code."
+      ],
+      "steps": [
+        "Start the fixture through the launcher.",
+        "Read the displayed error and its log location.",
+        "Repeat with a missing game executable."
+      ],
+      "expected": [
+        "The launcher does not report a failed child as successful.",
+        "Stdout and stderr persist in a per-user log.",
+        "The error dialog identifies the exit code and log.",
+        "Missing executable produces a useful dialog before launching."
+      ],
+      "automated_tests": [
+        "test_config.LauncherConfigTests.test_process_uses_argument_list_and_persistent_logs"
+      ],
+      "verification": {
+        "status": "passed",
+        "method": "Linux process fixture and real frozen Windows error dialogs",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "linux-package-clean-system",
+      "title": "Run the frozen Linux app without system Python or 32-bit runtime",
+      "platforms": [
+        "linux"
+      ],
+      "setup": [
+        "Extract the Linux package on an Ubuntu 22.04 amd64 desktop fixture with X11/font libraries.",
+        "Ensure Python, Tk and the 32-bit loader are absent from the host fixture."
+      ],
+      "steps": [
+        "Run packaging/check_package.py against the artifact outside the clean fixture.",
+        "Open first-run setup and the Settings shortcut inside the fixture.",
+        "Autostart using a private writable asset copy.",
+        "Reach the menu, difficulty selection and level 1."
+      ],
+      "expected": [
+        "The frozen 64-bit GUI supplies its own Python/Tk dependencies.",
+        "The 32-bit child uses the private loader and bundled matching Mesa DRI drivers.",
+        "No original game assets are present in the app archive.",
+        "Menu and first-level rendering work in the bounded run."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real frozen package in a clean Ubuntu 22.04 container",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "windows-package-runtime",
+      "title": "Run the frozen Windows package without an original game installation",
+      "platforms": [
+        "windows"
+      ],
+      "setup": [
+        "Use the native Windows i686 game and frozen Windows x86_64 launcher in an isolated Wine prefix.",
+        "Keep the asset cache outside the application folder."
+      ],
+      "steps": [
+        "Open setup and its native file chooser.",
+        "Import the supported ISO.",
+        "Use the Settings executable and saved autostart.",
+        "Reach New Game, difficulty selection and level 1.",
+        "Exit the bounded run with F12."
+      ],
+      "expected": [
+        "The app resolves its bundled SDL, compiler runtime and decoder.",
+        "The launcher and child support the saved Unicode cache path.",
+        "No missing original Bink DLL callback is required.",
+        "The native image reserves the original data address range before DLL loading.",
+        "Physical Windows compatibility remains a separate check."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "real native Windows program under Wine; physical Windows pending",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "update-app-preserves-progress",
+      "title": "Replace a preview app while preserving user data",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Complete setup, save a game and record the per-user cache/settings locations."
+      ],
+      "steps": [
+        "Extract a new preview to a separate application folder.",
+        "Launch the new app with the same user account.",
+        "Open Settings and Continue.",
+        "Keep the old application available until the check finishes."
+      ],
+      "expected": [
+        "Application replacement does not delete user preferences or imported assets.",
+        "The existing save is loaded from the game cache or selected installed folder.",
+        "A future incompatible settings schema is reported without silently overwriting it."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "planned",
+        "method": "complete release-to-release update route required",
+        "checkpoint": null
+      }
+    },
+    {
+      "id": "preview-version-notes",
+      "title": "Require matching notes before a versioned preview release",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use the committed v0.0.3 release notes and changelog."
+      ],
+      "steps": [
+        "Run python3 packaging/release_notes.py v0.0.3.",
+        "Run the same check for v0.0.4 without changing its notes.",
+        "Inspect the tag-triggered release workflow and versioned package names."
+      ],
+      "expected": [
+        "The current v0.0.3 gate exits zero.",
+        "The future v0.0.4 gate exits nonzero and asks for matching notes.",
+        "Preview status is explicit.",
+        "The README releases link includes previews rather than silently selecting an older stable release."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "passed",
+        "method": "release gate commands and workflow review",
+        "checkpoint": "2026-10-01"
+      }
+    },
+    {
+      "id": "release-ci-artifacts",
+      "title": "Build both apps and publish a complete versioned release",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Prepare matching notes and changelog for the new version.",
+        "Review the public release text before publishing."
+      ],
+      "steps": [
+        "Run normal branch CI and inspect both app artifacts.",
+        "Run the approved version-tag workflow.",
+        "Check Linux, Windows, proxy DLL, source and runtime-source archives plus SHA256SUMS.",
+        "Extract both app archives on clean desktop environments and repeat the first-run scenarios."
+      ],
+      "expected": [
+        "Linux and Windows app jobs both succeed before publish.",
+        "Archive names and build-info match the version tag.",
+        "Required licenses, decoder sources and runtime sources are included.",
+        "Checksums cover all downloads.",
+        "No copyrighted game assets are shipped."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "planned",
+        "method": "public tag CI and physical install checks remain separate from local build verification",
+        "checkpoint": null
+      }
+    },
+    {
+      "id": "campaign-and-attack-parity",
+      "title": "Extend setup smoke into full gameplay coverage",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "setup": [
+        "Use the gameplay scenario registry and legally owned original binary for comparison."
+      ],
+      "steps": [
+        "Repeat map-specific spawn, rendering, mission and cinematic routes.",
+        "Test punch, kick, web ball, web dome and swinging against actual targets.",
+        "Compare visible effects, animations, hit results and progression with the original.",
+        "Complete each campaign mission and save/reload its progress."
+      ],
+      "expected": [
+        "All maps and attack semantics require independent gameplay evidence.",
+        "A launcher smoke, imported archive hash or short key script is never recorded as full campaign completion."
+      ],
+      "automated_tests": [],
+      "verification": {
+        "status": "planned",
+        "method": "tracked separately in tests/gameplay/scenarios.json",
+        "checkpoint": null
+      }
+    }
+  ]
+}
