@@ -32,6 +32,7 @@ i32 Plat_Init(i32 width, i32 height, i32)
 
 void Plat_Shutdown(void)
 {
+	Plat_MusicStop();
 	Plat_MovieStop();
 }
 
