@@ -58,4 +58,14 @@ static FILE* Plat_DecoderTemp(char* path, const char* prefix)
 #endif
 }
 
+// @Bogus
+static void Plat_DecoderRemove(const char* path)
+{
+#ifdef _WIN32
+	DeleteFileA(path);
+#else
+	unlink(path);
+#endif
+}
+
 #endif
