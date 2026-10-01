@@ -66,3 +66,20 @@ class LauncherGuiTests(unittest.TestCase):
                 time.sleep(0.01)
         self.assertIsNotNone(self.window.result)
         self.assertEqual(config.load_settings(self.path / "settings.json")[0]["game_dir"], str(self.path / "game"))
+
+    def test_cancelled_import_does_not_start_game(self):
+        self.window.vars["source_path"].set(str(self.path / "disc.iso"))
+        def importer(source, destination, progress, cancelled):
+            while not cancelled():
+                time.sleep(0.005)
+            raise launcher.ImportCancelled("Import cancelled.")
+        with mock.patch("launcher.import_iso", side_effect=importer):
+            self.window.start()
+            self.window.close()
+            deadline = time.monotonic() + 3
+            while self.window.busy and time.monotonic() < deadline:
+                self.root.update()
+                time.sleep(0.01)
+        self.assertFalse(self.window.busy)
+        self.assertIsNone(self.window.result)
+        self.assertFalse((self.path / "settings.json").exists())
