@@ -41,3 +41,34 @@ def make_record(name, extent, size, flags=0, joliet=False):
     return record
 
 
+def make_iso(path, joliet=False, names=None):
+    image = bytearray(32 * assets.BLOCK_SIZE)
+    names = list(PAYLOADS) if names is None else names
+    descriptor = bytearray(assets.BLOCK_SIZE)
+    descriptor[0:7] = b"\x01CD001\x01"
+    struct.pack_into("<I", descriptor, 80, 32)
+    struct.pack_into(">I", descriptor, 84, 32)
+    descriptor[128:132] = b"\x00\x08\x08\x00"
+    root = make_record(b"\x00", 20, assets.BLOCK_SIZE, 2)
+    descriptor[156:156 + len(root)] = root
+    image[16 * assets.BLOCK_SIZE:17 * assets.BLOCK_SIZE] = descriptor
+    end_sector = 17
+    if joliet:
+        descriptor[0] = 2
+        descriptor[88:91] = b"%/E"
+        image[17 * assets.BLOCK_SIZE:18 * assets.BLOCK_SIZE] = descriptor
+        end_sector = 18
+    image[end_sector * assets.BLOCK_SIZE:end_sector * assets.BLOCK_SIZE + 7] = b"\xffCD001\x01"
+    records = bytearray(root + make_record(b"\x01", 20, assets.BLOCK_SIZE, 2))
+    offsets = {}
+    for index, name in enumerate(names):
+        payload = PAYLOADS.get(name, ARCHIVE)
+        record = make_record(name + ";1", 24 + index, len(payload), joliet=joliet)
+        offsets[name] = 20 * assets.BLOCK_SIZE + len(records)
+        records.extend(record)
+        image[(24 + index) * assets.BLOCK_SIZE:(24 + index) * assets.BLOCK_SIZE + len(payload)] = payload
+    image[20 * assets.BLOCK_SIZE:20 * assets.BLOCK_SIZE + len(records)] = records
+    path.write_bytes(image)
+    return offsets
+
+
