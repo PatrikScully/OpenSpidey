@@ -2138,7 +2138,7 @@ void DXPOLY_SetOutlineColor(u32 a1)
 // @Matching
 void DXPOLY_SetTexture(LPDIRECTDRAWSURFACE7 a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (a1 != G_DD_SURFACE7)
 	{
 		HRESULT hr = G_D3DDEVICE7->SetTexture(0, a1);
