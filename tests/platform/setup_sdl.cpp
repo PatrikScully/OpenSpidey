@@ -18,3 +18,6 @@ extern "C" bool __wrap_SDL_SetAudioStreamGain(SDL_AudioStream* stream, float gai
 
 // @Bogus
 void Plat_MusicStop(void) {}
+
+// @Bogus
+void Plat_MovieStop(void) {}
