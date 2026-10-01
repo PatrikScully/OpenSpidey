@@ -1,29 +1,19 @@
 // Stream the original Bink files through ffmpeg. Pipes and the audio queue
 // bound decoded memory to one video frame and 250 ms of sound.
 #include "plat.h"
+#include "decoder_process.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
-#include <fcntl.h>
-#include <signal.h>
-#include <spawn.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
-extern char** environ;
-
-struct MovieDecoder
-{
-	pid_t pid;
-	i32 fd;
-};
+typedef PlatDecoder MovieDecoder;
 
 struct MovieState
 {
 	MovieDecoder video, audio;
-	char path[64];
+	char path[PLAT_DECODER_PATH_SIZE];
 	u8* pixels;
 	u32 width, height, fps, fpsDen, frames;
 	u32 frame, filled, frameBytes, startedAt, openedAt, lastDataAt, traceAt;
@@ -35,16 +25,7 @@ static MovieState gMovie;
 // @Bogus
 static void stopDecoder(MovieDecoder* decoder)
 {
-	if (decoder->fd >= 0)
-		close(decoder->fd);
-	decoder->fd = -1;
-	if (decoder->pid > 0)
-	{
-		kill(decoder->pid, SIGKILL);
-		while (waitpid(decoder->pid, 0, 0) < 0 && errno == EINTR)
-			;
-	}
-	decoder->pid = 0;
+	Plat_DecoderStop(decoder);
 }
 
 // @Bogus
