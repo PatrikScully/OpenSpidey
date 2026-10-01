@@ -21,7 +21,7 @@
 #include "../../front.h"
 
 #include <SDL3/SDL.h>
-#include <GL/gl.h>
+#include <SDL3/SDL_opengl.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -99,31 +99,32 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 
 	gWidth = width;
 	gHeight = height;
+	gQuit = 0;
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-	SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
-	gScale = 2;
-	if (getenv("SPIDEY_SCALE"))
-		gScale = atoi(getenv("SPIDEY_SCALE"));
-	if (fullscreen || gScale < 1)
-		gScale = 1;
-	if (fullscreen)
-		flags |= SDL_WINDOW_FULLSCREEN;
+	SDL_WindowFlags flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+	i32 scale = fullscreen ? 1 : VideoSetting("SPIDEY_SCALE", 2, 1, 8);
+	i32 outputWidth = VideoSetting("SPIDEY_WIDTH", width * scale, 320, 7680);
+	i32 outputHeight = VideoSetting("SPIDEY_HEIGHT", height * scale, 240, 4320);
+	const char* windowMode = getenv("SPIDEY_WINDOW_MODE");
+	i32 requestedMode = fullscreen ? 1 : 0;
+	if (windowMode)
+	{
+		if (!strcmp(windowMode, "windowed")) requestedMode = 0;
+		else if (!strcmp(windowMode, "borderless")) requestedMode = 1;
+		else if (!strcmp(windowMode, "fullscreen")) requestedMode = 2;
+	}
 
 	// SPIDEY_MSAA sets the requested samples; 0 disables antialiasing.
-	i32 samples = 4;
-	if (getenv("SPIDEY_MSAA"))
-		samples = atoi(getenv("SPIDEY_MSAA"));
-	if (samples < 0)
-		samples = 0;
+	i32 samples = VideoSetting("SPIDEY_MSAA", 4, 0, 16);
 
 	for (;;)
 	{
 		bool attributes = SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, samples > 0 ? 1 : 0)
 			&& SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
-		gWindow = attributes ? SDL_CreateWindow("Spider-Man", width * gScale, height * gScale, flags) : 0;
+		gWindow = attributes ? SDL_CreateWindow("OpenSpidey", outputWidth, outputHeight, flags) : 0;
 		gGL = gWindow ? SDL_GL_CreateContext(gWindow) : 0;
 		if (gGL)
 			break;
@@ -139,7 +140,43 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 		}
 		samples = 0;
 	}
-	SDL_GL_SetSwapInterval(1);
+	if (!requestedMode)
+	{
+		f32 density = SDL_GetWindowPixelDensity(gWindow);
+		if (density > 0.0f && density != 1.0f)
+		{
+			SDL_SetWindowSize(gWindow, (i32)(outputWidth / density), (i32)(outputHeight / density));
+			SDL_SyncWindow(gWindow);
+		}
+	}
+	if (requestedMode)
+	{
+		SDL_DisplayMode mode;
+		if (requestedMode == 2)
+		{
+			if (!SDL_GetClosestFullscreenDisplayMode(SDL_GetDisplayForWindow(gWindow),
+				outputWidth, outputHeight, 0.0f, true, &mode)
+				|| mode.w != outputWidth || mode.h != outputHeight
+				|| !SDL_SetWindowFullscreenMode(gWindow, &mode))
+			{
+				printf("Plat(sdl3): fullscreen mode %dx%d unavailable, using borderless\n", outputWidth, outputHeight);
+				requestedMode = 1;
+			}
+		}
+		if (requestedMode == 1)
+			SDL_SetWindowFullscreenMode(gWindow, 0);
+		if (!SDL_SetWindowFullscreen(gWindow, true))
+			printf("Plat(sdl3): fullscreen failed, using windowed: %s\n", SDL_GetError());
+		SDL_SyncWindow(gWindow);
+	}
+	SDL_GL_MakeCurrent(gWindow, gGL);
+	// GLX updates resized drawables at the first swap.
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+	SDL_GL_SwapWindow(gWindow);
+	i32 vsync = VideoSetting("SPIDEY_VSYNC", 1, 0, 1);
+	if (!SDL_GL_SetSwapInterval(vsync))
+		printf("Plat(sdl3): requested vsync %d unavailable: %s\n", vsync, SDL_GetError());
 
 	GLint sampleBuffers = 0, actualSamples = 0;
 	glGetIntegerv(GL_SAMPLE_BUFFERS, &sampleBuffers);
@@ -152,6 +189,12 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	printf("Plat(sdl3): %dx%d, GL %s / %s, MSAA %d\n", width, height,
 			(const char*)glGetString(GL_VERSION), (const char*)glGetString(GL_RENDERER),
 			sampleBuffers ? actualSamples : 0);
+	i32 drawableWidth = 0, drawableHeight = 0, actualVsync = 0;
+	SDL_GetWindowSizeInPixels(gWindow, &drawableWidth, &drawableHeight);
+	SDL_GL_GetSwapInterval(&actualVsync);
+	const char* actualMode = (SDL_GetWindowFlags(gWindow) & SDL_WINDOW_FULLSCREEN)
+		? (SDL_GetWindowFullscreenMode(gWindow) ? "fullscreen" : "borderless") : "windowed";
+	printf("Plat(sdl3): output %dx%d, %s, vsync %d\n", drawableWidth, drawableHeight, actualMode, actualVsync);
 
 	gTextureAnisotropy = 0.0f;
 	i32 major = 0, minor = 0;
@@ -183,7 +226,7 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	}
 	printf("Plat(sdl3): repeating world mipmaps %s\n", gGenerateMipmap ? "enabled" : "off");
 
-	glViewport(0, 0, width * gScale, height * gScale);
+	UpdateViewport();
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	// D3D7 TL vertices address pixel centres, GL addresses pixel corners:
