@@ -3032,7 +3032,7 @@ void DXPOLY_SetAddressUAndV(DWORD addressU, DWORD addressV)
 // part of the translation was already right.
 void renderScene(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gLowGraphics)
 	{
 		DXERR_printf("DO ME PLEASE renderScene");
