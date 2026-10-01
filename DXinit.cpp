@@ -743,7 +743,7 @@ u8 DXINIT_GetPrevResolution(
 // left as is since this session only requires functional correctness.
 void DXINIT_SetDisplayOptions(u32 width, u32 height, u32 bpp, i32, i32 brightness)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	HRESULT hr;
 	DDBLTFX fx;
 
