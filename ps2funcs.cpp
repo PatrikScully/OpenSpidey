@@ -496,31 +496,32 @@ void gte_stlvnl(VECTOR *a1)
   a1->vz = G_GENERAL_LONG_VECTOR.vz;
 }
 
-// @Ok
-void gte_rtps(void){
-
-	FixedXForm(G_ROT_MATRIX, (VECTOR*)&G_VERTEX_REGISTER[0], &G_GENERAL_LONG_VECTOR);
-	G_GENERAL_LONG_VECTOR.vz = G_TRANSLATION_VECTOR.vz + G_GENERAL_LONG_VECTOR.vy;
-	
-
-	if (G_GENERAL_LONG_VECTOR.vz == 0){
-		G_GENERAL_LONG_VECTOR.vx = 0x8000;
-		G_GENERAL_LONG_VECTOR.vy = 0x8000;
-	}
-	else{
-		G_GENERAL_LONG_VECTOR.vx = G_RTPS_SCREEN_OFFSET_X / 2
-                          + (G_GENERAL_LONG_VECTOR.vx + G_TRANSLATION_VECTOR.vx) * G_RTPS_PROJ_DISTANCE / G_GENERAL_LONG_VECTOR.vz;
-		G_GENERAL_LONG_VECTOR.vy = G_RTPS_SCREEN_OFFSET_Y / 2
-							  + (G_TRANSLATION_VECTOR.vy
-							   + ((G_VERTEX_REGISTER[0] * G_ROT_MATRIX[1][0]
-								 + G_VERTEX_REGISTER[1] * G_ROT_MATRIX[1][1]
-								 + G_VERTEX_REGISTER[2] * G_ROT_MATRIX[1][2]) >> 12))
-							  * gRtpsRelatedNoClue
-							  / G_GENERAL_LONG_VECTOR.vz;
-	}
-
+// @NotOk
+// Original 0x46DBC0. Perspective uses the transformed third row as depth.
+void gte_rtps(void)
+{
+    VECTOR transformed;
+    i32 x = G_VERTEX_REGISTER[0];
+    i32 y = G_VERTEX_REGISTER[1];
+    i32 z = G_VERTEX_REGISTER[2];
+    transformed.vx = (x * G_ROT_MATRIX[0][0] + y * G_ROT_MATRIX[0][1] + z * G_ROT_MATRIX[0][2]) >> 12;
+    transformed.vy = (x * G_ROT_MATRIX[1][0] + y * G_ROT_MATRIX[1][1] + z * G_ROT_MATRIX[1][2]) >> 12;
+    transformed.vz = (x * G_ROT_MATRIX[2][0] + y * G_ROT_MATRIX[2][1] + z * G_ROT_MATRIX[2][2]) >> 12;
+    G_GENERAL_LONG_VECTOR = transformed;
+    G_GENERAL_LONG_VECTOR.vz = G_TRANSLATION_VECTOR.vz + transformed.vz;
+    if (!G_GENERAL_LONG_VECTOR.vz)
+    {
+        G_GENERAL_LONG_VECTOR.vx = 0x8000;
+        G_GENERAL_LONG_VECTOR.vy = 0x8000;
+    }
+    else
+    {
+        G_GENERAL_LONG_VECTOR.vx = G_RTPS_SCREEN_OFFSET_X / 2
+            + (transformed.vx + G_TRANSLATION_VECTOR.vx) * G_RTPS_PROJ_DISTANCE / G_GENERAL_LONG_VECTOR.vz;
+        G_GENERAL_LONG_VECTOR.vy = G_RTPS_SCREEN_OFFSET_Y / 2
+            + (transformed.vy + G_TRANSLATION_VECTOR.vy) * G_RTPS_PROJ_DISTANCE / G_GENERAL_LONG_VECTOR.vz;
+    }
 }
-
 
 // @ok
 void gte_rtpt(void){
