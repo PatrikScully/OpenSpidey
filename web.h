@@ -326,6 +326,7 @@ class CWebFrag : public CGLine
 				const CVector &SuperPos,
 				i32 Speed,
 				i32 Jitter);
+		EXPORT virtual void Move(void) OVERRIDE;
 
 		// Three copies of the same vector: (HookA - SuperPos) scaled to
 		// length Speed (left at zero if HookA == SuperPos), with a random
@@ -346,8 +347,7 @@ class CWebFrag : public CGLine
 		// two-segment "web strand" through the three points.
 		CGLine *field_84;
 
-		// Random small variant/index (1..3, or 6..8 with lower odds); exact
-		// use (sprite frame? which of two shapes?) unknown.
+		// Per-frame color decay, read by Move.
 		u8 field_88;
 		PADDING(3);
 };

@@ -980,6 +980,45 @@ CWebFrag::CWebFrag(
 }
 
 // @Ok
+// @Matching
+// Original 0x4FA340. Move all three strand ends, then fade both lines.
+void CWebFrag::Move(void)
+{
+    this->mEnd += this->field_5C;
+    this->mStart += this->field_68;
+    this->field_84->mEnd += this->field_74;
+    if (this->mEnd.vy > this->mGroundY)
+    {
+        this->mEnd.vy = this->mGroundY;
+        this->field_5C >>= 1;
+    }
+    if (this->mStart.vy > this->mGroundY)
+    {
+        this->mStart.vy = this->mGroundY;
+        this->field_68 >>= 1;
+    }
+    if (this->field_84->mEnd.vy > this->mGroundY)
+    {
+        this->field_84->mEnd.vy = this->mGroundY;
+        this->field_74 >>= 1;
+    }
+    this->field_84->mStart = this->mStart;
+    this->field_68.vy += 29584;
+    this->field_74.vy += 29584;
+    this->field_5C.vy += 29584;
+    i32 color = this->mCodeBGR0 & 0xFF;
+    color -= this->field_88;
+    if (color < 0)
+        color = 0;
+    this->SetRGB0(color, color, color);
+    this->SetRGB1(color, color, color);
+    this->field_84->SetRGB0(color, color, color);
+    this->field_84->SetRGB1(color, color, color);
+    if (!color)
+        this->Die();
+}
+
+// @Ok
 // Original 0x4F9060.
 CKnottedWeb::~CKnottedWeb(void)
 {
