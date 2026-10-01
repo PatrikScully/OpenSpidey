@@ -2571,7 +2571,7 @@ INLINE void shutdownDirectInput8(void)
 // @Ok
 INLINE void shutdownDirectSound8(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	DXSOUND_ShutDown();
 
 	if(g_pDS)
