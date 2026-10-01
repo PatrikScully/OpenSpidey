@@ -5,12 +5,13 @@ OpenSpidey
 3. Choose your Spider-Man (2000) PC disc ISO or an installed game folder.
 4. Pick your video, audio and game settings, then press Start.
 
-The first setup copies the files it needs into your private OpenSpidey data
-folder. It does not change your ISO or the original game folder.
+With an ISO, setup copies the needed files into your private OpenSpidey data
+folder. The ISO stays unchanged. An installed game folder is used directly.
 
 Next time, OpenSpidey starts the game with your saved settings. Open
 OpenSpidey Settings.exe on Windows or OpenSpidey-Settings on Linux to change
-them. Game saves stay in your private data folder when you update the app.
+them. ISO imports hold saves in the private data folder. An installed game
+folder holds its saves in its save folder. Keep that folder when updating.
 
 Move with WASD, look with the mouse, jump with Space, punch with left mouse,
 and fire webs with right mouse. Escape pauses or skips an eligible scene.
@@ -21,5 +22,5 @@ not yet been checked. The README lists what has been tested.
 
 Linux: this package is for a 64 bit x86 Linux desktop with glibc 2.35 or
 newer. It includes a 32 bit game runtime and a Mesa software graphics
-fallback. Hardware acceleration works when compatible 32 bit graphics
-drivers are installed. Windows: 64 bit Windows 10 or later.
+fallback. It also includes Mesa drivers for supported hardware. Windows:
+64 bit Windows 10 or later.
