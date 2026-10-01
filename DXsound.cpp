@@ -2651,7 +2651,7 @@ void DXSOUND_SetPitch(i32 a1, i32 a2)
 // @Matching
 void DXSOUND_SetVolume(i32 a1,i32 a2)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	LPDIRECTSOUNDBUFFER pDSB = gDxSoundHolder[a1].pDSB;
 	if (pDSB)
 	{
