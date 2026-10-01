@@ -77,3 +77,20 @@ static i32 startMusicDecoder(MusicDecoder* decoder, const char* path)
 	return 1;
 }
 
+// @Bogus
+void Plat_MusicStop(void)
+{
+	pthread_mutex_lock(&gMusicLock);
+	gMusic.stop = 1;
+	pthread_mutex_unlock(&gMusicLock);
+	if (gMusic.threadCreated)
+		pthread_join(gMusic.thread, 0);
+	if (gMusic.decoder.pid)
+		stopMusicDecoder(&gMusic.decoder);
+	Plat_MusicAudio(PLAT_MUSIC_AUDIO_CLOSE, 0, 0);
+	if (gMusic.path[0])
+		unlink(gMusic.path);
+	memset(&gMusic, 0, sizeof(gMusic));
+	gMusic.decoder.fd = -1;
+}
+
