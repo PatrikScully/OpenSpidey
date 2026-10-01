@@ -31,6 +31,7 @@ def find_binary(explicit=None):
                 return candidate
     raise FileNotFoundError("The game executable is missing. Extract the complete OpenSpidey download into one folder.")
 
+
 def run_game(binary, settings, data_path):
     directory = validate_game_dir(settings["game_dir"])
     logs = Path(data_path) / "logs"
@@ -53,6 +54,7 @@ def run_game(binary, settings, data_path):
     if result:
         raise RuntimeError("The game stopped unexpectedly (code %s).\n\nThe game log is saved here:\n%s" % (result, log))
     return result
+
 
 class SetupWindow:
     def __init__(self, root, settings, config_path, data_path, message=""):
@@ -308,3 +310,47 @@ class SetupWindow:
             self.status.set("Cancelling import…")
         else:
             self.root.destroy()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="OpenSpidey setup and game launcher")
+    settings_shortcut = "settings" in Path(sys.executable if getattr(sys, "frozen", False) else sys.argv[0]).stem.lower()
+    parser.add_argument("--settings", action="store_true", default=settings_shortcut, help="Open setup even when preferences are saved")
+    parser.add_argument("--game-binary", help="Path to the native game executable")
+    args = parser.parse_args(argv)
+    config_path, data_path = user_paths()
+    settings, warning = load_settings(config_path)
+    try:
+        binary = find_binary(args.game_binary)
+        show_setup = args.settings or settings["show_setup"] or bool(warning) or not config_path.is_file()
+        if not show_setup:
+            try:
+                validate_game_dir(settings["game_dir"])
+            except (AssetError, OSError, ValueError) as error:
+                warning = "Your game files need attention: %s" % error
+                show_setup = True
+        if show_setup:
+            import tkinter as tk
+            root = tk.Tk()
+            window = SetupWindow(root, settings, config_path, data_path, warning)
+            root.mainloop()
+            if window.result is None:
+                return 0
+            settings = window.result
+        return run_game(binary, settings, data_path)
+    except Exception as error:
+        print("OpenSpidey: %s" % error, file=sys.stderr)
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("OpenSpidey could not start", str(error), parent=root)
+            root.destroy()
+        except Exception:
+            pass
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
