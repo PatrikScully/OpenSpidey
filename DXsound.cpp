@@ -2684,7 +2684,7 @@ void DXSOUND_ShutDown(void)
 // @Matching
 void DXSOUND_Stop(i32 a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	LPDIRECTSOUNDBUFFER pDSB = gDxSoundHolder[a1].pDSB;
 	if (pDSB)
 	{
