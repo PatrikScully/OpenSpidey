@@ -1,0 +1,2432 @@
+{
+  "schema_version": 1,
+  "created": "2026-10-01",
+  "purpose": "Functional and visual parity tests. A boot/idle smoke pass never implies mission or attack correctness.",
+  "reference_exe_sha256": "0a11a49f3f63d4bb15650f322d654553fc47234b01885b852a058ff074689dea",
+  "controls": {
+    "standalone_default": "Modern controls enabled unless SPIDEY_MODERN_CONTROLS=0. Mouse buttons map through existing action bindings.",
+    "tug_repro": "S + right mouse",
+    "web_ball_repro": "W + right mouse",
+    "pause_or_skip": "Escape",
+    "quit_test": "F12"
+  },
+  "evidence_required": [
+    "Exact binary hash and source commit.",
+    "Map, difficulty, challenge variant and all explicit SPIDEY_* settings.",
+    "Input script timed by game ticks, initial camera/player/actor state and every test-only mutation.",
+    "GDB crash stack and process exit status.",
+    "Before/after screenshots plus post-clip vertex/region diagnostics.",
+    "Animation ID/frame, actor state/health, effects allocation/retirement, audio sample and decoder status."
+  ],
+  "outcomes": [
+    "pass",
+    "fail",
+    "not_run",
+    "not_applicable"
+  ],
+  "profiles": [
+    {
+      "id": "boot_movies",
+      "applies_to": "cold_boot",
+      "setup": [
+        "Clear inherited SPIDEY_* settings; keep only explicit scenario settings.",
+        "Start from title with movies enabled and audio output available."
+      ],
+      "steps": [
+        "Let each logo and the first mission movie finish naturally.",
+        "Enter New Game, choose Normal, let Black Cat scene finish."
+      ],
+      "checks": [
+        "Decoded movie frames reach their declared final frame.",
+        "Video and audio advance together; output includes nonzero PCM samples.",
+        "Gameplay begins with no remaining movie decoder."
+      ],
+      "reference": [
+        "Original Wine game with the same menu input schedule."
+      ],
+      "minimum_seconds": 210,
+      "status": "pending"
+    },
+    {
+      "id": "escape_skip",
+      "applies_to": "all_cinematics",
+      "setup": [
+        "Run once in Normal and once in Kid mode."
+      ],
+      "steps": [
+        "Press Escape during each FMV after its first decoded frame.",
+        "Press Escape during an eligible in-engine scene.",
+        "Press Escape again during gameplay, then resume."
+      ],
+      "checks": [
+        "FMV decoder exits and its audio stops.",
+        "Eligible scene actors/camera clean up; player control resumes.",
+        "Gameplay Escape opens the pause flow without firing an attack.",
+        "Unskippable scenes follow the original rules."
+      ],
+      "reference": [
+        "Original cutscene eligibility flags and cleanup function disassembly."
+      ],
+      "minimum_seconds": 45,
+      "status": "pending"
+    },
+    {
+      "id": "black_cat_animation",
+      "applies_to": [
+        "l1a1_t"
+      ],
+      "setup": [
+        "Start New Game without skipping the Black Cat conversation.",
+        "Enable SPIDEY_TRACE_PLAYER, SPIDEY_TRACE_ANIMS and SPIDEY_TRACE_BADDY."
+      ],
+      "steps": [
+        "Record player and Black Cat animation ID/frame at every game tick.",
+        "Capture matched camera frames at dialogue start, middle and end."
+      ],
+      "checks": [
+        "Animation ID/frame and transition sequence agree with the oracle at the same tick.",
+        "Hands stay attached to the correct joints and do not reflect across the character.",
+        "Black Cat approaches and faces the player correctly.",
+        "Every spoken clip produces audio and retires on completion."
+      ],
+      "reference": [
+        "~/Documents/spidey-work/oracle/oracle.py",
+        "~/Documents/spidey-work/refcap.sh"
+      ],
+      "minimum_seconds": 90,
+      "status": "pending"
+    },
+    {
+      "id": "map_visibility",
+      "applies_to": "all_maps",
+      "setup": [
+        "Set SPIDEY_FULL_MAP=1 and SPIDEY_TRACE_CULL=1.",
+        "Keep camera position and yaw in every capture."
+      ],
+      "steps": [
+        "Turn through 360 degrees on the spawn roof.",
+        "Move across the first two connected sections.",
+        "Look toward the far skyline at minimum and maximum camera distance.",
+        "Repeat after a restart."
+      ],
+      "checks": [
+        "Every referenced environment model region is usable.",
+        "Full-map distance culling does not remove buildings.",
+        "Nearby geometry remains visible when the camera passes its bounding sphere.",
+        "No missing model, invalid region, nonfinite vertex or extreme post-clip triangle is submitted."
+      ],
+      "reference": [
+        "Original Wine frames from the same camera/input script.",
+        "Original model/region tables; standalone-only full-map policy is an intentional difference."
+      ],
+      "minimum_seconds": 90,
+      "status": "pending"
+    },
+    {
+      "id": "camera_sweep",
+      "applies_to": "all_maps",
+      "setup": [
+        "Use default modern controls and record sensitivity."
+      ],
+      "steps": [
+        "Move mouse left/right through two full turns.",
+        "Move mouse up/down to each pitch limit.",
+        "Move forward/backward while repeating the sweep.",
+        "Alt-tab out and back, then resume."
+      ],
+      "checks": [
+        "Camera yaw has the requested direction and speed.",
+        "Horizon does not acquire roll during horizontal movement.",
+        "Camera matrix stays finite and the player remains attached to the map.",
+        "UI/cinematics do not receive gameplay mouse-look input.",
+        "Focus changes release held inputs and restore control."
+      ],
+      "reference": [
+        "Original camera math disassembly; modern input policy is intentional."
+      ],
+      "minimum_seconds": 60,
+      "status": "pending"
+    },
+    {
+      "id": "enemy_spawn_parity",
+      "applies_to": "story_maps",
+      "setup": [
+        "Record BaddyList and control/script actors separately.",
+        "Identify each object by class/type, node, region/model and spawn tick."
+      ],
+      "steps": [
+        "Traverse every enemy spawn trigger on the route to the exit.",
+        "Wait for each group to activate.",
+        "Backtrack, restart the area and repeat."
+      ],
+      "checks": [
+        "Spawn class, count, node and position match the original at each trigger.",
+        "Enemies use valid model regions, joints and textures from their first visible frame.",
+        "Live enemies enter their expected AI states and contact the floor.",
+        "Script-only actors remain on their control list.",
+        "Dead enemies release handles, AI procedures and protected effects."
+      ],
+      "reference": [
+        "Original Wine process state sampled by a parent-launched oracle at the same trigger/tick."
+      ],
+      "minimum_seconds": 180,
+      "status": "pending"
+    },
+    {
+      "id": "combat_visibility",
+      "applies_to": "maps_with_hostile_actors",
+      "setup": [
+        "Approach an unmodified live enemy through real player input."
+      ],
+      "steps": [
+        "Observe the enemy before attacking.",
+        "Punch with left mouse, kick with its mapped action, then alternate a full combo.",
+        "Circle the enemy with mouse-look while it attacks.",
+        "Defeat it and wait for cleanup."
+      ],
+      "checks": [
+        "Enemy renders before the first hit, throughout hit/fall states and until its original death transition.",
+        "Health changes and AI reactions agree with original hit data.",
+        "No body part forms a triangle extending toward the window corner.",
+        "No invalid animation/part, script error or crash occurs.",
+        "SFX voices return to their idle pool."
+      ],
+      "reference": [
+        "Original hit/AI functions and Wine combat captures."
+      ],
+      "minimum_seconds": 120,
+      "status": "pending"
+    },
+    {
+      "id": "web_ball_hit",
+      "applies_to": "maps_with_hostile_actors",
+      "setup": [
+        "Select the web-ball attack using W plus right mouse in the current default mapping; record signed analogue bytes.",
+        "Use an unchanged live enemy; any player teleport for deterministic setup must be recorded."
+      ],
+      "steps": [
+        "Fire from a clear line of sight.",
+        "Repeat at close, medium and long range.",
+        "Fire while strafing and while turning the camera."
+      ],
+      "checks": [
+        "CImpactWeb is allocated at the shot frame.",
+        "Scale rises from zero and position advances using elapsed game ticks.",
+        "The sprite and impact ring are visibly submitted.",
+        "The swept collision calls the target Hit with original damage/direction data.",
+        "Projectile, crater/ring and child web fragments expire without leaks."
+      ],
+      "reference": [
+        "Original CImpactWeb::Move at 0x4F9BD0 and its supporting vtables."
+      ],
+      "minimum_seconds": 60,
+      "status": "pending"
+    },
+    {
+      "id": "web_ball_miss",
+      "applies_to": "all_maps",
+      "setup": [
+        "Aim away from live actors, then toward a solid wall."
+      ],
+      "steps": [
+        "Fire into open air until its lifetime expires.",
+        "Fire into a wall with a precomputed environment hit.",
+        "Fire at a web-operable switch where available."
+      ],
+      "checks": [
+        "Open-air projectile advances and expires with no fake target damage.",
+        "Wall impact uses its hit position/normal and draws a fading crater.",
+        "Switch activates once if original face flags allow it.",
+        "No projectile remains invisible at age zero."
+      ],
+      "reference": [
+        "Original constructor/Move, CSplat and CSwitch behavior."
+      ],
+      "minimum_seconds": 60,
+      "status": "pending"
+    },
+    {
+      "id": "tug_release",
+      "applies_to": "maps_with_hostile_actors",
+      "setup": [
+        "Stand within range of an unchanged live enemy.",
+        "Record any deterministic player teleport and initial actor state."
+      ],
+      "steps": [
+        "Hold S plus right mouse until the normal FireWeb selects a target.",
+        "Reach each release animation threshold, then let the loose web finish.",
+        "Repeat from either side and at different height offsets."
+      ],
+      "checks": [
+        "No native jump to original Windows code occurs.",
+        "Accepted tug changes mode 1 to 2 and creates a valid CChain.",
+        "Target receives TugImpulse and expected damage/AI change.",
+        "Player active web pointer clears after release.",
+        "Line and chain retire; attached handles are not reused after deletion."
+      ],
+      "reference": [
+        "Original CWeb::SwitchToSnap 0x4F69F0 and original-machine-code differential fixtures."
+      ],
+      "minimum_seconds": 60,
+      "status": "pending"
+    },
+    {
+      "id": "tug_rejected",
+      "applies_to": "maps_with_tuggable_objects",
+      "setup": [
+        "Find a non-tuggable type50 actor and a manip object type401.",
+        "Keep original callback accept/reject behavior."
+      ],
+      "steps": [
+        "Tug an accepted manip object.",
+        "Tug a rejected target.",
+        "Repeat with a target removed before the release frame."
+      ],
+      "checks": [
+        "Type401 uses its two-vector impulse callback; ordinary actors use the three-argument virtual.",
+        "Rejected tug creates loose fragments and dies.",
+        "Null recovered target still creates the original loose chain.",
+        "Fragments update both endpoints, ground damping, extra segments and signed age expiry."
+      ],
+      "reference": [
+        "Original BreakIntoBits, fragment constructor/Move, Mem_RecoverPointer."
+      ],
+      "minimum_seconds": 60,
+      "status": "pending"
+    },
+    {
+      "id": "swing_zip",
+      "applies_to": "maps_with_swing_surfaces",
+      "setup": [
+        "Begin on a roof with valid swing and zip anchor surfaces."
+      ],
+      "steps": [
+        "Jump and start a swing, hold for two arcs, release and land.",
+        "Zip to a wall, climb, transition to ceiling and back.",
+        "Interrupt a swing with a permitted attack."
+      ],
+      "checks": [
+        "A visible web joins the hook/anchor and follows both endpoints.",
+        "Animation/state transitions and attachment hooks agree with original.",
+        "Released web retracts or fragments and expires.",
+        "Movement and collision remain valid at map boundaries."
+      ],
+      "reference": [
+        "Original CPlayer/CSwinger functions and matched Wine key script."
+      ],
+      "minimum_seconds": 120,
+      "status": "pending"
+    },
+    {
+      "id": "pickups_triggers",
+      "applies_to": "all_maps",
+      "setup": [
+        "Record trigger IDs and links as u16 words from the original level data."
+      ],
+      "steps": [
+        "Collect each nearby pickup/tutorial entry.",
+        "Move onto the next building or section immediately afterward.",
+        "Revisit the trigger and repeat after restart."
+      ],
+      "checks": [
+        "Pickup effect, resource/health change, tutorial and speech occur once as originally required.",
+        "Links point at valid nodes; no Bad node sent to Trig_GetLinksPointer error.",
+        "Level exit/load preserves player/camera/audio state."
+      ],
+      "reference": [
+        "Original trigger/script functions and Wine route capture."
+      ],
+      "minimum_seconds": 120,
+      "status": "pending"
+    },
+    {
+      "id": "audio_effects",
+      "applies_to": "all_maps",
+      "setup": [
+        "Use audible output, then repeat with dummy output for sample assertions."
+      ],
+      "steps": [
+        "Play ordinary effects and non-default pitch effects.",
+        "Generate more than124 sequential short effects.",
+        "Start/stop a loop; pause/resume and change the level."
+      ],
+      "checks": [
+        "Frequency zero restores each buffer sample rate.",
+        "All256 pitch bytes preserve original conversion and DXSOUND argument order.",
+        "Short effects finish, loops remain live until stopped, and voices are reclaimed.",
+        "Volume/pan remain finite and effects are neither slowed to100Hz nor clipped by overflow."
+      ],
+      "reference": [
+        "Original playSFX/DXSOUND_SetPitch disassembly and real SDL callback fixture."
+      ],
+      "minimum_seconds": 60,
+      "status": "pending"
+    },
+    {
+      "id": "audio_streams",
+      "applies_to": "all_maps",
+      "setup": [
+        "Keep FMV, music/dialogue and SFX lifetimes separate."
+      ],
+      "steps": [
+        "Let music play during movement/combat.",
+        "Trigger two dialogue lines and wait for completion.",
+        "Pause/resume, stop/restart and change the level during playback.",
+        "Skip a cinematic while a sound is active."
+      ],
+      "checks": [
+        "Stream contains decoded nonzero audio samples.",
+        "Original completion/status and pause behavior advance scripts correctly.",
+        "Bounded decode does not accumulate whole long tracks in memory.",
+        "All decoder children and audio queues retire at stop, EOF and shutdown."
+      ],
+      "reference": [
+        "Original PCMUSIC/ADXT calls and real Bink assets."
+      ],
+      "minimum_seconds": 120,
+      "status": "pending"
+    },
+    {
+      "id": "mission_completion",
+      "applies_to": "story_maps",
+      "setup": [
+        "Start from a fresh area state using its original difficulty and entrance."
+      ],
+      "steps": [
+        "Complete all area objectives and required enemy groups.",
+        "Activate the exit with real gameplay input.",
+        "Load the next area, then exercise death/retry/checkpoint."
+      ],
+      "checks": [
+        "Objectives, boss phases, scripted waves, hostages and exit requirements match original.",
+        "Next map loads usable regions and correct actor lists.",
+        "Checkpoint/save/retry restore the intended area and resources."
+      ],
+      "reference": [
+        "Original full mission route recorded under Wine."
+      ],
+      "minimum_seconds": 300,
+      "status": "pending"
+    },
+    {
+      "id": "graphics_quality",
+      "applies_to": "all_maps",
+      "setup": [
+        "Record GL renderer, resolution, MSAA and texture filtering settings."
+      ],
+      "steps": [
+        "Capture fixed-position views with quality setting disabled and enabled.",
+        "Move camera past oblique roofs/walls and repeating textures.",
+        "Inspect HUD text, sprites, atlas edges and transparent effects."
+      ],
+      "checks": [
+        "Quality setting changes only supported world sampling.",
+        "No adjacent atlas tiles bleed into HUD/sprite textures.",
+        "No unsupported GL enum or incomplete texture is created.",
+        "Temporal shimmer improvement is measured before it is claimed."
+      ],
+      "reference": [
+        "Original point/bilinear filter policy; optional standalone quality change measured independently."
+      ],
+      "minimum_seconds": 90,
+      "status": "pending"
+    },
+    {
+      "id": "training_objectives",
+      "applies_to": "training_maps",
+      "setup": [
+        "Load the specified challenge variant, rather than only its shared base map."
+      ],
+      "steps": [
+        "Perform the requested actions until success.",
+        "Miss an objective, restart, and repeat."
+      ],
+      "checks": [
+        "Challenge counter, timer and success/failure behavior agree with original.",
+        "Correct target/enemy model and animation render throughout.",
+        "Restart clears transient effects, audio and scores."
+      ],
+      "reference": [
+        "Original training table, scripts and Wine challenge completion."
+      ],
+      "minimum_seconds": 180,
+      "status": "pending"
+    }
+  ],
+  "maps": [
+    {
+      "code": "l1a1_t",
+      "display_name": "Get to the Bank!",
+      "category": "story",
+      "entry_index": 0,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l1a2_t",
+      "display_name": "Bank Approach",
+      "category": "story",
+      "entry_index": 1,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l1a3_t",
+      "display_name": "Hostage Situation",
+      "category": "story",
+      "entry_index": 2,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l1a4_t",
+      "display_name": "Stop the Bomb!",
+      "category": "story",
+      "entry_index": 3,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l2a1_t",
+      "display_name": "Race to the Bugle",
+      "category": "story",
+      "entry_index": 4,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l2a2_t",
+      "display_name": "Spidey vs. Scorpion!",
+      "category": "story",
+      "entry_index": 5,
+      "flags": 1,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l3a1_t",
+      "display_name": "Police Chopper Chase",
+      "category": "story",
+      "entry_index": 6,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l3a2_t",
+      "display_name": "Missile Attack",
+      "category": "story",
+      "entry_index": 7,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l3a3_t",
+      "display_name": "Building Top Chase",
+      "category": "story",
+      "entry_index": 8,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l3a4_t",
+      "display_name": "Scale the Girders",
+      "category": "story",
+      "entry_index": 9,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l3a5_t",
+      "display_name": "Police Evaded",
+      "category": "story",
+      "entry_index": 10,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l4a1_t",
+      "display_name": "Spidey vs. Rhino!",
+      "category": "story",
+      "entry_index": 11,
+      "flags": 3,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a1_t",
+      "display_name": "Catch Venom",
+      "category": "story",
+      "entry_index": 12,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a2_t",
+      "display_name": "Spidey vs. Venom!",
+      "category": "story",
+      "entry_index": 13,
+      "flags": 1,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a3_t",
+      "display_name": "Sewer Entrance",
+      "category": "story",
+      "entry_index": 14,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a4_t",
+      "display_name": "Sewer Cavern",
+      "category": "story",
+      "entry_index": 15,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a5_t",
+      "display_name": "Subway",
+      "category": "story",
+      "entry_index": 16,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a6_t",
+      "display_name": "Sewage Plant",
+      "category": "story",
+      "entry_index": 17,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l5a7_t",
+      "display_name": "Hidden Switches",
+      "category": "story",
+      "entry_index": 18,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l6a1_t",
+      "display_name": "Tunnel Crawl",
+      "category": "story",
+      "entry_index": 19,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l6a2_t",
+      "display_name": "Venom's Puzzle",
+      "category": "story",
+      "entry_index": 20,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l6a3_t",
+      "display_name": "The Lizard's Maze",
+      "category": "story",
+      "entry_index": 21,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l6a4_t",
+      "display_name": "Spidey vs. Venom Again!",
+      "category": "story",
+      "entry_index": 22,
+      "flags": 3,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l7a1_t",
+      "display_name": "Symbiotes Infest Bugle",
+      "category": "story",
+      "entry_index": 23,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l7a2_t",
+      "display_name": "Elevator Descent",
+      "category": "story",
+      "entry_index": 24,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l7a3_t",
+      "display_name": "Stop the Presses!",
+      "category": "story",
+      "entry_index": 25,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l7a4_t",
+      "display_name": "Bugle's Basement",
+      "category": "story",
+      "entry_index": 26,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l7a5_t",
+      "display_name": "Spidey vs. Mysterio!",
+      "category": "story",
+      "entry_index": 27,
+      "flags": 3,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l8a1_t",
+      "display_name": "Waterfront Warehouse",
+      "category": "story",
+      "entry_index": 28,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l8a2_t",
+      "display_name": "Underwater Trench",
+      "category": "story",
+      "entry_index": 29,
+      "flags": 1,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l8a3_t",
+      "display_name": "Stopping the Fog",
+      "category": "story",
+      "entry_index": 30,
+      "flags": 3,
+      "boss": false,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l8a4_t",
+      "display_name": "Spidey vs. Doc Ock!",
+      "category": "story",
+      "entry_index": 31,
+      "flags": 3,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l8a5_t",
+      "display_name": "Spidey vs. Carnage!",
+      "category": "story",
+      "entry_index": 32,
+      "flags": 3,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l8a6_t",
+      "display_name": "Spidey vs. Monster-Ock!",
+      "category": "story",
+      "entry_index": 33,
+      "flags": 3,
+      "boss": true,
+      "profiles": [
+        "boot_movies",
+        "escape_skip",
+        "black_cat_animation",
+        "map_visibility",
+        "camera_sweep",
+        "enemy_spawn_parity",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "pickups_triggers",
+        "audio_effects",
+        "audio_streams",
+        "mission_completion",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "dem1_t",
+      "display_name": "dem1_t",
+      "category": "demo",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "dem2_t",
+      "display_name": "dem2_t",
+      "category": "demo",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "dem3_t",
+      "display_name": "dem3_t",
+      "category": "demo",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "dem4_t",
+      "display_name": "dem4_t",
+      "category": "demo",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l1a2a_t",
+      "display_name": "l1a2a_t",
+      "category": "story_variant",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l3a1a_t",
+      "display_name": "l3a1a_t",
+      "category": "story_variant",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l9a1_t",
+      "display_name": "time attack: 1 minute vs. henchman / time attack: 2 minutes vs. henchman",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l9a2_t",
+      "display_name": "time attack: 1 minute vs. thug / time attack: 2 minutes vs. thug",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l9a3_t",
+      "display_name": "time attack: 1 minute vs. lizardman / time attack: 2 minutes vs. lizardman",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "l9a4_t",
+      "display_name": "time attack: 1 minute vs. symbiote / time attack: 2 minutes vs. symbiote",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lba1_t",
+      "display_name": "survival: combat room  henchman",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lba2_t",
+      "display_name": "survival: combat room  thug",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lba3_t",
+      "display_name": "survival: combat room  lizardman",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lba4_t",
+      "display_name": "survival: combat room  symbiote",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lca1_t",
+      "display_name": "survival: building top  henchman",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lca2_t",
+      "display_name": "survival: building top  thug",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lca3_t",
+      "display_name": "survival: building top  lizardman",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lca4_t",
+      "display_name": "survival: building top  symbiote",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lda1_t",
+      "display_name": "speed training 1",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lda2_t",
+      "display_name": "speed training 2",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lda3_t",
+      "display_name": "speed training 3",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa10_t",
+      "display_name": "lfa10_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa11_t",
+      "display_name": "lfa11_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa12_t",
+      "display_name": "lfa12_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa13_t",
+      "display_name": "lfa13_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa14_t",
+      "display_name": "lfa14_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa15_t",
+      "display_name": "lfa15_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa16_t",
+      "display_name": "lfa16_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa17_t",
+      "display_name": "lfa17_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa18_t",
+      "display_name": "lfa18_t",
+      "category": "training_asset",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lfa1_t",
+      "display_name": "target practice",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lga1_t",
+      "display_name": "item hunt",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "lha1_t",
+      "display_name": "zip-line training: 30 seconds / zip-line training: 90 seconds",
+      "category": "training",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "tug_rejected",
+        "swing_zip",
+        "audio_effects",
+        "audio_streams",
+        "training_objectives",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    },
+    {
+      "code": "zart_t",
+      "display_name": "zart_t",
+      "category": "art_test",
+      "entry_index": null,
+      "boss": false,
+      "entry_method": "GDB Front_LoadGame save-code override after forced story index0",
+      "profiles": [
+        "map_visibility",
+        "camera_sweep",
+        "combat_visibility",
+        "web_ball_hit",
+        "web_ball_miss",
+        "tug_release",
+        "audio_effects",
+        "audio_streams",
+        "graphics_quality"
+      ],
+      "result": "not_run"
+    }
+  ],
+  "training_challenges": [
+    {
+      "index": 0,
+      "name": "time attack: 1 minute vs. henchman",
+      "code": "l9a1_t",
+      "level_id": 2305,
+      "time": 60,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 1,
+      "table_address": "0x551118"
+    },
+    {
+      "index": 1,
+      "name": "time attack: 2 minutes vs. henchman",
+      "code": "l9a1_t",
+      "level_id": 2305,
+      "time": 120,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 1,
+      "table_address": "0x551128"
+    },
+    {
+      "index": 2,
+      "name": "time attack: 1 minute vs. thug",
+      "code": "l9a2_t",
+      "level_id": 2306,
+      "time": 60,
+      "arena": 0,
+      "enemy_choice": 1,
+      "score_units": 1,
+      "table_address": "0x551138"
+    },
+    {
+      "index": 3,
+      "name": "time attack: 2 minutes vs. thug",
+      "code": "l9a2_t",
+      "level_id": 2306,
+      "time": 120,
+      "arena": 0,
+      "enemy_choice": 1,
+      "score_units": 1,
+      "table_address": "0x551148"
+    },
+    {
+      "index": 4,
+      "name": "time attack: 1 minute vs. lizardman",
+      "code": "l9a3_t",
+      "level_id": 2307,
+      "time": 60,
+      "arena": 0,
+      "enemy_choice": 2,
+      "score_units": 1,
+      "table_address": "0x551158"
+    },
+    {
+      "index": 5,
+      "name": "time attack: 2 minutes vs. lizardman",
+      "code": "l9a3_t",
+      "level_id": 2307,
+      "time": 120,
+      "arena": 0,
+      "enemy_choice": 2,
+      "score_units": 1,
+      "table_address": "0x551168"
+    },
+    {
+      "index": 6,
+      "name": "time attack: 1 minute vs. symbiote",
+      "code": "l9a4_t",
+      "level_id": 2308,
+      "time": 60,
+      "arena": 0,
+      "enemy_choice": 3,
+      "score_units": 1,
+      "table_address": "0x551178"
+    },
+    {
+      "index": 7,
+      "name": "time attack: 2 minutes vs. symbiote",
+      "code": "l9a4_t",
+      "level_id": 2308,
+      "time": 120,
+      "arena": 0,
+      "enemy_choice": 3,
+      "score_units": 1,
+      "table_address": "0x551188"
+    },
+    {
+      "index": 8,
+      "name": "survival: combat room  henchman",
+      "code": "lba1_t",
+      "level_id": 4353,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 0,
+      "table_address": "0x551198"
+    },
+    {
+      "index": 9,
+      "name": "survival: combat room  thug",
+      "code": "lba2_t",
+      "level_id": 4354,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 1,
+      "score_units": 0,
+      "table_address": "0x5511a8"
+    },
+    {
+      "index": 10,
+      "name": "survival: combat room  lizardman",
+      "code": "lba3_t",
+      "level_id": 4355,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 2,
+      "score_units": 0,
+      "table_address": "0x5511b8"
+    },
+    {
+      "index": 11,
+      "name": "survival: combat room  symbiote",
+      "code": "lba4_t",
+      "level_id": 4356,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 3,
+      "score_units": 0,
+      "table_address": "0x5511c8"
+    },
+    {
+      "index": 12,
+      "name": "survival: building top  henchman",
+      "code": "lca1_t",
+      "level_id": 4609,
+      "time": null,
+      "arena": 1,
+      "enemy_choice": 0,
+      "score_units": 0,
+      "table_address": "0x5511d8"
+    },
+    {
+      "index": 13,
+      "name": "survival: building top  thug",
+      "code": "lca2_t",
+      "level_id": 4610,
+      "time": null,
+      "arena": 1,
+      "enemy_choice": 1,
+      "score_units": 0,
+      "table_address": "0x5511e8"
+    },
+    {
+      "index": 14,
+      "name": "survival: building top  lizardman",
+      "code": "lca3_t",
+      "level_id": 4611,
+      "time": null,
+      "arena": 1,
+      "enemy_choice": 2,
+      "score_units": 0,
+      "table_address": "0x5511f8"
+    },
+    {
+      "index": 15,
+      "name": "survival: building top  symbiote",
+      "code": "lca4_t",
+      "level_id": 4612,
+      "time": null,
+      "arena": 1,
+      "enemy_choice": 3,
+      "score_units": 0,
+      "table_address": "0x551208"
+    },
+    {
+      "index": 16,
+      "name": "speed training 1",
+      "code": "lda1_t",
+      "level_id": 4865,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 0,
+      "table_address": "0x551218"
+    },
+    {
+      "index": 17,
+      "name": "speed training 2",
+      "code": "lda2_t",
+      "level_id": 4866,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 0,
+      "table_address": "0x551228"
+    },
+    {
+      "index": 18,
+      "name": "speed training 3",
+      "code": "lda3_t",
+      "level_id": 4867,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 0,
+      "table_address": "0x551238"
+    },
+    {
+      "index": 19,
+      "name": "target practice",
+      "code": "lfa1_t",
+      "level_id": 5377,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 3,
+      "table_address": "0x551248"
+    },
+    {
+      "index": 20,
+      "name": "item hunt",
+      "code": "lga1_t",
+      "level_id": 5633,
+      "time": null,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 0,
+      "table_address": "0x551258"
+    },
+    {
+      "index": 21,
+      "name": "zip-line training: 30 seconds",
+      "code": "lha1_t",
+      "level_id": 5889,
+      "time": 30,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 2,
+      "table_address": "0x551268"
+    },
+    {
+      "index": 22,
+      "name": "zip-line training: 90 seconds",
+      "code": "lha1_t",
+      "level_id": 5889,
+      "time": 90,
+      "arena": 0,
+      "enemy_choice": 0,
+      "score_units": 2,
+      "table_address": "0x551278"
+    }
+  ],
+  "known_coverage": {
+    "previous_smoke": "68 selected runs passed on 2026-09-30, using idle gameplay. See local out/level-audit-20260930/coverage.json.",
+    "current_regressions": "Local out/web-crash-20261001/runtime records active web regressions.",
+    "full_mission_route_status": "not_run",
+    "spawn_trigger_parity_status": "not_run"
+  }
+}
