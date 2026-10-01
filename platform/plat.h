@@ -133,4 +133,24 @@ enum PlatMovieAudioOp
 i32 Plat_MovieAudio(PlatMovieAudioOp op, const void* pcm, i32 value);
 void Plat_MovieDrawFrame(const u8* bgra, i32 width, i32 height);
 
+// Bink voice playback is independent of FMV and sound effect channels.
+i32 Plat_MusicOpen(const char* path, u32 offset, u32 bytes);
+i32 Plat_MusicIsPlaying(void);
+void Plat_MusicStop(void);
+void Plat_MusicPause(i32 paused);
+void Plat_MusicSetVolume(i32 volume); // Bink scale, 32768 is full volume.
+
+enum PlatMusicAudioOp
+{
+	PLAT_MUSIC_AUDIO_OPEN,
+	PLAT_MUSIC_AUDIO_CLOSE,
+	PLAT_MUSIC_AUDIO_QUEUE,
+	PLAT_MUSIC_AUDIO_QUEUED,
+	PLAT_MUSIC_AUDIO_START,
+	PLAT_MUSIC_AUDIO_PAUSE,
+	PLAT_MUSIC_AUDIO_VOLUME,
+	PLAT_MUSIC_AUDIO_FLUSH,
+};
+i32 Plat_MusicAudio(PlatMusicAudioOp op, const void* pcm, i32 value);
+
 #endif
