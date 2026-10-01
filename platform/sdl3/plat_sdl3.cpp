@@ -296,6 +296,7 @@ struct PlatTexture
 	PlatTexFormat format;
 	i32 filter;     // last applied, -1 = none
 	i32 wrapU, wrapV;
+	GLfloat anisotropy;
 	bool mipmapsReady;
 };
 
@@ -546,9 +547,46 @@ static void applyTextureState(void)
 	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
 }
 
+// @Bogus
 void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
 {
 	applyTextureState();
+	bool tiled = false;
+	if (count > 0 && gBoundTex && gGenerateMipmap && gFilter && gAddrU == 1 && gAddrV == 1
+		&& glIsEnabled(GL_DEPTH_TEST) && !glIsEnabled(GL_BLEND) && !glIsEnabled(GL_ALPHA_TEST))
+	{
+		// Atlas UVs can carry whole-period offsets. Only a span larger than a
+		// complete texture proves repetition, with tolerance for texel offsets.
+		f32 paddingU = 1.0f / gBoundTex->width, paddingV = 1.0f / gBoundTex->height;
+		f32 minU = v[0].field_14, maxU = minU, minV = v[0].field_18, maxV = minV;
+		for (i32 i = 1; i < count; i++)
+		{
+			if (v[i].field_14 < minU) minU = v[i].field_14;
+			if (v[i].field_14 > maxU) maxU = v[i].field_14;
+			if (v[i].field_18 < minV) minV = v[i].field_18;
+			if (v[i].field_18 > maxV) maxV = v[i].field_18;
+		}
+		tiled = maxU - minU > 1.0f + paddingU || maxV - minV > 1.0f + paddingV;
+		if (tiled)
+		{
+			if (!gBoundTex->mipmapsReady)
+			{
+				gGenerateMipmap(GL_TEXTURE_2D);
+				gBoundTex->mipmapsReady = true;
+			}
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			gBoundTex->filter = -1; // Restore the original filter for the next fan.
+		}
+	}
+	if (gBoundTex && gTextureAnisotropy)
+	{
+		GLfloat anisotropy = tiled ? gTextureAnisotropy : 1.0f;
+		if (gBoundTex->anisotropy != anisotropy)
+		{
+			glTexParameterf(GL_TEXTURE_2D, 0x84FE, anisotropy); // GL_TEXTURE_MAX_ANISOTROPY
+			gBoundTex->anisotropy = anisotropy;
+		}
+	}
 	gDbgSinceClear++;
 	if (gDbgLogFrom >= 0 && gDbgClears > 0 && gDbgClears <= 4 && (i32)SDL_GetTicks() >= gDbgLogFrom && gDbgSinceClear <= (getenv("SPIDEY_GLDEBUG_N") ? atoi(getenv("SPIDEY_GLDEBUG_N")) : 60))
 	{

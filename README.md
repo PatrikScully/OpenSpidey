@@ -70,6 +70,11 @@ Keys: Enter selects, the arrow keys move, F12 quits. Set `SPIDEY_FULLSCREEN=1`
 for fullscreen. `SPIDEY_BACKEND=null` builds a headless version that runs the
 game logic without a window (used for tests and CI).
 
+The SDL3 renderer smooths distant repeating world surfaces with mipmaps and
+up to 8x anisotropic filtering. `SPIDEY_MIPMAPS=0` restores the original
+filtering; `SPIDEY_ANISOTROPY=1` disables anisotropy. Sprites and atlas regions
+keep their original sampling.
+
 Debugging switches (environment variables): `SPIDEY_KEYS="6000:enter,4000:enter"`
 presses keys at the given times in ms, `SPIDEY_QUIT_MS=N` ends the run after N
 ms, `SPIDEY_TRACE_PLAYER=1` prints the player and camera state once per frame,
