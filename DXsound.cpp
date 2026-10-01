@@ -2590,7 +2590,7 @@ void DXSOUND_Open(
 // @Matching
 void DXSOUND_Play(i32 a1, i32 a2)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gDxSoundHolder[a1].pDSB)
 	{
 		gDxSoundHolder[a1].field_8 = 0;
