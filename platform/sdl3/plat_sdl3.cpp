@@ -296,6 +296,7 @@ struct PlatTexture
 	PlatTexFormat format;
 	i32 filter;     // last applied, -1 = none
 	i32 wrapU, wrapV;
+	bool mipmapsReady;
 };
 
 static PlatTexture* gBoundTex;
@@ -316,6 +317,7 @@ PlatTexture* Plat_TexCreate(i32 width, i32 height, PlatTexFormat format)
 	return t;
 }
 
+// @Bogus
 void Plat_TexUpload(PlatTexture* t, const void* pixels, i32 pitch)
 {
 	GLenum fmt, type;
@@ -380,6 +382,7 @@ void Plat_TexUpload(PlatTexture* t, const void* pixels, i32 pitch)
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	t->filter = -1;
 	t->wrapU = t->wrapV = -1;
+	t->mipmapsReady = false;
 	if (gBoundTex)
 		glBindTexture(GL_TEXTURE_2D, gBoundTex->id);
 }
