@@ -74,3 +74,31 @@ def _validate_archive(stream, offset, size, name):
             raise AssetError("%s has an invalid asset entry." % name)
 
 
+def _directory_record(record, image_size, joliet):
+    if len(record) < 34 or record[0] != len(record):
+        raise AssetError("The ISO has a damaged directory record.")
+    length = record[32]
+    if length == 0 or 33 + length > len(record):
+        raise AssetError("The ISO has an invalid file name.")
+    extent, big_extent = struct.unpack_from("<I", record, 2)[0], struct.unpack_from(">I", record, 6)[0]
+    size, big_size = struct.unpack_from("<I", record, 10)[0], struct.unpack_from(">I", record, 14)[0]
+    if extent != big_extent or size != big_size:
+        raise AssetError("The ISO has inconsistent directory data.")
+    offset = (extent + record[1]) * BLOCK_SIZE
+    if offset > image_size or size > image_size - offset:
+        raise AssetError("The ISO is incomplete or has an invalid file extent.")
+    identifier = record[33:33 + length]
+    if identifier in (b"\x00", b"\x01"):
+        name = None
+    else:
+        try:
+            name = identifier.decode("utf-16-be" if joliet else "ascii")
+        except UnicodeDecodeError as error:
+            raise AssetError("The ISO has an invalid file name.") from error
+        name = name.rsplit(";", 1)[0] if ";" in name and name.rsplit(";", 1)[1].isdigit() else name
+        if name in (".", "..") or any(ord(char) < 32 or char in "/\\:" for char in name):
+            raise AssetError("The ISO has an unsafe file name.")
+    return {"name": name, "offset": offset, "size": size, "directory": bool(record[25] & 2),
+            "unsupported": bool(record[25] & 0x84 or record[26] or record[27])}
+
+
