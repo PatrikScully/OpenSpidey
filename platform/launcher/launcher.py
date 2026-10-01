@@ -89,7 +89,14 @@ class SetupWindow:
         for key, value in settings.items():
             if key == "schema":
                 continue
-            var_type = tk.BooleanVar if type(value) is bool else tk.DoubleVar if key == "mouse_sensitivity" else tk.IntVar if type(value) is int else tk.StringVar
+            if type(value) is bool:
+                var_type = tk.BooleanVar
+            elif key == "mouse_sensitivity":
+                var_type = tk.DoubleVar
+            elif type(value) is int:
+                var_type = tk.IntVar
+            else:
+                var_type = tk.StringVar
             self.vars[key] = var_type(root, value=value)
         self.mode_label = tk.StringVar(root, next(label for label, value in MODES.items() if value == settings["window_mode"]))
         self.source_label = tk.StringVar(root, "ISO disc image" if settings["source_mode"] == "iso" else "Installed game folder")
