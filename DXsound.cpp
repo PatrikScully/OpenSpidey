@@ -729,7 +729,7 @@ void DXINPUT_SetMouseButtonState(u8 button, u8 state)
 // @Matching
 i32 DXINPUT_SetupController(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	g_pDI->EnumDevices(DI8DEVCLASS_GAMECTRL, EnumControllersCallback, 0, DIEDFL_ATTACHEDONLY);
 
 	if (!gControllerRelated)
