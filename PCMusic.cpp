@@ -163,6 +163,10 @@ INLINE void PCMUSIC_Init(void)
 // @Matching
 void PCMUSIC_Pause(i32 a1)
 {
+#ifdef SPIDEY_STANDALONE
+	Plat_MusicPause(a1);
+	return;
+#endif
 	if (gMusicBinkHandle)
 	{
 		BinkPause(gMusicBinkHandle, a1);
