@@ -1244,7 +1244,7 @@ void DXPOLY_DrawPoly(
 	}
 	else if (gDxPolyRelated && pPoly->mBlendMode == 0)
 	{
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 		DXPOLY_SetTexture(pPoly->field_4);
 		DXPOLY_SetBlendMode(pPoly->mBlendMode);
 
