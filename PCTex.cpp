@@ -1985,7 +1985,7 @@ void PCTex_ReleaseSysTexture(i32 a1, bool a2)
 		}
 		else
 		{
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 			HRESULT hr = G_GLOBAL_TEXTURES[a1].mD3DTex->Release();
 			D3D_ERROR_LOG_AND_QUIT(hr);
 #elif defined(SPIDEY_STANDALONE)
