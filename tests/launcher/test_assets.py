@@ -197,3 +197,23 @@ class AssetTests(unittest.TestCase):
                 with self.assertRaises(assets.AssetError):
                     assets.inspect_iso(self.iso)
 
+    def test_space_lock_and_destination_errors(self):
+        make_iso(self.iso)
+        usage = shutil.disk_usage(self.root)
+        with mock.patch.object(assets.shutil, "disk_usage", return_value=usage._replace(free=0)):
+            with self.assertRaisesRegex(assets.AssetError, "free space"):
+                assets.import_iso(self.iso, self.destination)
+        with assets._import_lock(self.destination):
+            with self.assertRaisesRegex(assets.AssetError, "Another asset import"):
+                assets.import_iso(self.iso, self.destination)
+        assets.import_iso(self.iso, self.destination)
+        contained = self.destination / "disc.iso"
+        shutil.copyfile(self.iso, contained)
+        with self.assertRaisesRegex(assets.AssetError, "outside"):
+            assets.import_iso(contained, self.destination)
+        if os.name != "nt":
+            link = self.root / "cache-link"
+            link.symlink_to(self.destination, target_is_directory=True)
+            with self.assertRaisesRegex(assets.AssetError, "symbolic link"):
+                assets.import_iso(self.iso, link)
+
