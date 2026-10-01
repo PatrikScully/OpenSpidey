@@ -371,7 +371,7 @@ LRESULT CALLBACK SpideyWndProc(
 // @Matching
 i32 WinYield(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	MSG msg;
 	while (PeekMessageA(&msg, gHwnd, 0, 0, 0))
 	{
