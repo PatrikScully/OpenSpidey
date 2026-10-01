@@ -85,3 +85,20 @@ class AssetTests(unittest.TestCase):
         self.supported.stop()
         self.temporary.cleanup()
 
+    def test_iso_trees_and_import(self):
+        for joliet in (False, True):
+            with self.subTest(joliet=joliet):
+                make_iso(self.iso, joliet=joliet)
+                progress = []
+                result = assets.import_iso(self.iso, self.destination, lambda *event: progress.append(event))
+                self.assertEqual(result, self.destination)
+                self.assertEqual(assets.validate_game_dir(result), result)
+                self.assertEqual(set(assets.inspect_iso(self.iso)["files"]), set(PAYLOADS))
+                for name, payload in PAYLOADS.items():
+                    self.assertEqual((result / name).read_bytes(), payload)
+                    self.assertTrue(os.access(result / name, os.W_OK))
+                self.assertEqual(progress[0][0], 0)
+                self.assertEqual(progress[-1][0], sum(map(len, PAYLOADS.values())))
+                self.assertEqual([event[0] for event in progress], sorted(event[0] for event in progress))
+                self.assertEqual(len(json.loads((result / assets.MANIFEST_NAME).read_text())["sha256"]), 4)
+
