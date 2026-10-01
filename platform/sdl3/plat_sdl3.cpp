@@ -45,12 +45,17 @@ static i32 gDbgSinceClear = 0;
 
 static SDL_Window* gWindow;
 static SDL_GLContext gGL;
+// Zero means the current context has no anisotropic filtering support.
+static GLfloat gTextureAnisotropy;
+typedef void (APIENTRY *GenerateMipmapProc)(GLenum);
+static GenerateMipmapProc gGenerateMipmap;
 static i32 gWidth = 640, gHeight = 480;
 // Window scale: the game renders in 640x480 units, the window is this many
 // times bigger (SPIDEY_SCALE, default 2, 1 in fullscreen).
 static i32 gScale = 1;
 static i32 gQuit;
 
+// @Bogus
 i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 {
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD))
@@ -114,6 +119,36 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	printf("Plat(sdl3): %dx%d, GL %s / %s, MSAA %d\n", width, height,
 			(const char*)glGetString(GL_VERSION), (const char*)glGetString(GL_RENDERER),
 			sampleBuffers ? actualSamples : 0);
+
+	gTextureAnisotropy = 0.0f;
+	i32 major = 0, minor = 0;
+	sscanf((const char*)glGetString(GL_VERSION), "%d.%d", &major, &minor);
+	if (major > 4 || (major == 4 && minor >= 6)
+		|| SDL_GL_ExtensionSupported("GL_ARB_texture_filter_anisotropic")
+		|| SDL_GL_ExtensionSupported("GL_EXT_texture_filter_anisotropic"))
+	{
+		GLfloat maximum = 1.0f;
+		glGetFloatv(0x84FF, &maximum); // GL_MAX_TEXTURE_MAX_ANISOTROPY
+		const char* setting = getenv("SPIDEY_ANISOTROPY");
+		GLfloat requested = setting ? (GLfloat)strtod(setting, 0) : 8.0f;
+		if (!(requested >= 1.0f))
+			requested = 1.0f;
+		if (requested > maximum)
+			requested = maximum;
+		gTextureAnisotropy = requested;
+	}
+	printf("Plat(sdl3): texture anisotropy %.1fx%s\n", gTextureAnisotropy ? gTextureAnisotropy : 1.0f,
+		gTextureAnisotropy ? "" : " (unsupported)");
+	gGenerateMipmap = 0;
+	const char* mipmaps = getenv("SPIDEY_MIPMAPS");
+	if (!mipmaps || atoi(mipmaps))
+	{
+		if (major >= 3 || SDL_GL_ExtensionSupported("GL_ARB_framebuffer_object"))
+			gGenerateMipmap = (GenerateMipmapProc)SDL_GL_GetProcAddress("glGenerateMipmap");
+		else if (SDL_GL_ExtensionSupported("GL_EXT_framebuffer_object"))
+			gGenerateMipmap = (GenerateMipmapProc)SDL_GL_GetProcAddress("glGenerateMipmapEXT");
+	}
+	printf("Plat(sdl3): repeating world mipmaps %s\n", gGenerateMipmap ? "enabled" : "off");
 
 	glViewport(0, 0, width * gScale, height * gScale);
 	glMatrixMode(GL_PROJECTION);
