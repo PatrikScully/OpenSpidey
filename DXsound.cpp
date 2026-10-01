@@ -1436,7 +1436,7 @@ void gsub_514ED0(void)
 // @Ok
 void DXPOLY_EndScene(bool a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gInBeginScene)
 	{
 		gInBeginScene = 0;
