@@ -286,3 +286,18 @@ def _copy_asset(stream, entry, target, completed, total, progress, cancelled):
     return completed, digest.hexdigest()
 
 
+def _preserve_saves(destination, staging):
+    saves = destination / "save"
+    if saves.is_symlink():
+        raise AssetError("The existing save folder is not a normal folder.")
+    if not saves.exists():
+        return
+    if not saves.is_dir():
+        raise AssetError("The existing save folder is not a normal folder.")
+    for root, directories, files in os.walk(saves, followlinks=False):
+        for name in directories + files:
+            if (Path(root) / name).is_symlink():
+                raise AssetError("The existing save folder contains a symbolic link.")
+    shutil.copytree(saves, staging / "save")
+
+
