@@ -233,3 +233,18 @@ class SetupWindow:
         values["window_mode"] = MODES[self.mode_label.get()]
         values["source_mode"] = "iso" if self.source_label.get() == "ISO disc image" else "directory"
         return normalise_settings(values)
+
+    def start(self):
+        if self.busy:
+            return
+        values = self.read_values()
+        if not values["source_path"].strip():
+            self.show_page("Game files")
+            self.status.set("Choose an ISO disc image or installed game folder first.")
+            return
+        self.busy = True
+        self.cancelled.clear()
+        self.start_button.configure(state="disabled")
+        self.cancel_button.configure(text="Cancel")
+        self.status.set("Checking game files…")
+        threading.Thread(target=self.prepare_assets, args=(values,), daemon=False).start()
