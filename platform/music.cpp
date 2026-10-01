@@ -264,3 +264,13 @@ void Plat_MusicPause(i32 paused)
 	pthread_mutex_unlock(&gMusicLock);
 }
 
+// @Bogus
+void Plat_MusicSetVolume(i32 volume)
+{
+	if (volume < 0)
+		volume = 0;
+	pthread_mutex_lock(&gMusicLock);
+	if (gMusic.active)
+		Plat_MusicAudio(PLAT_MUSIC_AUDIO_VOLUME, 0, volume);
+	pthread_mutex_unlock(&gMusicLock);
+}
