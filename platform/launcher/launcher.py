@@ -159,3 +159,13 @@ class SetupWindow:
         widget = self.ttk.Combobox(page, textvariable=variable, values=options, state="readonly", width=18)
         widget.grid(row=row, column=1, sticky="ew", pady=10)
         return widget
+
+    def build_files(self):
+        page = self.pages["Game files"]
+        self.heading(page, "Welcome back, web-head.", "Choose your Spider-Man (2000) PC disc image or an installed game folder. Setup remembers your choice.")
+        self.choice(page, 2, "Game source", self.source_label, ("ISO disc image", "Installed game folder"))
+        self.ttk.Label(page, text="Location").grid(row=3, column=0, sticky="w", pady=10)
+        self.ttk.Entry(page, textvariable=self.vars["source_path"]).grid(row=3, column=1, sticky="ew", pady=10)
+        self.ttk.Button(page, text="Browse…", command=self.browse).grid(row=4, column=1, sticky="e", pady=(0, 20))
+        self.ttk.Label(page, text="ISO files are imported once. Keep the disc image anywhere you like; no mounting or Windows installer is needed.", style="Hint.TLabel", wraplength=530).grid(row=5, column=0, columnspan=2, sticky="w", pady=12)
+        self.ttk.Label(page, text="Settings, imported files and game logs are stored in your user folder.", style="Hint.TLabel", wraplength=530).grid(row=6, column=0, columnspan=2, sticky="w", pady=12)
