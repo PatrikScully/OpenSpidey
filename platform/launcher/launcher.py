@@ -41,9 +41,10 @@ def run_game(binary, settings, data_path):
     frozen_windows = getattr(sys, "frozen", False) and os.name == "nt"
     if frozen_windows:
         import ctypes
-        ctypes.windll.kernel32.SetDllDirectoryW(None)
     with log.open("w", encoding="utf-8") as output:
         flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        if frozen_windows:
+            ctypes.windll.kernel32.SetDllDirectoryW(None)
         try:
             game = subprocess.Popen([str(binary), "."], cwd=directory, env=env,
                                     stdout=output, stderr=subprocess.STDOUT, creationflags=flags)
