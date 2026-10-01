@@ -30,9 +30,9 @@ Two builds come out of this repository.
 
 1. The standalone game (`spider`). A 32 bit native binary with an SDL3 and
    OpenGL backend. Everything it does is our decompiled code. This is the
-   Phase 2 build. Right now it boots to the menus, loads level 1, renders the
-   city and runs the player physics the same way the original does. Sound,
-   music and movies are still stubs.
+   Phase 2 build. It renders the maps, runs player and enemy logic, plays
+   sound effects, streamed dialogue, music and movies. Mission progression
+   and remaining gameplay functions are still being restored and tested.
 2. The Phase 1 DLL (`binkw32.dll`). A drop in for the game's Bink DLL on
    Windows (or Wine). It loads the original game and hooks the decompiled
    functions into it, one by one. This is how each function is checked
@@ -66,9 +66,18 @@ cmake --build out-sa -j8
 ./out-sa/spider /path/to/game-dir
 ```
 
-Keys: Enter selects, the arrow keys move, F12 quits. Set `SPIDEY_FULLSCREEN=1`
-for fullscreen. `SPIDEY_BACKEND=null` builds a headless version that runs the
+Keys: Enter selects, WASD or the arrow keys move, Space jumps, left mouse
+punches and right mouse fires webs. The mouse moves the camera. Escape
+pauses or skips an eligible scene; F12 quits. `SPIDEY_MOUSE_SENSITIVITY`
+sets camera speed (default 3), and `SPIDEY_MODERN_CONTROLS=0` restores the
+original keyboard controls. Set `SPIDEY_FULLSCREEN=1` for fullscreen.
+`SPIDEY_BACKEND=null` builds a headless version that runs the
 game logic without a window (used for tests and CI).
+
+Install `ffmpeg` on the machine running the game to decode the original
+Bink movies, dialogue and streamed music. Playback reports a failure if
+the decoder or requested original asset is unavailable. `SPIDEY_TRACE_MUSIC=1`
+logs streamed track names and completion.
 
 The SDL3 renderer smooths distant repeating world surfaces with mipmaps and
 up to 8x anisotropic filtering. `SPIDEY_MIPMAPS=0` restores the original
