@@ -2668,7 +2668,7 @@ void DXSOUND_SetVolume(i32 a1,i32 a2)
 // @Matching
 void DXSOUND_ShutDown(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	HRESULT hr = g_pDSBuffer->Stop();
 	DS_ERROR_LOG_AND_QUIT(hr);
 
