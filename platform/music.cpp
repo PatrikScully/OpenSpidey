@@ -159,18 +159,9 @@ i32 Plat_MusicOpen(const char* path, u32 offset, u32 bytes)
 		fclose(source);
 		return 0;
 	}
-	strcpy(gMusic.path, "/tmp/spidey-music-XXXXXX");
-	i32 fd = mkstemp(gMusic.path);
-	if (fd < 0)
-	{
-		fclose(source);
-		Plat_MusicStop();
-		return 0;
-	}
-	FILE* output = fdopen(fd, "wb");
+	FILE* output = Plat_DecoderTemp(gMusic.path, "spidey-music");
 	if (!output)
 	{
-		close(fd);
 		fclose(source);
 		Plat_MusicStop();
 		return 0;
