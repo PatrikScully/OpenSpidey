@@ -1,39 +1,66 @@
-Second tagged build of the standalone game.
+Your friendly neighborhood PC rebuild now has a setup app.
 
-Level 1 now plays from the intro cutscene into gameplay, and you can move
-Spider-Man with the keyboard. Sound, music and the movies are still stubs.
-Expect bugs.
+Download the Linux or Windows app, extract the whole archive, open
+**OpenSpidey**, choose your Spider-Man (2000) PC ISO or installed game folder,
+and press **Start game**. Setup remembers your video, sound and controls.
+Open the separate **Settings** app whenever you want to change them.
 
-Fixed since v0.0.1 (every fix checked against the original game running
-under Wine):
+## What changed since v0.0.2
 
-- The arrow keys move Spider-Man. The player code cleared all pad buttons
-  every frame, so no key press ever reached him.
-- The mouse is not inverted any more. The two axes were swapped.
-- Black Cat shows up in her scene. Her aim was mirrored, so she walked away
-  from Spider-Man, and the shadow code overwrote her body matrix, so she was
-  drawn lying flat on the roof.
-- The difficulty menu has its box and the little Spider-Man again.
-- The window opens at 2x (1280x960). Set SPIDEY_SCALE=1 for the old size.
-- The HUD is not sheared any more (health bar, compass needle and arrow).
-- Menu and viewer models do not explode any more (anim decoder with a block
-  size of 1).
-- Spider-Man does not get stuck on a wall seam and fall to his death in the
-  intro climb (collision test for the second triangle of a quad).
-- Most buildings of level 1 were missing, they are drawn now.
-- The sky sits on the camera instead of the world origin, and the colours are
-  not washed out (the brightness table was signed).
-- The title and legal screens had red and blue swapped.
-- The game ran twice as fast at 60 fps, it is held to 30 now.
+- **Setup and downloads:** first-run setup, ISO import with progress and
+  cancellation, saved preferences, preserved saves, and native Linux and
+  Windows CI packages with the launcher and runtime dependencies.
+- **Graphics and animation:** distant loaded buildings stay visible;
+  stretched thug limbs, sprite projection, texture perspective and camera
+  roll are fixed. Add antialiasing and smoother distant world textures.
+  Fix Spider-Man scripted animations and Black Cat head tracking.
+- **Controls and gameplay:** WASD and mouse look, mouse attacks, sensitivity
+  and inversion, restored melee combos and power-ups, many thug combat
+  states, and fixes for native save paths, script actors, triggers and effect
+  rendering.
+- **Webs:** visible swing and tug webs, released strands, moving web balls,
+  enemy hits, wall marks, impact rings and fragments.
+- **Audio and scenes:** original packed dialogue, music and movies with
+  sound, correct effect pitch, volume controls, Escape skip and decoder
+  cleanup.
 
-You need your own copy of Spider-Man (2000) for PC. Copy data.pkr,
-media.pkr, texture.dat and SpideyPC.exe into one directory and pass that
-directory to the game. See the README for each system.
+[The full changelog](https://github.com/PatrikScully/OpenSpidey/blob/main/CHANGELOG.md)
+groups the rendering, gameplay, audio, platform and decompilation work since
+the previous release.
 
-Files:
+## Downloads
 
-- spidey-vX-linux-x86-sdl3.tar.gz: the standalone game for Linux (32 bit x86,
-  SDL3 and OpenGL), with the libSDL3 it needs.
-- spidey-vX-windows-binkw32.zip: the Phase 1 DLL. Rename the game's
-  binkw32.dll to binkw32_.dll and put this one in its place.
-- spidey-vX-source.tar.gz and .zip: the sources at this tag.
+- `openspidey-v0.0.3-linux-x86_64.tar.gz`: Linux app for 64 bit x86 desktops
+  with glibc 2.35 or newer. Includes the 32 bit game runtime and a Mesa
+  software rendering fallback. Hardware acceleration needs compatible
+  32 bit graphics drivers.
+- `openspidey-v0.0.3-windows-x86_64.zip`: native app for 64 bit Windows 10 or
+  newer, with its setup launcher and runtime dependencies.
+- `openspidey-v0.0.3-windows-binkw32.zip`: separate developer proxy DLL for
+  the original Windows game.
+- `openspidey-v0.0.3-source.tar.gz` and `.zip`: OpenSpidey source.
+- `openspidey-v0.0.3-linux-runtime-source.tar.xz`: corresponding source for
+  the bundled Linux runtime libraries.
+
+You need your own supported original PC game data. No game assets are
+included. The imported original executable supplies data only; its code
+does not run in the native game.
+
+## Tested scope
+
+This is a **development preview**. The latest Linux gameplay checkpoint
+loaded 68 map entries and 23 training configurations and checked short idle
+gameplay. Separate checks covered attacks, web effects, camera movement,
+audio and texture filtering. These checks do not mean the full campaign,
+every boss or all later enemy spawns are complete. Police AI and other game
+functions remain unfinished. Native Windows gameplay validation is in
+progress; the legacy Windows/Wine proxy still has a known late stack-overflow
+fault.
+
+See [the recorded test results](https://github.com/PatrikScully/OpenSpidey/blob/main/tests/gameplay/checkpoints/2026-10-01.json).
+Please report problems with the map, your last action and the game log.
+
+OpenSpidey builds on
+[krystalgamer/spidey-decomp](https://github.com/krystalgamer/spidey-decomp).
+Thanks to krystalgamer and the original project's contributors for its
+decompilation work and tools.
