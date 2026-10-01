@@ -19,7 +19,7 @@ class LauncherGuiTests(unittest.TestCase):
         import tkinter as tk
         self.temp = tempfile.TemporaryDirectory()
         self.root = tk.Tk()
-        self.path = Path(self.temp.name)
+        self.path = Path(self.temp.name).resolve()
         self.window = launcher.SetupWindow(self.root, dict(config.DEFAULTS), self.path / "settings.json", self.path)
         self.root.update()
 
