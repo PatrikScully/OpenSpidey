@@ -347,14 +347,14 @@
       ],
       "steps": [
         "Play ordinary effects and non-default pitch effects.",
-        "Generate more than124 sequential short effects.",
+        "Generate more than 124 sequential short effects.",
         "Start/stop a loop; pause/resume and change the level."
       ],
       "checks": [
         "Frequency zero restores each buffer sample rate.",
-        "All256 pitch bytes preserve original conversion and DXSOUND argument order.",
+        "All 256 pitch bytes preserve original conversion and DXSOUND argument order.",
         "Short effects finish, loops remain live until stopped, and voices are reclaimed.",
-        "Volume/pan remain finite and effects are neither slowed to100Hz nor clipped by overflow."
+        "Volume/pan remain finite and effects are neither slowed to 100 Hz nor clipped by overflow."
       ],
       "reference": [
         "Original playSFX/DXSOUND_SetPitch disassembly and real SDL callback fixture."

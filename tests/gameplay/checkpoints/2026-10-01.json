@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-01",
+  "kind": "Tested development checkpoint; full game restoration is unfinished",
+  "tested_code_commit": "d85ba04a",
+  "checkpoint_build_commit": "3d37c9f6",
+  "tested_binary": "spider_graphics_web_audio_20261001",
+  "tested_binary_sha256": "dba670bd7bcad377777583378eba8c495ff61013a570a7a03d06315f4f52cc5a",
+  "checkpoint_binary": "spider_checkpoint_20261001",
+  "checkpoint_binary_sha256": "6a94ba855cb82b69d3b78c8718f92db2781e9ad40c93c0759fa79723fcdc80cb",
+  "binary_equivalence": "All allocated runtime section addresses, sizes and contents match the tested binary. Only build ID/debug information differs.",
+  "changes": [
+    "Restore tug release and broken web fragments; standalone adapter no longer jumps to unmapped Windows code.",
+    "Restore moving web balls, enemy damage, wall marks, impact rings and fragment lifetimes.",
+    "Correct sprite depth, vertical projection, homogeneous translation and per-list camera refresh from original code.",
+    "Restore original sound-effect frequency for pitch zero and original eight-bit pitch conversion.",
+    "Decode original packed Bink dialogue and music into bounded independent SDL audio streams.",
+    "Add mipmaps and anisotropic filtering for repeating opaque world surfaces with complete-period UV spans; preserve sprite, character-atlas and HUD sampling."
+  ],
+  "automated_components": {
+    "map_loading_and_idle_gameplay": {
+      "result": "pass",
+      "map_entries": 68,
+      "gameplay_frames": 19305,
+      "continuous_seconds_sum": 681.47,
+      "sampled_post_clip_vertices": 79526,
+      "unusable_environment_objects": 0,
+      "post_clip_anomalies": 0,
+      "script_diagnostics": 0
+    },
+    "training_configuration_loading": {
+      "result": "pass",
+      "configurations": 23,
+      "gameplay_frames": 6669,
+      "continuous_seconds_sum": 230.5,
+      "objectives_completed": "not_run"
+    },
+    "active_attacks": [
+      {
+        "scenario": "ball_hit",
+        "result": "pass",
+        "exact_display_frames": 900,
+        "projectiles": 3,
+        "quad_submissions": 27,
+        "enemy_hits": 2
+      },
+      {
+        "scenario": "ball_miss",
+        "result": "pass",
+        "exact_display_frames": 900,
+        "projectiles": 4,
+        "quad_submissions": 193,
+        "enemy_hits": 0
+      },
+      {
+        "scenario": "ball_wall",
+        "result": "pass",
+        "exact_display_frames": 300,
+        "projectiles": 3,
+        "quad_submissions": 3,
+        "enemy_hits": 1
+      },
+      {
+        "scenario": "snap",
+        "result": "pass",
+        "exact_display_frames": 300,
+        "projectiles": 0,
+        "quad_submissions": 0,
+        "enemy_hits": 0
+      },
+      {
+        "scenario": "left_mouse_melee",
+        "result": "pass",
+        "exact_display_frames": 300,
+        "projectiles": 0,
+        "quad_submissions": 0,
+        "enemy_hits": 7
+      }
+    ],
+    "camera_sweep": {
+      "result": "pass",
+      "seconds": 28.018,
+      "exact_display_frames": 744,
+      "right_degrees": 363.867,
+      "left_degrees": 358.594,
+      "height_limits": [
+        -600,
+        600
+      ],
+      "stationary_player_axis_ranges": [
+        0,
+        0,
+        0
+      ],
+      "camera_roll": 0,
+      "sampled_post_clip_vertices": 7081,
+      "post_clip_anomalies": 0
+    },
+    "initial_rooftop_spawn_parity": {
+      "result": "pass",
+      "reference": "Original Wine game with oracle DLL",
+      "level": "l1a1_t",
+      "tick": 1,
+      "difficulty": 2,
+      "costume": 0,
+      "thugs": 4,
+      "control_script_actors": 15,
+      "suspended_script_actors": 1,
+      "suspended_platforms": 5,
+      "field_diffs": 0,
+      "normalization": "Region allocation indices compared by region filename; native additionally loads sparmour."
+    },
+    "natural_in_engine_cinematics": {
+      "result": "pass",
+      "levels": [
+        "l1a1_t",
+        "l2a1_t"
+      ],
+      "post_scene_gameplay_seconds_each": 15,
+      "skip_input": false,
+      "fmvs": "Explicitly skipped for this test",
+      "tested_source": "Audio feature worktree 69c627d2; tests preceded final sprite/texture integration."
+    },
+    "audio": {
+      "result": "pass",
+      "effect_voice_recycling": "124 of 124 short effects retire naturally; looping effects remain until stopped",
+      "pitch_call_fixtures": 1024,
+      "actual_sdl_postmix": "Nonzero output from original WAV soundtrack and Bink dialogue/music; independent SFX, FMV and voice streams",
+      "resampling": "Four complete decoded tracks equal independent SDL 44100-to-48000 Hz conversion, bit for bit, with only trailing callback silence",
+      "pause_resume_mute_replacement_cleanup": "pass",
+      "missing_available_original_tracks": 12,
+      "host_headphone_listen": "not_run",
+      "tested_source": "Audio feature worktree, with identical platform/music.cpp and music_audio.cpp integration."
+    },
+    "graphics": {
+      "result": "pass",
+      "synthetic_floor_temporal_pixel_change_reduction_percent": 42.9,
+      "synthetic_strip_temporal_pixel_change_reduction_percent": 85.6,
+      "actual_frame_world_fans_eligible": 3403,
+      "actual_frame_actor_fans": 3748,
+      "actual_frame_actor_changed_pixels": 0,
+      "actual_frame_hud_changed_pixels": 0,
+      "disabled_and_unsupported_fallback": "Exact baseline pixels; no GL errors",
+      "texture_reupload": "Mipmaps regenerated from new pixels"
+    },
+    "death_menu_selection": {
+      "result": "pass",
+      "retry_result": 1,
+      "quit_result": 0,
+      "timer_advances": true,
+      "map_reload_after_retry": "not_run"
+    },
+    "builds": {
+      "linux_sanity": "pass",
+      "layout_validator": "pass",
+      "tags": "pass",
+      "msvc6_clean_dll": "pass",
+      "sdl3_standalone": "pass",
+      "null_standalone": "pass",
+      "cd_check_define": "commented out"
+    },
+    "matching": [
+      {
+        "original": "0x4F66A0",
+        "export": "?BreakIntoBits@CWeb@@QAEXXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x4F64B0",
+        "export": "?Move@CKnottedWebFrag@@UAEXXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x4F6290",
+        "export": "??0CKnottedWebFrag@@QAE@ABVCVector@@000@Z",
+        "mnemonic_diffs": 6
+      },
+      {
+        "original": "0x4F69F0",
+        "export": "?SwitchToSnap@CWeb@@QAEXAAVCVector@@PAV2@@Z",
+        "mnemonic_diffs": 101
+      },
+      {
+        "original": "0x4F9BD0",
+        "export": "?Move@CImpactWeb@@UAEXXZ",
+        "mnemonic_diffs": 15
+      },
+      {
+        "original": "0x4F9790",
+        "export": "??0CImpactRing@@QAE@ABVCVector@@EEEHH@Z",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x4F98E0",
+        "export": "?Move@CImpactRing@@UAEXXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x4FA340",
+        "export": "?Move@CWebFrag@@UAEXXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x4FA2E0",
+        "export": "??1CWebFrag@@UAE@XZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x420BB0",
+        "export": "?Move@CSplat@@UAEXXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x46DBC0",
+        "export": "?gte_rtps@@YAXXZ",
+        "mnemonic_diffs": 43
+      },
+      {
+        "original": "0x40DBD0",
+        "export": "?DisplayFlatBitList@@YAXPAPAX@Z",
+        "mnemonic_diffs": 555
+      },
+      {
+        "original": "0x472490",
+        "export": "?playSFX@@YAIIEFFHG@Z",
+        "mnemonic_diffs": 198
+      },
+      {
+        "original": "0x50BA40",
+        "export": "?PCMUSIC_Play@@YAEH@Z",
+        "mnemonic_diffs": 134
+      },
+      {
+        "original": "0x50BD10",
+        "export": "?PCMUSIC_Stop@@YAXXZ",
+        "mnemonic_diffs": 1
+      },
+      {
+        "original": "0x50BD80",
+        "export": "?PCMUSIC_GetStatus@@YAHXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x50BDD0",
+        "export": "?PCMUSIC_Pause@@YAXH@Z",
+        "mnemonic_diffs": 1
+      },
+      {
+        "original": "0x50B9E0",
+        "export": "?PCMUSIC_SetVolume@@YAXH@Z",
+        "mnemonic_diffs": 2
+      },
+      {
+        "original": "0x4F6260",
+        "export": "?SwitchToBlob@CWeb@@QAEXXZ",
+        "mnemonic_diffs": 0
+      },
+      {
+        "original": "0x4F6170",
+        "export": "?SetFirePos@CWeb@@QAEXAAVCVector@@@Z",
+        "mnemonic_diffs": 0
+      }
+    ]
+  },
+  "test_mutations": [
+    "Map smoke tests override starting map and existing scene-selection flags in the launched process; NPC objects are unchanged.",
+    "Combat tests teleport only the player near an unchanged live thug; real keyboard/mouse inputs drive attacks.",
+    "Wall test additionally overrides FireWeb target arguments to aim at unchanged real roof geometry. One incidental enemy hit also occurs.",
+    "Camera sweep uses actual relative mouse input; no player or world mutation after map setup.",
+    "Audio and graphics fixtures instrument output and replay captured assets; fixtures are separate from the gameplay build."
+  ],
+  "test_interpretation": [
+    "All frame counts use the exact main Display function, not overloaded Display symbols.",
+    "Pre-clip eye-plane projection flags occur; none reached sampled post-clip output.",
+    "Earlier no-input death-menu timeouts are incomplete tests, not hangs. Explicit Retry and Quit select correctly.",
+    "A wider punching setup was interrupted by enemy damage before a melee hit. It is incomplete; the successful closer setup records seven real hits.",
+    "Tests verify the listed components. The full scenario profiles remain not_run until all their steps and checks are completed."
+  ],
+  "remaining": [
+    "Complete mission routes, bosses, collectibles, all later spawn waves and trigger-route parity across all maps.",
+    "Restore remaining CCop behavior and other unfinished game functions.",
+    "Resolve the known late Windows/Wine stack overflow. The boot harness reaches the level and prints PASS despite this later fault; Windows endurance is not passed.",
+    "Finish compiler matching for functions tagged NotOk; runtime fixture parity is not a claim of a complete matching decompilation.",
+    "Check the rest of the available Bink tracks and perform human audible checks. Twelve table references are absent from this available installation, including both archives and loose files.",
+    "Run complete FMV/scene skip and Retry reload scenarios on the combined checkpoint build."
+  ],
+  "local_evidence": [
+    "out/web-crash-20261001/maps-final/summary.json",
+    "out/web-crash-20261001/challenges-final/summary.json",
+    "out/web-regression-20261001/final-report.json",
+    "out/web-crash-20261001/reference/npc-spawn-parity.json",
+    "out/web-crash-20261001/reference/audio-resample-tail.json",
+    "out/web-crash-20261001/reference/audio-verification.txt",
+    "out/web-crash-20261001/reference/death-menu.json",
+    "out/web-crash-20261001/reference/graphics-replay.json",
+    "out/web-crash-20261001/reference/camera-sweep.json",
+    "out/web-crash-20261001/binary-equivalence.json",
+    "out/web-crash-20261001/cmpsum-final.json",
+    "out/web-crash-20261001/windows-boot/run.log"
+  ]
+}
