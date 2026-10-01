@@ -2239,7 +2239,7 @@ void DXSOUND_CreateDSBuffer(char *fileName, i32 index)
 // @Matching
 void DXSOUND_Init(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	DSBUFFERDESC v6;
 
 	memset(gDxSoundBuffers, 0, sizeof(gDxSoundBuffers));
