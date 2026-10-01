@@ -83,3 +83,21 @@ class LauncherGuiTests(unittest.TestCase):
         self.assertFalse(self.window.busy)
         self.assertIsNone(self.window.result)
         self.assertFalse((self.path / "settings.json").exists())
+
+    def test_saved_cache_works_when_iso_has_moved(self):
+        missing_iso = str(self.path / "moved-disc.iso")
+        self.window.settings.update(source_path=missing_iso, game_dir=str(self.path / "game"))
+        self.window.vars["source_path"].set(missing_iso)
+        with mock.patch("launcher.import_iso") as importer, \
+             mock.patch("launcher.validate_game_dir", return_value=self.path / "game"):
+            self.window.start()
+            deadline = time.monotonic() + 3
+            while self.window.result is None and time.monotonic() < deadline:
+                self.root.update()
+                time.sleep(0.01)
+        importer.assert_not_called()
+        self.assertIsNotNone(self.window.result)
+
+
+if __name__ == "__main__":
+    unittest.main()
