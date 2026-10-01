@@ -1,4 +1,5 @@
 #include "exemem.h"
+#include "launcher.h"
 #include "../FontTools.h"
 #include "../dcmodel.h"
 #include "../dcmemcard.h"
@@ -10,6 +11,14 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <direct.h>
+#define chdir _chdir
+#ifdef __GNUC__
+// Reserve the original data addresses in the PE image before DLLs or heaps
+// can take them. This is an uninitialized section with no file payload.
+extern "C" u8 spideyExeData[EXEMEM_END - EXEMEM_START];
+asm(".section .exemem,\"b\"\n.balign 4096\n.globl _spideyExeData\n_spideyExeData:\n.space 0x28d1000\n.text\n");
+#endif
 #else
 #include <sys/mman.h>
 #include <unistd.h>
@@ -96,6 +105,7 @@ static i32 readSections(FILE* f, u32* imageBase, SExeSection* out, i32 maxOut)
 	return n;
 }
 
+// @Bogus
 i32 ExeMem_Init(const char* exePath)
 {
 	const u32 size = EXEMEM_END - EXEMEM_START;
@@ -105,12 +115,25 @@ i32 ExeMem_Init(const char* exePath)
 	gExeMemMapped = 1;
 
 #ifdef _WIN32
+#ifdef __GNUC__
+	void* p = spideyExeData;
+	MEMORY_BASIC_INFORMATION info;
+	DWORD protection;
+	if (p != (void*)EXEMEM_START || !VirtualQuery(p, &info, sizeof(info))
+		|| info.Type != MEM_IMAGE || info.AllocationBase != GetModuleHandleW(0)
+		|| info.RegionSize < size || !VirtualProtect(p, size, PAGE_READWRITE, &protection))
+	{
+		fprintf(stderr, "ExeMem: the native PE image did not reserve the game data addresses.\n");
+		return 0;
+	}
+#else
 	void* p = VirtualAlloc((void*)EXEMEM_START, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	if (!p)
 	{
 		printf("ExeMem: VirtualAlloc at %#x failed (%lu)\n", EXEMEM_START, GetLastError());
 		return 0;
 	}
+#endif
 #else
 	void* p = mmap((void*)EXEMEM_START, size, PROT_READ | PROT_WRITE,
 			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
