@@ -41,7 +41,7 @@ typedef signed int i32;
 typedef float f32;
 typedef double f64;
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #define INLINE __inline
 #else
 // MSVC's __inline still emits an out-of-line copy for callers in other
