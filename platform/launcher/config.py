@@ -63,3 +63,11 @@ def normalise_settings(values):
     except (AttributeError, TypeError, ValueError):
         pass
     return result
+
+def load_settings(path):
+    try:
+        return normalise_settings(json.loads(Path(path).read_text(encoding="utf-8"))), ""
+    except FileNotFoundError:
+        return dict(DEFAULTS), ""
+    except (OSError, ValueError) as error:
+        return dict(DEFAULTS), "Saved settings could not be read: %s" % error
