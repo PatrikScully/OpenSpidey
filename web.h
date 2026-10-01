@@ -297,6 +297,7 @@ EXPORT void CSwinger_SwingBack(CSwinger *a1);
 class CSplat : public CQuadBit
 {
 	public:
+		EXPORT CSplat(const CVector &pos, const SVECTOR &normal);
 		EXPORT virtual void Move(void) OVERRIDE;
 		u8 mMode;
 		PADDING(3);

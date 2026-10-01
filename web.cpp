@@ -1991,6 +1991,17 @@ CImpactWeb::CImpactWeb(
 	this->field_5A = Rnd(2) != 0 ? 768 : -768;
 }
 
+// @Bogus
+// Inlined at 0x4F9D3C in CImpactWeb::Move.
+CSplat::CSplat(const CVector &pos, const SVECTOR &normal)
+{
+    this->SetTexture(Spool_FindTextureChecksum("WebBall_Crater_01"));
+    this->SetTint(22, 22, 22);
+    this->SetSubtractiveTransparency();
+    this->OrientUsing(const_cast<CVector*>(&pos), const_cast<SVECTOR*>(&normal), 50, 50);
+    this->mType = 38;
+}
+
 // @Ok
 // @Matching
 // Original 0x420BB0, shared with CSniperSplat::Move.
