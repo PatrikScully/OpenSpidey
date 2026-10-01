@@ -1090,7 +1090,7 @@ EXPORT void gsub_514DB0(
 // @Ok
 void DXPOLY_BeginScene(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	print_if_false(gInBeginScene == 0, "nested BeginScene() calls!");
 	memset(gSceneBuffer, 0, sizeof(gSceneBuffer));
 	gInBeginScene = 1;
