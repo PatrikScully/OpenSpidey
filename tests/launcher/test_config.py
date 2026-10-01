@@ -68,3 +68,15 @@ class LauncherConfigTests(unittest.TestCase):
             self.assertEqual(env["LD_LIBRARY_PATH"], "/app/game:/driver")
         self.assertNotIn("SPIDEY_EXE", env)
         self.assertNotIn("SPIDEY_FULLSCREEN", env)
+
+    def test_saved_setup_autostarts_without_gui(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "settings.json"
+            values = dict(config.DEFAULTS, game_dir="/my/game")
+            config.save_settings(path, values)
+            with mock.patch("launcher.user_paths", return_value=(path, Path(temp))), \
+                 mock.patch("launcher.find_binary", return_value=Path("/app/spider")), \
+                 mock.patch("launcher.validate_game_dir", return_value=Path("/my/game")), \
+                 mock.patch("launcher.run_game", return_value=0) as run:
+                self.assertEqual(launcher.main([]), 0)
+                run.assert_called_once_with(Path("/app/spider"), values, Path(temp))
