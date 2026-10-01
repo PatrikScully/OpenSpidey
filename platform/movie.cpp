@@ -51,10 +51,12 @@ void Plat_MovieStop(void)
 	Plat_MovieAudio(PLAT_MOVIE_AUDIO_CLOSE, 0, 0);
 	Plat_MovieDrawFrame(0, 0, 0);
 	if (gMovie.path[0])
-		unlink(gMovie.path);
+		Plat_DecoderRemove(gMovie.path);
 	free(gMovie.pixels);
 	memset(&gMovie, 0, sizeof(gMovie));
+#ifndef _WIN32
 	gMovie.video.fd = gMovie.audio.fd = -1;
+#endif
 }
 
 // @Bogus
