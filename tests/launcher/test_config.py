@@ -48,3 +48,23 @@ class LauncherConfigTests(unittest.TestCase):
         self.assertIs(values["show_setup"], False)
         with self.assertRaises(ValueError):
             config.normalise_settings({"schema": 2})
+
+    def test_platform_paths_and_child_environment(self):
+        settings, data = config.user_paths({"HOME": "/users/test", "XDG_CONFIG_HOME": "relative"}, windows=False)
+        self.assertEqual(settings, Path("/users/test/.config/openspidey/settings.json"))
+        settings, data = config.user_paths({"HOME": "/users/test", "APPDATA": "/roaming", "LOCALAPPDATA": "/local"}, windows=True)
+        self.assertEqual(settings, Path("/roaming/OpenSpidey/settings.json"))
+        self.assertEqual(data, Path("/local/OpenSpidey"))
+        values = dict(config.DEFAULTS, window_mode="fullscreen", resolution="1920x1080", master_volume=0,
+                      modern_controls=False, invert_mouse_y=True, skip_movies=True)
+        with mock.patch.object(config.sys, "frozen", True, create=True):
+            env = config.game_environment(values, "/app/game/spider", {"PATH": "/bin", "SPIDEY_EXE": "/wrong.exe",
+                                          "SPIDEY_FULLSCREEN": "1", "LD_LIBRARY_PATH": "/tmp/_MEI123:/app/_internal", "LD_LIBRARY_PATH_ORIG": "/driver"})
+        self.assertEqual(env["SPIDEY_WIDTH"], "1920")
+        self.assertEqual(env["SPIDEY_MODERN_CONTROLS"], "0")
+        self.assertEqual(env["SPIDEY_MASTER_VOLUME"], "0")
+        self.assertEqual(env["SPIDEY_INVERT_MOUSE_Y"], "1")
+        if os.name != "nt":
+            self.assertEqual(env["LD_LIBRARY_PATH"], "/app/game:/driver")
+        self.assertNotIn("SPIDEY_EXE", env)
+        self.assertNotIn("SPIDEY_FULLSCREEN", env)
