@@ -665,7 +665,7 @@ i32 DXINPUT_PollMouse(i32 *pX, i32 *pY)
 // @Matching
 void DXINPUT_Release(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (g_pKeyboard)
 	{
 		g_pKeyboard->Unacquire();
