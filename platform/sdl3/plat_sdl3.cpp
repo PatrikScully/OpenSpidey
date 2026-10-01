@@ -899,6 +899,7 @@ void Plat_InputPollKeyboard(u8 dikState[256])
 	Plat_InputMapCutsceneSkip(dikState);
 }
 
+// @Bogus
 void Plat_InputPollMouse(i32* dx, i32* dy, u8 buttons[3])
 {
 	float fx = 0.0f, fy = 0.0f;
@@ -917,7 +918,8 @@ void Plat_InputPollMouse(i32* dx, i32* dy, u8 buttons[3])
 		if (fx) camera->SetCamAngle((i16)(camera->field_236 + fx * sensitivity), 0);
 		if (fy)
 		{
-			i32 height = camera->GetCamYDistance() - (i32)(fy * sensitivity);
+			f32 lookY = VideoSetting("SPIDEY_INVERT_MOUSE_Y", 0, 0, 1) ? -fy : fy;
+			i32 height = camera->GetCamYDistance() - (i32)(lookY * sensitivity);
 			if (height < -600) height = -600;
 			if (height > 600) height = 600;
 			camera->SetCamYDistance((i16)height, 0);
