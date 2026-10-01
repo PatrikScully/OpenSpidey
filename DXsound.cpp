@@ -526,7 +526,7 @@ i32 DXINPUT_PollController(i32 *pX, i32 *pY, i32 *pZ)
 // @Ok
 i32 DXINPUT_PollKeyboard(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	DWORD dwElements = 16;
 	DIDEVICEOBJECTDATA didod[16]; 
 	memset(didod, 0, sizeof(didod));
