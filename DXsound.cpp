@@ -2004,7 +2004,7 @@ void DXPOLY_SetBlendMode(u32 a1)
 // the SDL3 build, 2026-09-03).
 void DXPOLY_SetDepthCompare(u32 a1)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(SPIDEY_STANDALONE)
 	if (gDxPolyRelated)
 	{
 		if (!a1)
