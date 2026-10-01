@@ -2271,11 +2271,10 @@ void DisplayTextBoxList(void** a1)
 	}
 }
 
-// @Ok
-// Functional (session-wide functional-only bar, 2026-08-31, third pass). Address 0x40dbd0.
-// Fully traced against a fresh IDA decompile AND the raw disassembly (both cross-checked
-// instruction by instruction for every field offset and mask constant below); this closes out
-// the previous two passes' open questions:
+// @NotOk
+// Original 0x40DBD0. Projection setup and inverse depth are checked against original bytes.
+// The remaining renderer retains 555 MSVC mnemonic differences; matching is unfinished.
+// The field layouts and masks below were recovered from the original:
 //
 // - The u16 at offset 0x66 IS a real per-instance CFlatBit field (added to bit.h as
 //   mClutOverride): CMotionBlur/CFrag (plain CFlatBit, no extra fields of their own) both
