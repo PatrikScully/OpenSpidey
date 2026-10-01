@@ -263,3 +263,26 @@ def validate_game_dir(game_dir):
         raise AssetError("Cannot read the game assets: %s" % error) from error
 
 
+def _copy_asset(stream, entry, target, completed, total, progress, cancelled):
+    digest = hashlib.sha256()
+    remaining = entry["size"]
+    stream.seek(entry["offset"])
+    with target.open("xb") as output:
+        while remaining:
+            if cancelled and cancelled():
+                raise ImportCancelled("Asset import cancelled.")
+            block = stream.read(min(CHUNK_SIZE, remaining))
+            if not block:
+                raise AssetError("The ISO ended while reading %s." % target.name)
+            output.write(block)
+            digest.update(block)
+            remaining -= len(block)
+            completed += len(block)
+            if progress:
+                progress(completed, total, target.name)
+        output.flush()
+        os.fsync(output.fileno())
+    target.chmod(0o600)
+    return completed, digest.hexdigest()
+
+
