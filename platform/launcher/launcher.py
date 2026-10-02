@@ -224,6 +224,16 @@ class SetupWindow:
     def pixels(self, value):
         return max(1, round(value * self.scale))
 
+    def draw_web(self):
+        p = self.pixels
+        web = self.tk.Canvas(self.sidebar, width=self.sidebar_width, height=p(160), background=PALETTE["ink"], highlightthickness=0)
+        web.pack(side="bottom", fill="x")
+        origin = (self.sidebar_width + p(12), p(172))
+        for x, y in ((0, p(145)), (0, p(62)), (p(70), 0), (p(155), 0), (self.sidebar_width, 0)):
+            web.create_line(*origin, x, y, fill=PALETTE["web"], width=p(1))
+        for radius in (46, 84, 122, 160, 198):
+            web.create_arc(origin[0] - p(radius), origin[1] - p(radius), origin[0] + p(radius), origin[1] + p(radius), start=90, extent=95, style="arc", outline=PALETTE["web"], width=p(1))
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
