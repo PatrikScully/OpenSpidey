@@ -84,6 +84,20 @@ class LauncherLayoutTests(unittest.TestCase):
         root.update()
         self.assertEqual(window.canvas.yview()[0], 0)
 
+    def test_keyboard_focus_reveals_an_offscreen_setting(self):
+        root, window = self.window()
+        root.geometry("640x480")
+        window.show_page("Controls")
+        root.update()
+        skip = next(widget for widget in window.pages["Controls"].winfo_children()
+                    if widget.winfo_class() == "TCheckbutton" and str(widget["variable"]) == str(window.vars["skip_movies"]))
+        self.assertGreater(skip.winfo_rooty(), window.canvas.winfo_rooty() + window.canvas.winfo_height())
+        skip.focus_force()
+        root.update()
+        self.assertGreater(window.canvas.yview()[0], 0)
+        self.assertGreaterEqual(skip.winfo_rooty(), window.canvas.winfo_rooty())
+        self.assertLessEqual(skip.winfo_rooty() + skip.winfo_height(), window.canvas.winfo_rooty() + window.canvas.winfo_height())
+
 
 
 if __name__ == "__main__":
