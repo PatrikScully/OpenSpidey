@@ -64,7 +64,20 @@ int main(int argc, char** argv)
 	printf("CHECK raster viewport=%dx%d MSAA=%d wrong_pixels=%d\n",
 		gViewportWidth, gViewportHeight, samples, failures);
 	assert(!failures);
+	if (argc > 1 && !strcmp(argv[1], "borderless"))
+	{
+		assert(SDL_GetWindowFlags(gWindow) & SDL_WINDOW_FULLSCREEN);
+		assert(!SDL_GetWindowFullscreenMode(gWindow));
+		const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(gWindow));
+		assert(desktop);
+		i32 width = 0, height = 0;
+		assert(SDL_GetWindowSizeInPixels(gWindow, &width, &height));
+		assert(width == (i32)(desktop->w * desktop->pixel_density));
+		assert(height == (i32)(desktop->h * desktop->pixel_density));
+		printf("CHECK borderless desktop=%dx%d density=%.2f output=%dx%d\n",
+			desktop->w, desktop->h, desktop->pixel_density, width, height);
+	}
 	Plat_Shutdown();
-	printf("PASS opaque rectangle raster\n");
+	printf("PASS opaque rectangle raster and desktop resolution\n");
 	return 0;
 }

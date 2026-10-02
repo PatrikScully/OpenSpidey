@@ -34,3 +34,28 @@ captures, movie drawing, and the gains SDL applies to all three audio
 streams. The test reads movie pixels before swapping buffers. It also
 checks master mute and invalid volume input. Xvfb may not support vsync;
 the backend reports the actual setting in its log.
+
+The rectangle raster test needs no game assets. Build it with the same
+32-bit SDL3 and OpenGL libraries:
+
+```sh
+PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
+g++ -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
+  -ffunction-sections -fdata-sections tests/platform/video_raster.cpp \
+  -Wl,--gc-sections -o video_raster \
+  $(PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig pkg-config --cflags --libs sdl3) \
+  -lGL -lpthread
+```
+
+Run it at 640x480 and 1280x960 with `SPIDEY_MSAA=0` and `4`. It draws
+opaque rectangles over a colored world and checks every framebuffer pixel,
+including all four outer edges. A bare private Xvfb display is enough for
+these windowed cases. If Xvfb and Mesa run in different containers, disable
+the test X server's MIT-SHM extension or share their IPC namespace.
+
+Run `video_raster borderless` with a test window manager, or a headless
+Wayland compositor. Set `SPIDEY_WINDOW_MODE=borderless` and a saved size
+smaller than that desktop. It checks the fullscreen state and compares
+physical output dimensions with the desktop mode and its pixel density.
+A 2x Wayland desktop also checks real HiDPI output. The four-edge raster
+check must pass there with MSAA both off and at 4x.

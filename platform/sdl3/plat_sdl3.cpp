@@ -114,6 +114,15 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 		else if (!strcmp(windowMode, "borderless")) requestedMode = 1;
 		else if (!strcmp(windowMode, "fullscreen")) requestedMode = 2;
 	}
+	// Let SDL choose the desktop size, including its pixel density.
+	i32 windowWidth = outputWidth, windowHeight = outputHeight;
+	if (requestedMode == 1)
+	{
+		flags |= SDL_WINDOW_FULLSCREEN;
+		const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay());
+		windowWidth = desktop ? desktop->w : width;
+		windowHeight = desktop ? desktop->h : height;
+	}
 
 	// SPIDEY_MSAA sets the requested samples; 0 disables antialiasing.
 	i32 samples = VideoSetting("SPIDEY_MSAA", 4, 0, 16);
@@ -122,7 +131,7 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	{
 		bool attributes = SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, samples > 0 ? 1 : 0)
 			&& SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
-		gWindow = attributes ? SDL_CreateWindow("OpenSpidey", outputWidth, outputHeight, flags) : 0;
+		gWindow = attributes ? SDL_CreateWindow("OpenSpidey", windowWidth, windowHeight, flags) : 0;
 		gGL = gWindow ? SDL_GL_CreateContext(gWindow) : 0;
 		if (gGL)
 			break;
@@ -193,6 +202,8 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	const char* actualMode = (SDL_GetWindowFlags(gWindow) & SDL_WINDOW_FULLSCREEN)
 		? (SDL_GetWindowFullscreenMode(gWindow) ? "fullscreen" : "borderless") : "windowed";
 	printf("Plat(sdl3): output %dx%d, %s, vsync %d\n", drawableWidth, drawableHeight, actualMode, actualVsync);
+	printf("Plat(sdl3): video driver %s, pixel density %.2f\n",
+		SDL_GetCurrentVideoDriver(), SDL_GetWindowPixelDensity(gWindow));
 
 	gTextureAnisotropy = 0.0f;
 	i32 major = 0, minor = 0;
