@@ -360,13 +360,21 @@ class SetupWindow:
         self.ttk.Label(page, text="Set Master volume to 0 to mute all audio, including cinematics.", style="Hint.TLabel", wraplength=p(600)).grid(row=6, column=0, columnspan=2, sticky="w", pady=p(28))
 
     def build_controls(self):
+        p = self.pixels
         page = self.pages["Controls"]
-        self.heading(page, "Ready to swing.", "Use modern mouse controls or return to the original keyboard layout.")
-        self.ttk.Checkbutton(page, text="Modern controls (WASD and mouse look)", variable=self.vars["modern_controls"]).grid(row=2, column=0, columnspan=2, sticky="w", pady=10)
-        self.choice(page, 3, "Mouse sensitivity", self.vars["mouse_sensitivity"], (0.5, 1, 2, 3, 4, 5, 7, 10, 15, 20))
-        self.ttk.Checkbutton(page, text="Invert vertical mouse look", variable=self.vars["invert_mouse_y"]).grid(row=4, column=0, columnspan=2, sticky="w", pady=10)
-        self.ttk.Checkbutton(page, text="Skip opening movies", variable=self.vars["skip_movies"]).grid(row=5, column=0, columnspan=2, sticky="w", pady=10)
-        self.ttk.Label(page, text="WASD / arrows     Move\nSpace                   Jump\nLeft mouse            Punch\nRight mouse          Shoot webs\nEnter                    Select\nEsc                       Pause / skip eligible scenes\nF1                         Release or capture the mouse\nF12                       Quit", style="Hint.TLabel", justify="left").grid(row=6, column=0, columnspan=2, sticky="w", pady=(15, 0))
+        self.heading(page, "Ready to swing.", "Use modern mouse controls or the original keyboard layout.")
+        self.ttk.Checkbutton(page, text="Modern controls (WASD and mouse look)", variable=self.vars["modern_controls"]).grid(row=3, column=0, columnspan=2, sticky="w", pady=p(8))
+        self.choice(page, 4, "Mouse sensitivity", self.vars["mouse_sensitivity"], (0.5, 1, 2, 3, 4, 5, 7, 10, 15, 20))
+        self.ttk.Checkbutton(page, text="Invert vertical mouse look", variable=self.vars["invert_mouse_y"]).grid(row=5, column=0, columnspan=2, sticky="w", pady=p(8))
+        self.ttk.Checkbutton(page, text="Skip opening movies", variable=self.vars["skip_movies"]).grid(row=6, column=0, columnspan=2, sticky="w", pady=p(8))
+        keys = self.ttk.Frame(page)
+        keys.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(p(24), 0))
+        keys.columnconfigure(1, weight=1)
+        for row, (key, action) in enumerate((("WASD / arrows", "Move"), ("Space", "Jump"), ("Left mouse", "Punch"), ("Right mouse", "Shoot webs"), ("Enter", "Select"), ("Esc", "Pause / skip eligible scenes"), ("F1", "Release or capture the mouse"), ("F12", "Quit"))):
+            self.ttk.Label(keys, text=key, font=self.fonts["eyebrow"]).grid(row=row, column=0, sticky="nw", padx=(0, p(24)), pady=p(4))
+            label = self.ttk.Label(keys, text=action, style="Hint.TLabel", wraplength=p(380))
+            label.grid(row=row, column=1, sticky="w", pady=p(4))
+        self.control_keys = keys
 
     def show_page(self, title):
         for page in self.pages.values():
