@@ -263,6 +263,11 @@ class SetupWindow:
         label.grid(row=0, column=0, sticky="w", padx=(0, p(20)))
         return frame, label
 
+    def update_display_mode(self, *args):
+        borderless = self.mode_label.get() == "Borderless fullscreen"
+        self.resolution_choice.configure(state="disabled" if borderless else "readonly")
+        self.resolution_hint.configure(text="Borderless fullscreen uses your desktop resolution automatically." if borderless else "Resolution applies to windowed and fullscreen modes.")
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
