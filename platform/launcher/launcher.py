@@ -278,6 +278,23 @@ class SetupWindow:
                 steps = -steps
         self.canvas.yview_scroll(steps, "units")
 
+    def reveal_focus(self, event):
+        widget = event.widget
+        if widget != self.root.focus_get():
+            return
+        ancestor = widget
+        while ancestor != self.page_container:
+            ancestor = getattr(ancestor, "master", None)
+            if ancestor is None:
+                return
+        top = widget.winfo_rooty() - self.canvas.winfo_rooty()
+        bottom = top + widget.winfo_height()
+        view_height = self.canvas.winfo_height()
+        if top < 0 or bottom > view_height:
+            position = self.canvas.canvasy(0) + (top if top < 0 else bottom - view_height)
+            total = max(1, self.page_container.winfo_height())
+            self.canvas.yview_moveto(max(0, position) / total)
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
