@@ -295,6 +295,12 @@ class SetupWindow:
             total = max(1, self.page_container.winfo_height())
             self.canvas.yview_moveto(max(0, position) / total)
 
+    def stop_poll(self, event):
+        if event.widget == self.root:
+            timer = getattr(self, "poll_timer", None)
+            if timer is not None:
+                self.root.after_cancel(timer)
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
