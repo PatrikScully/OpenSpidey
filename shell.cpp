@@ -2731,7 +2731,11 @@ denied:
 }
 
 // @NotOk
-// Not compared against 0x497690 yet, written from its disassembly.
+// Verified against 0x497690 (320 bytes): frame 4 uses x - 0x22, not
+// x - 0x2E. The latter displaced the Kid Mode web effect 12 menu pixels.
+// Original Wine capture confirms the placement. Fifteen focused MSVC6
+// variants reduced the baseline 12 mnemonic diffs to 2; the residue only
+// schedules the body-quad argument LEA/push differently. Not byte matched.
 // Tentative name. sub_497690 in tools/names.json (the Mac build only keeps the
 // "kiddy" string). Draws the little Spider-Man that hangs next to the
 // difficulty and training menus out of the "kiddy" anim frames: frame 0 is
@@ -2740,31 +2744,31 @@ denied:
 // normal pose. x, y and the scale (0..256) come from the caller.
 void Shell_DrawKiddy(SAnimFrame* pAnim, i32 x, i32 y, i32 kidMode, i32 scale)
 {
-	i32 stretch = (pAnim[1].Height * scale) >> 8;
-	i32 top = y - stretch;
+	scale = (pAnim[1].Height * scale) >> 8;
+	y -= scale;
 
-	POLY_FT4* pLine = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[0], x + 8, top + 7, 0);
-	DCPanel_DrawTexturedPoly(2.0f, pLine, &pAnim[0], x + 8, top + 7, 0x1C, 0x1B, 0, 0);
+	POLY_FT4* pLine = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[0], x + 8, y + 7, 0);
+	DCPanel_DrawTexturedPoly(2.0f, pLine, &pAnim[0], x + 8, y + 7, 0x1C, 0x1B, 0, 0);
 
-	POLY_FT4* pBody = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[1], x - 4, top + 0x22, 0);
+	POLY_FT4* pBody = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[1], x - 4, y + 0x22, 0);
 	if (pBody)
 	{
-		pBody->y2 = (i16)(pBody->y0 + stretch);
-		pBody->y3 = (i16)(pBody->y1 + stretch);
-		DCPanel_DrawTexturedPoly(2.0f, pBody, &pAnim[1], x + 2, top + 0x22, 0x24, 0x1A, 0, 0);
+		pBody->y2 = (i16)(pBody->y0 + scale);
+		pBody->y3 = (i16)(pBody->y1 + scale);
+		DCPanel_DrawTexturedPoly(2.0f, pBody, &pAnim[1], x + 2, y + 0x22, 0x24, 0x1A, 0, 0);
 	}
 
 	if (kidMode)
 	{
-		POLY_FT4* p = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[3], x - 0xC, top + 0x11, 0);
-		DCPanel_DrawTexturedPoly(2.0f, p, &pAnim[3], x - 0xC, top + 0x11, 0x14, 0x12, 0, 0);
-		p = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[4], x - 0x2E, top + 0xD, 0);
-		DCPanel_DrawTexturedPoly(2.0f, p, &pAnim[4], x - 0x2E, top + 0xD, 0x16, 0xC, 0, 0);
+		POLY_FT4* p = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[3], x - 0xC, y + 0x11, 0);
+		DCPanel_DrawTexturedPoly(2.0f, p, &pAnim[3], x - 0xC, y + 0x11, 0x14, 0x12, 0, 0);
+		p = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[4], x - 0x22, y + 0xD, 0);
+		DCPanel_DrawTexturedPoly(2.0f, p, &pAnim[4], x - 0x22, y + 0xD, 0x16, 0xC, 0, 0);
 	}
 	else
 	{
-		POLY_FT4* p = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[2], x - 6, top + 0x10, 0);
-		DCPanel_DrawTexturedPoly(2.0f, p, &pAnim[2], x - 6, top + 0x10, 0xE, 0x12, 0, 0);
+		POLY_FT4* p = (POLY_FT4*)Panel_DrawTexturedPoly(&pAnim[2], x - 6, y + 0x10, 0);
+		DCPanel_DrawTexturedPoly(2.0f, p, &pAnim[2], x - 6, y + 0x10, 0xE, 0x12, 0, 0);
 	}
 }
 
