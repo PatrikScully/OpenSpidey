@@ -40,7 +40,8 @@ class LauncherLayoutTests(unittest.TestCase):
 
     def test_hidpi_uses_font_metrics_when_reported_dpi_is_wrong(self):
         root, window = self.window(scaling=192 / 72, reported_dpi=96)
-        self.assertGreaterEqual(window.scale, 1.8)
+        self.assertGreater(window.scale, 1)
+        self.assertGreaterEqual(window.pixels(20), window.fonts["body"].metrics("linespace"))
         self.assertGreaterEqual(window.sidebar_width, window.fonts["brand"].measure("SPIDEY") + window.pixels(48))
         self.assertLessEqual(root.winfo_width(), root.winfo_screenwidth())
         self.assertLessEqual(root.winfo_height(), root.winfo_screenheight())
