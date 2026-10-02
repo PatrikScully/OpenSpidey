@@ -13,6 +13,9 @@
 #include "ps2pad.h"
 #include "ps2gamefmv.h"
 #include "camera.h"
+#ifdef SPIDEY_STANDALONE
+#include "platform/plat.h"
+#endif
 
 extern CBody *ControlBaddyList;
 extern CBody *PowerUpList;
@@ -148,7 +151,15 @@ void MyVSync(void)
 void Pause(i32 Time)
 {
 	i32 Until = G_VBLANKS + Time;
+#ifdef SPIDEY_STANDALONE
+	while (G_VBLANKS < Until)
+	{
+		Plat_Yield();
+		Plat_Sleep(1);
+	}
+#else
 	while (G_VBLANKS < Until);
+#endif
 }
 
 // @Ok
