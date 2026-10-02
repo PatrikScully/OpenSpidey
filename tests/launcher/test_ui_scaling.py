@@ -38,6 +38,18 @@ class LauncherLayoutTests(unittest.TestCase):
         root.update()
         return root, window
 
+    def test_hidpi_uses_font_metrics_when_reported_dpi_is_wrong(self):
+        root, window = self.window(scaling=192 / 72, reported_dpi=96)
+        self.assertGreaterEqual(window.scale, 1.8)
+        self.assertGreaterEqual(window.sidebar_width, window.fonts["brand"].measure("SPIDEY") + window.pixels(48))
+        self.assertLessEqual(root.winfo_width(), root.winfo_screenwidth())
+        self.assertLessEqual(root.winfo_height(), root.winfo_screenheight())
+        for name in window.pages:
+            window.show_page(name)
+            root.update()
+            self.assertLessEqual(window.pages[name].winfo_reqwidth(), window.canvas.winfo_width())
+            self.assertLess(window.start_button.winfo_rooty() + window.start_button.winfo_height(), root.winfo_rooty() + root.winfo_height())
+
 
 
 if __name__ == "__main__":
