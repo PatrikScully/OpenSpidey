@@ -489,7 +489,7 @@ class SetupWindow:
                         messagebox.showerror("Game files could not be prepared", str(value), parent=self.root)
         except queue.Empty:
             pass
-        self.root.after(75, self.poll)
+        self.poll_timer = self.root.after(75, self.poll)
 
     def close(self):
         if self.busy:
