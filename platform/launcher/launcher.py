@@ -388,11 +388,24 @@ class SetupWindow:
                 button.configure(background=PALETTE["red"] if selected else PALETTE["ink"], foreground="white" if selected else PALETTE["sidebar_text"], highlightbackground=PALETTE["red"] if selected else PALETTE["ink"])
 
     def resize_pages(self, width, item):
+        p = self.pixels
         self.canvas.itemconfigure(item, width=width)
         for page in self.pages.values():
             for widget in page.winfo_children():
                 if widget.winfo_class() == "TLabel" and int(widget.grid_info().get("columnspan", 1)) == 2:
-                    widget.configure(wraplength=max(200, width - 8))
+                    widget.configure(wraplength=max(p(100), width - p(4)))
+        stacked = width < p(520)
+        for frame, label, widget in self.form_rows:
+            label_width = max(self.fonts["body"].measure(caption.cget("text")) for candidate, caption, control in self.form_rows if candidate.master == frame.master) + p(20)
+            frame.columnconfigure(0, weight=1 if stacked else 0, minsize=0 if stacked else label_width)
+            frame.columnconfigure(1, weight=0 if stacked else 1)
+            label.grid_configure(pady=(0, p(6)) if stacked else 0)
+            widget.grid_configure(row=1 if stacked else 0, column=0 if stacked else 1)
+        if hasattr(self, "control_keys"):
+            key_width = max(self.fonts["eyebrow"].measure(widget.cget("text")) for widget in self.control_keys.winfo_children() if widget.grid_info()["column"] == 0)
+            for widget in self.control_keys.winfo_children():
+                if widget.grid_info()["column"] == 1:
+                    widget.configure(wraplength=max(p(90), width - key_width - p(28)))
 
     def browse(self):
         from tkinter import filedialog
