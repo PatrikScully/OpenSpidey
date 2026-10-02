@@ -19,6 +19,13 @@ class LauncherLayoutTests(unittest.TestCase):
         self.path = Path(self.temp.name)
         self.roots = []
 
+    def tearDown(self):
+        for root in self.roots:
+            for timer in root.tk.call("after", "info"):
+                root.after_cancel(timer)
+            root.destroy()
+        self.temp.cleanup()
+
 
 
 if __name__ == "__main__":
