@@ -254,6 +254,15 @@ class SetupWindow:
         self.setup_check.grid_configure(columnspan=2 if stacked else 1)
         self.status_label.configure(wraplength=max(p(100), content_width))
 
+    def form_row(self, page, row, text):
+        p = self.pixels
+        frame = self.ttk.Frame(page)
+        frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=p(8))
+        frame.columnconfigure(1, weight=1)
+        label = self.ttk.Label(frame, text=text)
+        label.grid(row=0, column=0, sticky="w", padx=(0, p(20)))
+        return frame, label
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
