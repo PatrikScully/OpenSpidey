@@ -51,6 +51,12 @@ jobs:
       run: cmake --build out -j"$(nproc)"
     - name: Run
       run: ./out/spider
+    - name: Check native sound-bank playback
+      run: |
+        g++ -m32 -std=c++98 -fpermissive -ffunction-sections -fdata-sections \
+          -DSPIDEY_STANDALONE tests/platform/sfx_bank.cpp \
+          -Wl,--gc-sections -no-pie -o out/sfx-bank
+        ./out/sfx-bank
 
   build-apps:
     needs: validate-repo
