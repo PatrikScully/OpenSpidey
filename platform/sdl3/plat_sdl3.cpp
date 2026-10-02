@@ -641,6 +641,14 @@ static void applyTextureState(void)
 void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
 {
 	applyTextureState();
+	// The game draws flat screen rectangles at integer pixel edges.
+	// Cancel the centre offset for these edges so scaled bars cover the
+	// whole viewport. Textured fans keep their pixel-centre mapping.
+	bool pixelRect = !gBoundTex && count == 4
+		&& v[0].field_0 == v[3].field_0 && v[1].field_0 == v[2].field_0
+		&& v[0].field_4 == v[1].field_4 && v[2].field_4 == v[3].field_4
+		&& v[0].field_8 == v[1].field_8 && v[0].field_8 == v[2].field_8
+		&& v[0].field_8 == v[3].field_8;
 	bool tiled = false;
 	if (count > 0 && gBoundTex && gGenerateMipmap && gFilter && gAddrU == 1 && gAddrV == 1
 		&& glIsEnabled(GL_DEPTH_TEST) && !glIsEnabled(GL_BLEND) && !glIsEnabled(GL_ALPHA_TEST))
@@ -700,7 +708,8 @@ void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
 		// Projective texture coordinates preserve it with our screen-space vertices.
 		f32 rhw = v[i].field_C;
 		glTexCoord4f(v[i].field_14 * rhw, v[i].field_18 * rhw, 0.0f, rhw);
-		glVertex3f(v[i].field_0, v[i].field_4, v[i].field_8);
+		glVertex3f(v[i].field_0 - (pixelRect ? 0.5f : 0.0f),
+			v[i].field_4 - (pixelRect ? 0.5f : 0.0f), v[i].field_8);
 	}
 	glEnd();
 }
