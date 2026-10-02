@@ -14,11 +14,18 @@ RUN dpkg --add-architecture i386 \
 COPY packaging/versions.json packaging/download.py /build/packaging/
 RUN python3 /build/packaging/download.py sdl /build/downloads \
  && tar -xf /build/downloads/SDL3-3.4.16.tar.gz -C /build \
- && cmake -S /build/SDL3-3.4.16 -B /build/sdl \
+ && PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
+    cmake -S /build/SDL3-3.4.16 -B /build/sdl \
     -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_INSTALL_LIBDIR=lib/i386-linux-gnu \
     -DSDL_WAYLAND=OFF -DSDL_X11_XTEST=OFF -DSDL_SHARED=ON -DSDL_STATIC=OFF \
+    -DSDL_ALSA=ON -DSDL_ALSA_SHARED=ON \
+    -DSDL_PULSEAUDIO=ON -DSDL_PULSEAUDIO_SHARED=ON \
+ && grep -qx '#define SDL_AUDIO_DRIVER_ALSA 1' \
+    /build/sdl/include-config-release/build_config/SDL_build_config.h \
+ && grep -qx '#define SDL_AUDIO_DRIVER_PULSEAUDIO 1' \
+    /build/sdl/include-config-release/build_config/SDL_build_config.h \
  && cmake --build /build/sdl -j8 \
  && cmake --install /build/sdl
 COPY packaging/build_ffmpeg.sh /build/packaging/
