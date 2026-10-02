@@ -715,6 +715,10 @@ void SFX_LoadBank(
 	DebugPrintfX("loading sound bank %s...", pName);
 	i32 fileSize = FileIO_Open(pName);
 	DoAssert(fileSize != 0, "couldn't find bank file");
+#ifdef SPIDEY_STANDALONE
+	if (fileSize < static_cast<i32>(sizeof(i32)))
+		return;
+#endif
 
 	void *fileBuf = DCMem_New(fileSize, 0, 1, 0, 1);
 	FileIO_Load(fileBuf);
@@ -722,6 +726,15 @@ void SFX_LoadBank(
 
 	pBank->mNumAssets = static_cast<i32*>(fileBuf)[0];
 	DoAssert(pBank->mNumAssets < NUM_ASSETS_PER_BANK, "Too many assets in bank.");
+#ifdef SPIDEY_STANDALONE
+	if (pBank->mNumAssets <= 0 || pBank->mNumAssets >= NUM_ASSETS_PER_BANK ||
+			fileSize < static_cast<i32>(sizeof(i32) + sizeof(SSfxAsset) * pBank->mNumAssets))
+	{
+		Mem_AlignedDelete(fileBuf);
+		pBank->mNumAssets = 0;
+		return;
+	}
+#endif
 
 	u8 v17 = 0;
 	memcpy(
@@ -794,6 +807,7 @@ void SFX_LoadBank(
 		}
 	}
 
+#ifndef SPIDEY_STANDALONE
 	u32 *v20;
 	if (!amHeapAlloc(&v20, fileSize, 32, 2, 0))
 		error("unable to allocate %d bytes of sound memory for %s", fileSize, pName);
@@ -804,12 +818,30 @@ void SFX_LoadBank(
 
 	if (v17)
 		G_SFX_SOMETHING.field_C += reinterpret_cast<i32>(v20);
+#endif
 
 	Mem_AlignedDelete(fileBuf);
+#ifndef SPIDEY_STANDALONE
 	pBank->field_4 = reinterpret_cast<i32>(v20);
+#endif
 	strncpy(pBank->field_8, pName, 56);
 
 	DXSOUND_Load(pBank->field_8);
+#ifdef SPIDEY_STANDALONE
+	// Original PC allocation stubs leave v20 unset (0x4717A2/0x4717C8).
+	// Native readiness follows the WAV buffers, including partial loads.
+	extern IDirectSoundBuffer* gDxSoundBuffers[0x80];
+	extern i32 AUDIOGROUPS_GetGroup(char*);
+	i32 first = AUDIOGROUPS_GetGroup(pBank->field_8) == 1 ? 0 : 0x40;
+	for (i32 i = first; i < first + 0x40; i++)
+	{
+		if (gDxSoundBuffers[i])
+		{
+			pBank->field_4 = 1;
+			break;
+		}
+	}
+#endif
 }
 
 // @Ok
