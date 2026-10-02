@@ -22,6 +22,8 @@ This development preview includes the work since v0.0.2, released on
 - Enable PulseAudio in the Linux runtime and check audio startup failures.
 - Use a working native 32 bit graphics stack when available, keeping its
   driver and libraries together. Retain the bundled software fallback.
+- Consume the movie skip key before returning to gameplay, so holding
+  Escape to skip a movie does not immediately open the pause menu.
 - Process keyboard and window events during comic-cover waits. Reduce CPU
   use during standalone timer waits while preserving the original tick
   deadlines and game speed.
