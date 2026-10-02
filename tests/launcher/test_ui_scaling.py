@@ -26,6 +26,18 @@ class LauncherLayoutTests(unittest.TestCase):
             root.destroy()
         self.temp.cleanup()
 
+    def window(self, scaling=96 / 72, reported_dpi=None):
+        import tkinter as tk
+        root = tk.Tk()
+        root.tk.call("tk", "scaling", scaling)
+        self.roots.append(root)
+        settings = dict(config.DEFAULTS, resolution="1920x1080")
+        dpi = root.winfo_fpixels("1i") if reported_dpi is None else reported_dpi
+        with mock.patch.object(root, "winfo_fpixels", return_value=dpi):
+            window = launcher.SetupWindow(root, settings, self.path / "settings.json", self.path)
+        root.update()
+        return root, window
+
 
 
 if __name__ == "__main__":
