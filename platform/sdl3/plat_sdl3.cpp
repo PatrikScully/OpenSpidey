@@ -1097,14 +1097,33 @@ i32 Plat_SndInit(void)
 	spec.channels = 2;
 	spec.freq = MIX_RATE;
 	gMixLock = SDL_CreateMutex();
+	if (!gMixLock)
+	{
+		printf("Plat(sdl3): audio mixer setup failed: %s\n", SDL_GetError());
+		return 0;
+	}
 	gStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, mixCallback, 0);
 	if (!gStream)
 	{
 		printf("Plat(sdl3): no audio device: %s\n", SDL_GetError());
+		SDL_DestroyMutex(gMixLock);
+		gMixLock = 0;
 		return 0;
 	}
-	SDL_SetAudioStreamGain(gStream, Plat_AudioGain("SPIDEY_SFX_VOLUME"));
-	SDL_ResumeAudioStreamDevice(gStream);
+	if (!SDL_SetAudioStreamGain(gStream, Plat_AudioGain("SPIDEY_SFX_VOLUME"))
+		|| !SDL_ResumeAudioStreamDevice(gStream))
+	{
+		printf("Plat(sdl3): audio playback setup failed: %s\n", SDL_GetError());
+		SDL_DestroyAudioStream(gStream);
+		gStream = 0;
+		SDL_DestroyMutex(gMixLock);
+		gMixLock = 0;
+		return 0;
+	}
+	const char* driver = SDL_GetCurrentAudioDriver();
+	const char* device = SDL_GetAudioDeviceName(SDL_GetAudioStreamDevice(gStream));
+	printf("Plat(sdl3): audio %s, device %s, stream gain %.2f\n",
+		driver ? driver : "unknown", device ? device : "unknown", SDL_GetAudioStreamGain(gStream));
 	return 1;
 }
 
