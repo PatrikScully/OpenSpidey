@@ -331,15 +331,20 @@ class SetupWindow:
         self.ttk.Label(page, text="Setup remembers your choice. Settings, imported files and game logs live in your user folder.", style="Hint.TLabel", wraplength=p(600)).grid(row=8, column=0, columnspan=2, sticky="w")
 
     def build_video(self):
+        p = self.pixels
         page = self.pages["Video"]
-        self.heading(page, "Make the city look its best.", "Choose how the game appears on your screen. The original picture proportions are preserved.")
-        self.choice(page, 2, "Display mode", self.mode_label, tuple(MODES))
-        self.choice(page, 3, "Resolution", self.vars["resolution"], RESOLUTIONS)
-        self.choice(page, 4, "Antialiasing", self.vars["msaa"], (0, 2, 4, 8))
-        self.choice(page, 5, "Texture filtering", self.vars["anisotropy"], (1, 2, 4, 8, 16))
-        self.ttk.Label(page, text="Antialiasing: 0 = off, 2 / 4 / 8 = samples.\nTexture filtering: 1 = standard, higher values sharpen distant textures.", style="Hint.TLabel", wraplength=530).grid(row=6, column=0, columnspan=2, sticky="w", pady=10)
-        self.ttk.Checkbutton(page, text="Smooth distant textures", variable=self.vars["mipmaps"]).grid(row=7, column=0, columnspan=2, sticky="w", pady=7)
-        self.ttk.Checkbutton(page, text="VSync (reduce screen tearing)", variable=self.vars["vsync"]).grid(row=8, column=0, columnspan=2, sticky="w", pady=7)
+        self.heading(page, "The city. Your screen.", "Choose your display and fine-tune the picture. The original proportions are preserved.")
+        self.choice(page, 3, "Display mode", self.mode_label, tuple(MODES))
+        self.resolution_choice = self.choice(page, 4, "Resolution", self.vars["resolution"], RESOLUTIONS)
+        self.resolution_hint = self.ttk.Label(page, style="Hint.TLabel", wraplength=p(600))
+        self.resolution_hint.grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, p(12)))
+        self.mode_label.trace_add("write", self.update_display_mode)
+        self.update_display_mode()
+        self.choice(page, 6, "Antialiasing", self.vars["msaa"], (0, 2, 4, 8))
+        self.choice(page, 7, "Texture filtering", self.vars["anisotropy"], (1, 2, 4, 8, 16))
+        self.ttk.Label(page, text="Antialiasing: 0 = off, 2 / 4 / 8 = samples.\nTexture filtering: 1 = standard. Higher values sharpen distant textures.", style="Hint.TLabel", wraplength=p(600)).grid(row=8, column=0, columnspan=2, sticky="w", pady=(p(12), p(16)))
+        self.ttk.Checkbutton(page, text="Smooth distant textures", variable=self.vars["mipmaps"]).grid(row=9, column=0, columnspan=2, sticky="w", pady=p(8))
+        self.ttk.Checkbutton(page, text="VSync (reduce screen tearing)", variable=self.vars["vsync"]).grid(row=10, column=0, columnspan=2, sticky="w", pady=p(8))
 
     def build_sound(self):
         page = self.pages["Sound"]
