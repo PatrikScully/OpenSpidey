@@ -50,6 +50,18 @@ class LauncherLayoutTests(unittest.TestCase):
             self.assertLessEqual(window.pages[name].winfo_reqwidth(), window.canvas.winfo_width())
             self.assertLess(window.start_button.winfo_rooty() + window.start_button.winfo_height(), root.winfo_rooty() + root.winfo_height())
 
+    def test_borderless_preserves_the_chosen_resolution(self):
+        root, window = self.window()
+        window.mode_label.set("Borderless fullscreen")
+        root.update()
+        self.assertEqual(str(window.resolution_choice["state"]), "disabled")
+        self.assertIn("desktop resolution automatically", window.resolution_hint["text"])
+        self.assertEqual(window.read_values()["resolution"], "1920x1080")
+        for mode in ("Fullscreen", "Windowed"):
+            window.mode_label.set(mode)
+            self.assertEqual(str(window.resolution_choice["state"]), "readonly")
+            self.assertEqual(window.vars["resolution"].get(), "1920x1080")
+
 
 
 if __name__ == "__main__":
