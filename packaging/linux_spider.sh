@@ -9,7 +9,7 @@ export PATH="$app_dir:$PATH"
 # graphics drivers with the older bundled Mesa libraries can crash.
 native_paths="$app_dir/runtime/sdl3:/lib/i386-linux-gnu:/usr/lib/i386-linux-gnu:/lib32:/usr/lib32:/usr/lib:/lib:$app_dir/runtime/lib32"
 for native_loader in /lib/ld-linux.so.2 /lib32/ld-linux.so.2; do
-    if [ -x "$native_loader" ] && [ -z "${LIBGL_ALWAYS_SOFTWARE-}" ]; then
+    if [ -x "$native_loader" ] && [ "${LIBGL_ALWAYS_SOFTWARE:-0}" = 0 ]; then
         if "$native_loader" --library-path "$native_paths" \
             --preload libSDL3.so.0 \
             "$app_dir/runtime/graphics-check" \
