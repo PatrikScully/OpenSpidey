@@ -268,6 +268,16 @@ class SetupWindow:
         self.resolution_choice.configure(state="disabled" if borderless else "readonly")
         self.resolution_hint.configure(text="Borderless fullscreen uses your desktop resolution automatically." if borderless else "Resolution applies to windowed and fullscreen modes.")
 
+    def scroll_pages(self, event):
+        if getattr(event, "num", None) in (4, 5):
+            steps = -1 if event.num == 4 else 1
+        else:
+            delta = event.delta
+            steps = max(1, abs(delta) // 120) if delta else 0
+            if delta > 0:
+                steps = -steps
+        self.canvas.yview_scroll(steps, "units")
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
