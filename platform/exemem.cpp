@@ -15,9 +15,14 @@
 #define chdir _chdir
 #ifdef __GNUC__
 // Reserve the original data addresses in the PE image before DLLs or heaps
-// can take them. This is an uninitialized section with no file payload.
+// can take them. Pad from the image headers to our code so the PE sections
+// are adjacent. The game data keeps its original address inside this
+// uninitialized section, which has no file payload.
 extern "C" u8 spideyExeData[EXEMEM_END - EXEMEM_START];
-asm(".section .exemem,\"b\"\n.balign 4096\n.globl _spideyExeData\n_spideyExeData:\n.space 0x28d1000\n.text\n");
+asm(".section .exemem,\"b\"\n.balign 4096\n"
+	".space 0x0053B000 - 0x00401000\n"
+	".globl _spideyExeData\n_spideyExeData:\n.space 0x28d1000\n"
+	".space 0x08001000 - 0x02E0C000\n.text\n");
 #endif
 #else
 #include <sys/mman.h>

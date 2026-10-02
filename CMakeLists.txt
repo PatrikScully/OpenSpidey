@@ -84,7 +84,9 @@ if (SPIDEY_STANDALONE)
 		target_sources(${PROJECT_NAME} PRIVATE platform/windows/app.rc)
 		# The PE loader reserves game data before loading any DLLs. Our code
 		# lives above that data and never loads the original code section.
-		target_link_options(${PROJECT_NAME} PRIVATE -Wl,--image-base,0x00400000 -Wl,--section-start,.text=0x08001000 -Wl,--section-start,.exemem=0x0053B000 -Wl,--disable-dynamicbase -Wl,--disable-reloc-section)
+		# PE sections must be adjacent. The zero-filled reservation starts
+		# after the headers and spans the gaps around the game data.
+		target_link_options(${PROJECT_NAME} PRIVATE -Wl,--image-base,0x00400000 -Wl,--section-start,.text=0x08001000 -Wl,--section-start,.exemem=0x00401000 -Wl,--disable-dynamicbase -Wl,--disable-reloc-section)
 		file(READ "${CMAKE_SOURCE_DIR}/platform/exemem_syms.ld" EXEMEM_SYMBOLS)
 		string(REGEX REPLACE "(^|\n)([A-Za-z_][A-Za-z_0-9]*) =" "\\1_\\2 =" EXEMEM_SYMBOLS "${EXEMEM_SYMBOLS}")
 		file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/exemem_syms_mingw.ld" "${EXEMEM_SYMBOLS}")
