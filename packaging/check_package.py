@@ -10,7 +10,7 @@ required = ['_internal/_tcl_data/init.tcl', '_internal/_tk_data/tk.tcl', 'START_
 if info['platform'] == 'windows':
     required += ['OpenSpidey.exe', 'OpenSpidey Settings.exe', 'spider.exe', 'SDL3.dll', 'ffmpeg.exe', 'libwinpthread-1.dll', 'libstdc++-6.dll', 'libgcc_s_dw2-1.dll', 'zlib1.dll']
 else:
-    required += ['OpenSpidey', 'OpenSpidey-Settings', 'spider', 'spider.bin', 'ffmpeg', 'runtime/ld-linux.so.2', 'runtime/lib32/libSDL3.so.0', 'runtime/lib32/dri/swrast_dri.so']
+    required += ['OpenSpidey', 'OpenSpidey-Settings', 'spider', 'spider.bin', 'ffmpeg', 'runtime/ld-linux.so.2', 'runtime/lib32/libSDL3.so.0', 'runtime/sdl3/libSDL3.so.0', 'runtime/graphics-check', 'runtime/lib32/dri/swrast_dri.so']
 missing = [name for name in required if not (root / name).exists()]
 if missing:
     raise SystemExit('Missing package files: ' + ', '.join(missing))
@@ -48,6 +48,8 @@ if info['platform'] == 'windows':
 else:
     if game.read_bytes()[:5] != b'\x7fELF\x01':
         raise SystemExit('The Linux game must be a 32 bit ELF executable.')
+    if (root / 'runtime/graphics-check').read_bytes()[:5] != b'\x7fELF\x01':
+        raise SystemExit('The Linux graphics check must be a 32 bit ELF executable.')
     if (root / 'OpenSpidey').read_bytes()[:5] != b'\x7fELF\x02':
         raise SystemExit('The Linux launcher must be a 64 bit ELF executable.')
     if (root / 'OpenSpidey-Settings').read_bytes()[:5] != b'\x7fELF\x02':
