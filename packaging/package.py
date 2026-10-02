@@ -51,6 +51,10 @@ def linux_runtime(binary, output):
         else:
             copy_file(library, target)
             copied[identity] = target
+    # Keep SDL first without putting bundled libc or Mesa ahead of the host.
+    sdl_override = output / 'runtime/sdl3/libSDL3.so.0'
+    sdl_override.parent.mkdir(parents=True, exist_ok=True)
+    os.link(output / 'runtime/lib32/libSDL3.so.0', sdl_override)
     # The frozen Python app also includes native libraries from the builder.
     for library in (output / '_internal').rglob('*'):
         if library.is_file() and '.so' in library.name:
