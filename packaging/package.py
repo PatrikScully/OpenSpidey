@@ -119,16 +119,8 @@ def package(args):
         linux_runtime(args.binary, args.output)
         copy_file(args.sdl_license, args.output / 'licenses/SDL3.txt')
         wrapper = args.output / 'spider'
-        wrapper.write_text('''#!/bin/sh
-set -eu
-app_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ "$#" -eq 0 ] || [ "${1-}" = "--settings" ]; then
-    exec "$app_dir/OpenSpidey" "$@"
-fi
-export PATH="$app_dir:$PATH"
-export LIBGL_DRIVERS_PATH="$app_dir/runtime/lib32/dri"
-exec "$app_dir/runtime/ld-linux.so.2" --library-path "$app_dir/runtime/lib32:/usr/lib/i386-linux-gnu:/usr/lib32" "$app_dir/spider.bin" "$@"
-''')
+        copy_file(ROOT / 'packaging/linux_spider.sh', wrapper)
+        copy_file(args.binary.parent / 'openspidey-runtime-check', args.output / 'runtime/graphics-check')
         wrapper.chmod(0o755)
         copy_file(args.output / 'OpenSpidey', args.output / 'OpenSpidey-Settings')
     for name in ['LICENSE.txt', 'LICENSE']:
