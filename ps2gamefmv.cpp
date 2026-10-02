@@ -118,7 +118,11 @@ u8 GameFMV_PlayMovie(
 			if (!(keys[1] & 0x80))
 				skipReady = true;
 			else if (skipReady)
+			{
+				// Consume the skip edge before gameplay polls this held key again.
+				Pad_Update();
 				break;
+			}
 #endif
 			gGameFmvPad++;
 			if (Pad_Update() ||
