@@ -59,3 +59,35 @@ smaller than that desktop. It checks the fullscreen state and compares
 physical output dimensions with the desktop mode and its pixel density.
 A 2x Wayland desktop also checks real HiDPI output. The four-edge raster
 check must pass there with MSAA both off and at 4x.
+
+Keyboard polling also needs to refresh SDL events when the game displays a
+comic cover without a frame loop. SDL documents that `SDL_GetKeyboardState`
+uses cached state, updated by `SDL_PumpEvents` or `SDL_PollEvent`:
+https://wiki.libsdl.org/SDL3/SDL_GetKeyboardState
+https://wiki.libsdl.org/SDL3/SDL_PumpEvents
+
+Build the keyboard fixture with the same libraries:
+
+```sh
+PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
+g++ -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
+  -ffunction-sections -fdata-sections tests/platform/input_sdl.cpp \
+  -Wl,--gc-sections -o input_sdl \
+  $(PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig pkg-config --cflags --libs sdl3) \
+  -lGL -lpthread
+```
+
+On a private Xvfb display with XTEST enabled, run the driver with
+`python-xlib` installed:
+
+```sh
+DISPLAY=:108 python3 tests/platform/input_sdl.py ./input_sdl
+```
+
+The driver injects real X11 key presses and releases through XTEST and a
+`WM_DELETE_WINDOW` close message. The fixture only polls platform keyboard
+state; it does not render or call a separate event pump. It checks A and
+Escape down/up, F12 down/up with quit state, and window close in a fresh
+process. Injecting only `SDL_PushEvent` keyboard events would miss the
+cached keyboard-state regression. Game timing and cover duration are not
+part of this platform fixture.

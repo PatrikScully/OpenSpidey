@@ -864,6 +864,8 @@ static void parseScript(void)
 
 void Plat_InputPollKeyboard(u8 dikState[256])
 {
+	// Comic-cover waits poll input without entering the normal frame loop.
+	Plat_Yield();
 	buildDikTable();
 	memset(dikState, 0, 256);
 	int numKeys = 0;
