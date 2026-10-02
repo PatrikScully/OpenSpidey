@@ -23,15 +23,28 @@ if info['platform'] == 'windows':
     sections = struct.unpack_from('<H', data, pe + 6)[0]
     optional = struct.unpack_from('<H', data, pe + 20)[0]
     image_base = struct.unpack_from('<I', data, pe + 24 + 28)[0]
+    alignment = struct.unpack_from('<I', data, pe + 24 + 32)[0]
+    image_size, headers_size = struct.unpack_from('<II', data, pe + 24 + 56)
+    if image_base != 0x400000 or alignment != 0x1000:
+        raise SystemExit('The Windows game must keep its fixed image base and section alignment.')
+    next_address = (headers_size + alignment - 1) & ~(alignment - 1)
     reserved = False
+    code = False
     for index in range(sections):
         offset = pe + 24 + optional + index * 40
         name = data[offset:offset + 8].rstrip(b'\0')
         virtual_size, virtual_address, raw_size = struct.unpack_from('<III', data, offset + 8)
+        if virtual_address != next_address:
+            raise SystemExit('The Windows PE sections must be ordered and adjacent: ' + repr(name))
+        next_address += (max(virtual_size, raw_size) + alignment - 1) & ~(alignment - 1)
         if name == b'.exemem':
-            reserved = image_base + virtual_address == 0x53B000 and virtual_size == 0x28D1000 and raw_size == 0
+            reserved = image_base + virtual_address == 0x401000 and image_base + virtual_address + virtual_size == 0x8001000 and raw_size == 0
+        if name == b'.text':
+            code = image_base + virtual_address == 0x8001000
     if not reserved:
         raise SystemExit('The Windows game data range must be reserved by its PE image.')
+    if not code or next_address != image_size:
+        raise SystemExit('The Windows code and image size must follow the reserved data range.')
 else:
     if game.read_bytes()[:5] != b'\x7fELF\x01':
         raise SystemExit('The Linux game must be a 32 bit ELF executable.')
