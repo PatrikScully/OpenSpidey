@@ -38,6 +38,8 @@ This development preview includes the work since v0.0.2, released on
   projection. Correct scratch buffer pointers used by effect rendering.
 - Fix the main-menu model reader's face stride, which caused a native
   menu crash.
+- Restore the Kid Mode menu web effect to its original position beside
+  Spider-Man's hand.
 - Add MSAA with a fallback when the requested sample count is unsupported.
 - Cover every edge of cinematic bars and flat overlays at scaled resolutions,
   including multisampled and high density fullscreen output.
