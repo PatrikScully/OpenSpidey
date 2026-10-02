@@ -380,9 +380,12 @@ class SetupWindow:
         for page in self.pages.values():
             page.grid_remove()
         self.pages[title].grid(row=0, column=0, sticky="nsew")
+        self.current_page = title
         self.canvas.yview_moveto(0)
-        for name, button in self.navigation.items():
-            button.configure(background="#29394e" if name == title else "#172334", foreground="white" if name == title else "#bac6d6")
+        for navigation in (self.navigation, self.compact_navigation):
+            for name, button in navigation.items():
+                selected = name == title
+                button.configure(background=PALETTE["red"] if selected else PALETTE["ink"], foreground="white" if selected else PALETTE["sidebar_text"], highlightbackground=PALETTE["red"] if selected else PALETTE["ink"])
 
     def resize_pages(self, width, item):
         self.canvas.itemconfigure(item, width=width)
