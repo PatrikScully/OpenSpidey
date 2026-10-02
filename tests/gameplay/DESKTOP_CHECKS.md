@@ -84,3 +84,26 @@ A separate timer fixture checks `Pause` with zero, negative, wrapped and positiv
 waits against an independently advancing timer. Compare elapsed ticks, thread
 CPU use and event-processing latency. This measures timer-wait efficiency;
 it does not measure the whole renderer or establish campaign completion.
+
+## Attack sound playback
+
+1. Start a new Normal game and wait until scripted player control ends. Punch
+   three times with the left mouse button, then fire two webs with the right
+   button. Check both attack sounds separately from music, dialogue and nearby
+   enemies. Repeat after restarting the app.
+2. Record the requested effect, selected WAV, actual voice frequency and mixed
+   PCM. An animation and a successful sound request do not prove playback.
+   The ordinary attack grunts use 22050 Hz. Punch impacts and `webshot10.wav`
+   use 16000 Hz. The web sample lasts 0.5863125 seconds at its original rate.
+3. Compare decoded source bytes with the original archive and compare the mixed
+   waveform at the same source times. A missing sound bank must reject playback;
+   a loaded bank must reach voice creation, playback and completion. Exercise
+   missing files, a partial WAV load, unloading and a later successful retry.
+4. Pause and resume, reload the level, then repeat the attacks. Listen with the
+   user's normal audio output as well. Dummy output can prove PCM and timing,
+   but cannot verify speakers, device processing or a listener's impression.
+
+In the original `SFX_LoadBank` at `0x4713F0`, unused Dreamcast allocation calls
+leave the local bank marker unwritten. The native app must establish readiness
+from its loaded WAV buffers. Changing pitch to compensate for a silent bank
+would alter the original samples without fixing the failed playback request.

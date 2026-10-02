@@ -93,6 +93,8 @@ This development preview includes the work since v0.0.2, released on
   original scene flags and cleanup.
 - Correct the original effect pitch conversion and restore the original
   sample rate when pitch is zero.
+- Set native sound-bank readiness from loaded WAV buffers, so player attack
+  sounds do not depend on an uninitialized Dreamcast allocation result.
 - Add master, music/voice and effect volume controls, including cinematic
   audio mute.
 
