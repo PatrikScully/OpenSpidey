@@ -22,6 +22,9 @@ This development preview includes the work since v0.0.2, released on
 - Enable PulseAudio in the Linux runtime and check audio startup failures.
 - Use a working native 32 bit graphics stack when available, keeping its
   driver and libraries together. Retain the bundled software fallback.
+- Process keyboard and window events during comic-cover waits. Reduce CPU
+  use during standalone timer waits while preserving the original tick
+  deadlines and game speed.
 - Rename the app and repository to OpenSpidey, and document setup, builds,
   contributions and current test coverage.
 
