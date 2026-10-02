@@ -310,9 +310,10 @@ class SetupWindow:
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=p(600)).grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, p(28)))
 
     def choice(self, page, row, text, variable, options):
-        self.ttk.Label(page, text=text).grid(row=row, column=0, sticky="w", padx=(0, 18), pady=10)
-        widget = self.ttk.Combobox(page, textvariable=variable, values=options, state="readonly", width=18)
-        widget.grid(row=row, column=1, sticky="ew", pady=10)
+        frame, label = self.form_row(page, row, text)
+        widget = self.ttk.Combobox(frame, textvariable=variable, values=options, state="readonly", width=18, font=self.fonts["body"])
+        widget.grid(row=0, column=1, sticky="ew")
+        self.form_rows.append((frame, label, widget))
         return widget
 
     def build_files(self):
