@@ -221,6 +221,9 @@ class SetupWindow:
         self.root.option_add("*TCombobox*Listbox.foreground", PALETTE["ink"])
         self.root.option_add("*TCombobox*Listbox.selectBackground", PALETTE["red"])
 
+    def pixels(self, value):
+        return max(1, round(value * self.scale))
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
