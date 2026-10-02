@@ -184,6 +184,43 @@ class SetupWindow:
         root.bind("<Destroy>", self.stop_poll, add="+")
         self.poll_timer = root.after(75, self.poll)
 
+    def configure_style(self):
+        from tkinter import font
+        available = set(font.families(self.root))
+        body = next((name for name in ("Aptos", "Noto Sans", "Calibri", "DejaVu Sans") if name in available), "TkDefaultFont")
+        display = next((name for name in ("Bahnschrift", "Franklin Gothic Demi Cond", "Liberation Sans Narrow", "DejaVu Sans") if name in available), body)
+        self.fonts = {name: font.Font(self.root, family=family, size=size, weight=weight) for name, family, size, weight in (
+            ("body", body, 11, "normal"), ("small", body, 9, "normal"), ("nav", body, 11, "bold"),
+            ("title", display, 28, "bold"), ("brand", display, 28, "bold"), ("eyebrow", body, 9, "bold"))}
+        # Font metrics also catch desktop font scaling that Tk's DPI does not report.
+        self.scale = max(1.0, self.root.winfo_fpixels("1i") / 96.0, self.fonts["body"].metrics("linespace") / 20.0)
+        p = self.pixels
+        style = self.ttk.Style(self.root)
+        style.theme_use("clam")
+        style.configure(".", font=self.fonts["body"], background=PALETTE["paper"], foreground=PALETTE["ink"])
+        style.configure("TFrame", background=PALETTE["paper"])
+        style.configure("TLabel", background=PALETTE["paper"], foreground=PALETTE["ink"], font=self.fonts["body"])
+        style.configure("Title.TLabel", font=self.fonts["title"])
+        style.configure("Hint.TLabel", foreground=PALETTE["muted"], font=self.fonts["small"])
+        style.configure("Eyebrow.TLabel", foreground=PALETTE["red"], font=self.fonts["eyebrow"])
+        style.configure("TButton", padding=(p(18), p(11)), font=self.fonts["nav"], background=PALETTE["ink"], foreground="white", borderwidth=0, relief="flat", focuscolor=PALETTE["red"])
+        style.map("TButton", background=[("disabled", PALETTE["line"]), ("active", PALETTE["sidebar_active"])], foreground=[("disabled", PALETTE["muted"])])
+        style.configure("Start.TButton", background=PALETTE["red"], foreground="white", padding=(p(24), p(11)))
+        style.map("Start.TButton", background=[("disabled", PALETTE["line"]), ("active", PALETTE["red_active"])])
+        style.configure("TEntry", padding=(p(10), p(9)), fieldbackground=PALETTE["field"], bordercolor=PALETTE["line"], lightcolor=PALETTE["line"], darkcolor=PALETTE["line"], insertcolor=PALETTE["ink"])
+        style.map("TEntry", bordercolor=[("focus", PALETTE["red"])], lightcolor=[("focus", PALETTE["red"])], darkcolor=[("focus", PALETTE["red"])])
+        style.configure("TCombobox", padding=(p(10), p(9)), arrowsize=p(14), fieldbackground=PALETTE["field"], background=PALETTE["field"], bordercolor=PALETTE["line"], lightcolor=PALETTE["line"], darkcolor=PALETTE["line"], arrowcolor=PALETTE["ink"])
+        style.map("TCombobox", fieldbackground=[("disabled", PALETTE["paper"]), ("readonly", PALETTE["field"])], foreground=[("disabled", PALETTE["muted"])], background=[("active", PALETTE["line"])], bordercolor=[("focus", PALETTE["red"])])
+        style.configure("TCheckbutton", font=self.fonts["body"], background=PALETTE["paper"], indicatorsize=p(16), indicatormargin=(0, 0, p(9), 0), indicatorbackground=PALETTE["field"], indicatorforeground="white", upperbordercolor=PALETTE["line"], lowerbordercolor=PALETTE["line"], focuscolor=PALETTE["red"])
+        style.map("TCheckbutton", background=[("active", PALETTE["paper"])], indicatorbackground=[("selected", PALETTE["red"]), ("active", PALETTE["line"])])
+        style.configure("Horizontal.TScale", background=PALETTE["red"], troughcolor=PALETTE["line"], bordercolor=PALETTE["red"], lightcolor=PALETTE["red"], darkcolor=PALETTE["red"], sliderlength=p(20), sliderthickness=p(18), borderwidth=0)
+        style.configure("Horizontal.TProgressbar", background=PALETTE["red"], troughcolor=PALETTE["line"], lightcolor=PALETTE["red"], darkcolor=PALETTE["red"], borderwidth=0, thickness=p(3))
+        style.configure("Vertical.TScrollbar", background=PALETTE["line"], troughcolor=PALETTE["paper"], bordercolor=PALETTE["paper"], lightcolor=PALETTE["line"], darkcolor=PALETTE["line"], arrowcolor=PALETTE["muted"], arrowsize=p(10), borderwidth=0)
+        self.root.option_add("*TCombobox*Listbox.font", self.fonts["body"])
+        self.root.option_add("*TCombobox*Listbox.background", PALETTE["field"])
+        self.root.option_add("*TCombobox*Listbox.foreground", PALETTE["ink"])
+        self.root.option_add("*TCombobox*Listbox.selectBackground", PALETTE["red"])
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
