@@ -62,6 +62,28 @@ class LauncherLayoutTests(unittest.TestCase):
             self.assertEqual(str(window.resolution_choice["state"]), "readonly")
             self.assertEqual(window.vars["resolution"].get(), "1920x1080")
 
+    def test_small_window_scrolls_and_keeps_actions_visible(self):
+        root, window = self.window()
+        root.geometry("640x480")
+        root.update()
+        self.assertTrue(window.compact)
+        self.assertTrue(window.topbar.winfo_ismapped())
+        self.assertFalse(window.sidebar.winfo_ismapped())
+        for name in window.pages:
+            window.show_page(name)
+            root.update()
+            self.assertLessEqual(window.pages[name].winfo_reqwidth(), window.canvas.winfo_width())
+            self.assertGreater(window.canvas.winfo_height(), 100)
+            for button in (window.cancel_button, window.start_button):
+                self.assertGreaterEqual(button.winfo_rootx(), root.winfo_rootx())
+                self.assertLessEqual(button.winfo_rootx() + button.winfo_width(), root.winfo_rootx() + root.winfo_width())
+                self.assertLess(button.winfo_rooty() + button.winfo_height(), root.winfo_rooty() + root.winfo_height())
+        self.assertLess(window.canvas.yview()[1], 1)
+        window.canvas.yview_moveto(1)
+        window.show_page("Game files")
+        root.update()
+        self.assertEqual(window.canvas.yview()[0], 0)
+
 
 
 if __name__ == "__main__":
