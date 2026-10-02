@@ -302,8 +302,12 @@ class SetupWindow:
                 self.root.after_cancel(timer)
 
     def heading(self, page, title, description):
-        self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
-        self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
+        p = self.pixels
+        name = next(name for name, candidate in self.pages.items() if candidate == page)
+        number = tuple(self.pages).index(name) + 1
+        self.ttk.Label(page, text="%02d / %s" % (number, name.upper()), style="Eyebrow.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, p(14)))
+        self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, p(12)))
+        self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=p(600)).grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, p(28)))
 
     def choice(self, page, row, text, variable, options):
         self.ttk.Label(page, text=text).grid(row=row, column=0, sticky="w", padx=(0, 18), pady=10)
