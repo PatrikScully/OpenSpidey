@@ -42,7 +42,8 @@ You can also select **Show setup every time** in the setup window.
 
 The game keeps its original picture proportions, with black bars where
 needed. Distant loaded buildings stay visible by default. Antialiasing and
-world texture filtering reduce jagged edges and texture shimmer.
+world texture filtering reduce jagged edges and texture shimmer. Borderless
+fullscreen uses your desktop resolution automatically.
 
 ## Controls
 
@@ -74,7 +75,8 @@ decoder. You do not need Python or a separate FFmpeg install to use them.
 The game itself is 32 bit; the setup launcher is 64 bit.
 
 The Linux package includes a 32 bit runtime and a Mesa software rendering
-fallback. Hardware acceleration needs compatible 32 bit graphics drivers.
+fallback. It checks your installed 32 bit graphics stack and uses hardware
+acceleration when that works. Otherwise it uses the bundled runtime.
 Software rendering can be slower. There is no native macOS build.
 
 **You need your own PC game data.** Downloads contain no original game

@@ -8,15 +8,20 @@ This development preview includes the work since v0.0.2, released on
 ### Setup and downloads
 
 - Add an OpenSpidey setup app for the first launch, with saved preferences
-  and a separate Settings app.
+  and a separate Settings app. Scale the layout to desktop font settings
+  and keep controls reachable on small screens.
 - Import the four required PC game files from a disc ISO without mounting
   it or running the original installer. Check the supported executable and
   archive indexes, show progress, allow cancellation and preserve saves.
 - Offer windowed, borderless and fullscreen modes, output resolution,
   antialiasing, texture filtering, VSync, volume and mouse settings.
+  Borderless fullscreen uses the desktop resolution and pixel density.
 - Add native Windows build support and CI packaging for Linux and Windows,
   with the launcher and runtime dependencies. Keep the original-game DLL
   as a separate developer download.
+- Enable PulseAudio in the Linux runtime and check audio startup failures.
+- Use a working native 32 bit graphics stack when available, keeping its
+  driver and libraries together. Retain the bundled software fallback.
 - Rename the app and repository to OpenSpidey, and document setup, builds,
   contributions and current test coverage.
 
@@ -31,6 +36,8 @@ This development preview includes the work since v0.0.2, released on
 - Fix the main-menu model reader's face stride, which caused a native
   menu crash.
 - Add MSAA with a fallback when the requested sample count is unsupported.
+- Cover every edge of cinematic bars and flat overlays at scaled resolutions,
+  including multisampled and high density fullscreen output.
 - Add mipmaps and anisotropic filtering for suitable repeating world
   surfaces. Preserve character, sprite and HUD texture sampling.
 - Fix Spider-Man's scripted animation transitions and completed joint
