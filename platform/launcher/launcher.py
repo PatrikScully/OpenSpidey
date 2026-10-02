@@ -234,6 +234,26 @@ class SetupWindow:
         for radius in (46, 84, 122, 160, 198):
             web.create_arc(origin[0] - p(radius), origin[1] - p(radius), origin[0] + p(radius), origin[1] + p(radius), start=90, extent=95, style="arc", outline=PALETTE["web"], width=p(1))
 
+    def resize_layout(self, width):
+        p = self.pixels
+        compact = width < self.sidebar_width + p(600)
+        if compact != self.compact:
+            self.compact = compact
+            if compact:
+                self.sidebar.pack_forget()
+                self.topbar.pack(side="top", fill="x", before=self.content)
+            else:
+                self.topbar.pack_forget()
+                self.sidebar.pack(side="left", fill="y", before=self.content)
+            self.content.configure(padding=p(16) if compact else p(32))
+        content_width = width - (0 if compact else self.sidebar_width) - p(32 if compact else 64)
+        check_width = self.fonts["body"].measure("Show setup every time") + p(32)
+        action_width = self.fonts["nav"].measure("CloseStart game") + p(94)
+        stacked = content_width < check_width + action_width + p(16)
+        self.actions.grid_configure(row=3 if stacked else 2, column=0 if stacked else 1, sticky="e", pady=(p(12), 0) if stacked else 0)
+        self.setup_check.grid_configure(columnspan=2 if stacked else 1)
+        self.status_label.configure(wraplength=max(p(100), content_width))
+
     def heading(self, page, title, description):
         self.ttk.Label(page, text=title, style="Title.TLabel").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 9))
         self.ttk.Label(page, text=description, style="Hint.TLabel", wraplength=540).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 25))
