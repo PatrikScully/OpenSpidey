@@ -14,7 +14,11 @@ import launcher
 
 @unittest.skipUnless(os.environ.get("DISPLAY") or os.name == "nt", "A display server is required")
 class LauncherLayoutTests(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp.name)
+        self.roots = []
+
 
 
 if __name__ == "__main__":
