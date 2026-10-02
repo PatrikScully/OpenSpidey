@@ -317,14 +317,18 @@ class SetupWindow:
         return widget
 
     def build_files(self):
+        p = self.pixels
         page = self.pages["Game files"]
-        self.heading(page, "Welcome back, web-head.", "Choose your Spider-Man (2000) PC disc image or an installed game folder. Setup remembers your choice.")
-        self.choice(page, 2, "Game source", self.source_label, ("ISO disc image", "Installed game folder"))
-        self.ttk.Label(page, text="Location").grid(row=3, column=0, sticky="w", pady=10)
-        self.ttk.Entry(page, textvariable=self.vars["source_path"]).grid(row=3, column=1, sticky="ew", pady=10)
-        self.ttk.Button(page, text="Browse…", command=self.browse).grid(row=4, column=1, sticky="e", pady=(0, 20))
-        self.ttk.Label(page, text="ISO files are imported once. Keep the disc image anywhere you like; no mounting or Windows installer is needed.", style="Hint.TLabel", wraplength=530).grid(row=5, column=0, columnspan=2, sticky="w", pady=12)
-        self.ttk.Label(page, text="Settings, imported files and game logs are stored in your user folder.", style="Hint.TLabel", wraplength=530).grid(row=6, column=0, columnspan=2, sticky="w", pady=12)
+        self.heading(page, "Let's swing.", "Your Spider-Man (2000) PC adventure starts here. Choose your disc image or installed game folder.")
+        self.choice(page, 3, "Game source", self.source_label, ("ISO disc image", "Installed game folder"))
+        frame, label = self.form_row(page, 4, "Location")
+        entry = self.ttk.Entry(frame, textvariable=self.vars["source_path"], font=self.fonts["body"], width=18)
+        entry.grid(row=0, column=1, sticky="ew")
+        self.form_rows.append((frame, label, entry))
+        self.ttk.Button(page, text="Browse…", command=self.browse).grid(row=5, column=0, columnspan=2, sticky="e", pady=(p(4), p(28)))
+        self.ttk.Label(page, text="ONE IMPORT. THEN YOU'RE READY.", style="Eyebrow.TLabel").grid(row=6, column=0, columnspan=2, sticky="w", pady=(0, p(8)))
+        self.ttk.Label(page, text="ISO files are imported once. Keep the disc image anywhere you like. No mounting or Windows installer is needed.", style="Hint.TLabel", wraplength=p(600)).grid(row=7, column=0, columnspan=2, sticky="w", pady=(0, p(16)))
+        self.ttk.Label(page, text="Setup remembers your choice. Settings, imported files and game logs live in your user folder.", style="Hint.TLabel", wraplength=p(600)).grid(row=8, column=0, columnspan=2, sticky="w")
 
     def build_video(self):
         page = self.pages["Video"]
