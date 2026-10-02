@@ -78,13 +78,21 @@ jobs:
           python packaging/download.py sdl_mingw out/downloads
           New-Item -ItemType Directory -Force out/sdl | Out-Null
           tar -xf out/downloads/SDL3-devel-3.4.16-mingw.tar.gz -C out/sdl
-      - name: Build the native Windows game and Bink decoder
+      - name: Build the native Windows game
         shell: msys2 {0}
         run: |
-          export SPIDEY_PYTHON=python
           export PKG_CONFIG_PATH="$PWD/out/sdl/SDL3-3.4.16/i686-w64-mingw32/lib/pkgconfig"
           cmake -S . -B out/game -G Ninja -DSPIDEY_STANDALONE=ON -DSPIDEY_BACKEND=sdl3 -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build out/game -j8
+      - name: Check the Windows executable startup
+        shell: msys2 {0}
+        run: |
+          export PATH="$PWD/out/sdl/SDL3-3.4.16/i686-w64-mingw32/bin:$PATH"
+          ./out/game/spider.exe --help
+      - name: Build the Bink decoder
+        shell: msys2 {0}
+        run: |
+          export SPIDEY_PYTHON=python
           bash packaging/build_ffmpeg.sh out/ffmpeg out/ffmpeg-install windows
       - name: Freeze the setup app and include the game runtime
         shell: pwsh
@@ -111,3 +119,13 @@ jobs:
         with:
           name: openspidey-windows
           path: openspidey-${{ inputs.version }}-windows-x86_64.zip
+      - name: Keep the executable if a Windows check fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openspidey-windows-diagnostics
+          path: |
+            out/game/spider.exe
+            out/openspidey-windows-x86_64/
+          if-no-files-found: ignore
+          retention-days: 7
