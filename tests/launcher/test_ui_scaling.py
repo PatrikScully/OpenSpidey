@@ -98,6 +98,20 @@ class LauncherLayoutTests(unittest.TestCase):
         self.assertGreaterEqual(skip.winfo_rooty(), window.canvas.winfo_rooty())
         self.assertLessEqual(skip.winfo_rooty() + skip.winfo_height(), window.canvas.winfo_rooty() + window.canvas.winfo_height())
 
+    def test_narrow_forms_stack_and_reflow_when_the_window_grows(self):
+        root, window = self.window()
+        root.minsize(480, 420)
+        root.geometry("500x480")
+        root.update()
+        for frame, label, widget in window.form_rows:
+            self.assertEqual(widget.grid_info()["column"], 0)
+            self.assertEqual(widget.grid_info()["row"], 1)
+        root.geometry("1000x760")
+        root.update()
+        self.assertFalse(window.compact)
+        for frame, label, widget in window.form_rows:
+            self.assertEqual(widget.grid_info()["column"], 1)
+            self.assertEqual(widget.grid_info()["row"], 0)
 
 
 if __name__ == "__main__":
