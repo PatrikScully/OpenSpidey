@@ -17,6 +17,10 @@ RESOLUTIONS = ("640x480", "800x600", "1024x768", "1280x720", "1280x960", "1600x9
                "1600x1200", "1920x1080", "1920x1440", "2560x1440", "2560x1920", "3840x2160")
 
 
+PALETTE = {"paper": "#f7f3eb", "field": "#fffdf8", "ink": "#152132", "muted": "#657080",
+           "red": "#da3342", "red_active": "#bc2534", "line": "#dedbd3",
+           "sidebar_text": "#b6bfcc", "sidebar_active": "#253449", "web": "#344055"}
+
 def find_binary(explicit=None):
     if explicit:
         binary = Path(explicit).expanduser().resolve()
