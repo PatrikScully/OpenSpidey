@@ -1,0 +1,27 @@
+; OpenSpidey's modern runtime. Original game assets are supplied by the user.
+config_version=5
+
+[application]
+config/name="OpenSpidey"
+run/main_scene="res://Scenes/AssetWorkbench.tscn"
+config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+
+[autoload]
+GameSession="*res://Scripts/Gameplay/GameSessionState.cs"
+
+[dotnet]
+project/assembly_name="OpenSpidey.Game"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.windows="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.04, 0.05, 0.08, 1)
+
+[physics]
+common/physics_ticks_per_second=60

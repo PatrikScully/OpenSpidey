@@ -3,7 +3,7 @@
 // store into the data block before WinMain, replayed by ExeMem_Init for
 // the standalone build. 4 initializers call constructors and are done by
 // hand in exemem.cpp: 0x4325f0, 0x43f990, 0x43f9a0, 0x4585e0.
-#include "exemem.h"
+#include "platform/exemem.h"
 #include <string.h>
 
 struct SExeInitRun { u32 addr; u32 size; const u8* data; };

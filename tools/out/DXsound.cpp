@@ -1,1 +1,1 @@
-#include "DXsound.h"
+#include "compatibility/directx/DXsound.h"

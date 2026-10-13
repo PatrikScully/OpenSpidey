@@ -4,7 +4,7 @@ Build it from the repository root with 32-bit SDL3 and OpenGL libraries:
 
 ```sh
 PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
-g++ -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
+g++ -I src -I . -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
   -ffunction-sections -fdata-sections tests/platform/setup_sdl.cpp \
   platform/sdl3/audio_settings.cpp platform/sdl3/music_audio.cpp \
   platform/sdl3/movie_audio.cpp -Wl,--gc-sections \
@@ -40,7 +40,7 @@ The rectangle raster test needs no game assets. Build it with the same
 
 ```sh
 PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
-g++ -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
+g++ -I src -I . -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
   -ffunction-sections -fdata-sections tests/platform/video_raster.cpp \
   -Wl,--gc-sections -o video_raster \
   $(PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig pkg-config --cflags --libs sdl3) \
@@ -52,6 +52,11 @@ opaque rectangles over a colored world and checks every framebuffer pixel,
 including all four outer edges. A bare private Xvfb display is enough for
 these windowed cases. If Xvfb and Mesa run in different containers, disable
 the test X server's MIT-SHM extension or share their IPC namespace.
+
+Also run at 1280x720 and 1920x720, with MSAA off and at 4x. The gameplay
+check verifies that the viewport fills wide outputs, square geometry keeps
+its proportions, corner HUD elements reach the edges, and fullscreen bars
+cover the expanded view. The next menu frame must return to 4:3.
 
 Run `video_raster borderless` with a test window manager, or a headless
 Wayland compositor. Set `SPIDEY_WINDOW_MODE=borderless` and a saved size
@@ -70,7 +75,7 @@ Build the keyboard fixture with the same libraries:
 
 ```sh
 PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig \
-g++ -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
+g++ -I src -I . -m32 -std=c++11 -w -fpermissive -DSPIDEY_STANDALONE \
   -ffunction-sections -fdata-sections tests/platform/input_sdl.cpp \
   -Wl,--gc-sections -o input_sdl \
   $(PKG_CONFIG_LIBDIR=/usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig pkg-config --cflags --libs sdl3) \

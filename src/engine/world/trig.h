@@ -1,0 +1,89 @@
+#pragma once
+
+#ifndef TRIG_H
+#define TRIG_H
+
+#include "compatibility/export.h"
+#include "core/fixed_vector.h"
+#include "engine/world/trigger_records.h"
+
+EXPORT extern i32 RestartNode;
+//#define G_RESTARTNODE (RestartNode)
+#define G_RESTARTNODE (*reinterpret_cast<i32*>(0x0055804C))
+
+EXPORT extern i32 IsRestartDeath;
+//#define G_ISRESTARTDEATH (IsRestartDeath)
+#define G_ISRESTARTDEATH (*reinterpret_cast<i32*>(0x006B470C))
+
+EXPORT extern i32 EndLevelNode;
+
+EXPORT extern i32 gLevelStatus;
+EXPORT extern i32 gRunCinemaRelated;
+
+extern i16 **OffsetList;
+// #define G_OFFSETLIST (OffsetList)
+#define G_OFFSETLIST (*reinterpret_cast<i16***>(0x006B466C))
+
+EXPORT extern i32 NumNodes;
+// This macro used to live in trig.cpp (a .cpp), invisible to every other
+// file that reads NumNodes through trig.h (lizman.cpp, jonah.cpp both noted
+// our copy is always 0 and skipped the affected functions). Moved here so
+// it actually reaches its consumers.
+//#define G_NUMNODES (NumNodes)
+#define G_NUMNODES (*reinterpret_cast<i32*>(0x006B4670))
+
+EXPORT i32 Trig_GetLevelId(void);
+
+class CBody;
+
+struct SLinkInfo
+{
+	i32 field_0;
+	i32 field_4;
+	i32 field_8;
+	i32 field_C;
+};
+
+EXPORT i32 Trig_GetLevelID(void);
+EXPORT u16* Trig_GetPosition(CVector*, i32);
+EXPORT u16* Trig_GetLinksPointer(i32);
+EXPORT void Trig_SendPulse(u16*);
+EXPORT void Trig_SendPulseToNode(int);
+EXPORT void Trig_SendSignalToLinks(u16*);
+EXPORT void Trig_ClearTrigMenu(void);
+EXPORT u8* SkipFlags(u8*);
+EXPORT void Trig_ResetCPCollisionFlags(void);
+EXPORT u8 GetFlag(u8, u8 *);
+EXPORT void* Trig_GetLinkInfoList(i32, SLinkInfo*, i32);
+EXPORT void Trig_ResetCPExecutedFlags(void);
+EXPORT void Trig_ZeroPendingList(void);
+EXPORT void Trig_DeleteCommandPoints(void);
+EXPORT SCommandPoint* CreateCommandPoint(u32, u16, u16*);
+EXPORT SCommandPoint* GetCommandPoint(i32);
+
+EXPORT SCommandPoint* Trig_TriggerCommandPoint(u32, bool);
+EXPORT void Trig_AddCommandListToPending(u16, u16*);
+EXPORT void Trig_DoPendingCommandLists(void);
+EXPORT void ExecuteCommandList(u16*, i32, i32);
+EXPORT void Trig_DeleteTrigFile(void);
+EXPORT u16 *SkipString(char *);
+EXPORT void Trig_SetRestart(char *);
+EXPORT void Trig_LoadTRG(char *);
+EXPORT void Trig_ParseTRGFile(void);
+EXPORT void Trig_ExecuteRestart(void);
+EXPORT void Trig_ExecuteAutoexec(void);
+EXPORT CBody* Trig_CreateObject(i32);
+EXPORT void KillInList(i32, CBody*, i32);
+EXPORT void SendSuspend(CBody**, i32);
+EXPORT void SendSignalToNode(CBody*, i32);
+EXPORT void SendUnSuspend(CBody*, i32);
+EXPORT void SendSuspendOrActivate(u16*, i32);
+EXPORT void SendKillFromNode(i32, i32);
+
+void validate_SLinkInfo(void);
+void validate_SCommandPoint(void);
+void validate_PendingListEntry(void);
+
+void patch_trig(void);
+
+#endif

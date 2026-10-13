@@ -1,0 +1,12 @@
+#pragma once
+
+#ifndef MY_ASSERT_H
+#define MY_ASSERT_H
+
+#include "compatibility/export.h"
+
+EXPORT void DoAssert(u8, const char*, ...);
+
+#define ASSERT(cond, msg) DoAssert(cond, msg)
+
+#endif

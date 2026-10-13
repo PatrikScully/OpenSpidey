@@ -1,7 +1,7 @@
 // Stream the original Bink files through ffmpeg. Pipes and the audio queue
 // bound decoded memory to one video frame and 250 ms of sound.
-#include "plat.h"
-#include "decoder_process.h"
+#include "platform/plat.h"
+#include "platform/decoder_process.h"
 
 #include <cstdio>
 #include <cstdlib>

@@ -1,0 +1,189 @@
+using System.Diagnostics;
+using Godot;
+using OpenSpidey.Core.Cameras;
+using OpenSpidey.Core.Player;
+using OpenSpidey.Core.Missions;
+using OpenSpidey.Game.Actors;
+using OpenSpidey.Game.Audio;
+using OpenSpidey.Game.Gameplay;
+using OpenSpidey.Game.Player;
+
+namespace OpenSpidey.Game.World;
+
+/// <summary>Observes the actual startup/VM/web/pending-command boundaries; injects a real engine input action.</summary>
+internal sealed class PlayerStoryInputImportProbe : IDisposable
+{
+    private const string CrossAction = "source_pad_cross";
+    private readonly StoryLevelSession scene;
+    private readonly GodotPlayer player;
+    private readonly PlayerFollowCamera camera;
+    private readonly GodotPlayerCutsceneSkip skip;
+    private readonly GodotSpeechPlayer speech;
+    private readonly Action<bool, string> assert;
+    private int aiVisits;
+    private int observedCleanup;
+    private int idleAnimationVisits;
+    private int expectedStandClip;
+    private bool preStandCrawling;
+    private int? preStandHeldFlags;
+    private bool requestingSkip;
+    private bool sawAbortBeforePrivateWebs;
+    private bool disposed;
+    private readonly List<string> missionCommands = [];
+    private readonly List<string> spawnedControls = [];
+    private CleanupSnapshot? cleanupSnapshot;
+
+    public PlayerStoryInputImportProbe(StoryLevelSession scene, Action<bool, string> assert)
+    {
+        this.scene = scene; this.assert = assert;
+        player = scene.Player ?? throw new InvalidDataException("Native story input proof requires the actual source player.");
+        camera = Descendants(scene).OfType<PlayerFollowCamera>().Single();
+        speech = Descendants(scene).OfType<GodotSpeechPlayer>().Single();
+        skip = player.Scripts?.CutsceneSkip ?? throw new InvalidDataException("Actual story222 has no genuine manual skip/cleanup owner.");
+        assert(player.CameraStartup is { State.Initialized: 0 } && player.SourceUpdates == 0 &&
+            ReferenceEquals(camera.SourceProjectionCache, scene.Application.CameraProjectionCache) &&
+            ReferenceEquals(camera.Target, player),
+            "Playing begins with genuine player53C uninitialized, the same camera tripod player and application-owned retained projection cache.");
+        player.Controller.BeginPlayerAi += BeforePrivateWebs;
+        skip.IdleAnimationPlayed += BeforeStand;
+        skip.CleanupCompleted += AfterPendingCleanup;
+        scene.Mission.Trace += RecordMission;
+        scene.Registry.Spawned += RecordSpawn;
+    }
+
+    public async Task VerifyManualSkipAsync()
+    {
+        assert(aiVisits > 0 && player.CameraStartup is { State.Initialized: 1 },
+            "Actual player AI performs the genuine first-camera latch before its private effect phase.");
+        assert(player.Scripts is { Active: true } && skip.State.Allowed == 1 &&
+            player.Scripts.Runtime is { CheckpointNode: 0 } && scene.Registry.Difficulty != 0 && scene.Application.ForceEarlyLevelExit == 0,
+            "Untouched L1A1 script85 is still active, has checkpoint0, and actual live source222 enabled the original normal-difficulty manual gate.");
+        assert(InputMap.HasAction(CrossAction) && InputMap.ActionGetEvents(CrossAction).Count > 0,
+            "The raw physical Cross slot has actual native keyboard/controller bindings independent of virtual action remapping.");
+        int oldManual = skip.ManualSkips, oldCleanup = skip.CleanupCount;
+        requestingSkip = true;
+        SendCrossKey(true);
+        try
+        {
+            var deadline = Stopwatch.StartNew();
+            while (observedCleanup == 0)
+            {
+                if (scene.Failure is { } failure) throw new InvalidDataException("Actual native cutscene skip stopped the story scene.", failure);
+                if (deadline.Elapsed > TimeSpan.FromSeconds(5)) throw new TimeoutException("Actual physical Cross input did not reach post-pending cutscene cleanup.");
+                await scene.ToSignal(scene.GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+        }
+        finally { SendCrossKey(false); requestingSkip = false; }
+        assert(sawAbortBeforePrivateWebs && skip.ManualSkips == oldManual + 1 && skip.CleanupCount == oldCleanup + 1 &&
+            observedCleanup == 1 && player.Scripts?.Active == false && !scene.Registry.Environment.FastForwardDeath,
+            "The real input action raises one abort before private webs; the actual VM completes before once-only cleanup clears the shared abort after pending mission commands. " +
+            $"Manual={oldManual}/{skip.ManualSkips}, cleanup={oldCleanup}/{skip.CleanupCount}, observed={observedCleanup}, sawAbort={sawAbortBeforePrivateWebs}, active={player.Scripts?.Active}, abort={scene.Registry.Environment.FastForwardDeath}, " +
+            $"programs={player.Scripts?.ProgramsStarted}, programOffset={player.Scripts?.CurrentProgram?.Instructions[0].SourceOffset:X}, runtimeCursor={player.Scripts?.Runtime?.InstructionIndex}, runtimeCommands={player.Scripts?.Runtime?.PendingCommands}, " +
+            $"instant={cleanupSnapshot}, mission=[{string.Join(',', missionCommands)}], controls=[{string.Join(',', spawnedControls)}].");
+        int completed = skip.CleanupCount;
+        await scene.ToSignal(scene.GetTree(), SceneTree.SignalName.PhysicsFrame);
+        await scene.ToSignal(scene.GetTree(), SceneTree.SignalName.PhysicsFrame);
+        assert(skip.CleanupCount == completed && player.Scripts?.Active == false,
+            "Subsequent genuine source frames cannot repeat the completed cutscene cleanup. " +
+            $"Cleanup={completed}/{skip.CleanupCount}, active={player.Scripts?.Active}, abort={scene.Registry.Environment.FastForwardDeath}, programs={player.Scripts?.ProgramsStarted}, " +
+            $"programOffset={player.Scripts?.CurrentProgram?.Instructions[0].SourceOffset:X}, instant={cleanupSnapshot}, currentClock={scene.SourceClock}, " +
+            $"mission=[{string.Join(',', missionCommands)}], controls=[{string.Join(',', spawnedControls)}].");
+    }
+
+    private void BeforePrivateWebs(uint time)
+    {
+        if (++aiVisits == 1)
+        {
+            assert(player.CameraStartup is { State.Initialized: 1 } && player.Combat.State.FloorCameraState == 0,
+                "Source53C becomes1 and540 becomes0 at the first real player AI boundary, before private webs/SpideyAI0.");
+            CameraNormalPlacementState state = camera.SourceNormalPlacement;
+            var expected = new CameraNormalPlacementState { Pitch = state.Pitch, Heading = state.Heading, Roll = state.Roll,
+                Focus = player.Controller.Position };
+            expected.CalculateNormal(scene.Application.CameraProjectionCache);
+            assert(state.Focus == player.Controller.Position && camera.SourceTripodPosition == player.Controller.Position &&
+                state.Position == expected.DesiredPosition &&
+                state.Rotation == expected.DesiredRotation,
+                "Actual first-AI SetStartPosition copies the real tripod body position into camera104, consumes the retained projection cache and immediately publishes the verified original normal pose without interpolation, another AI or collision phase.");
+            byte lockValue = player.Combat.State.CameraAngleLock;
+            camera.ScriptRig.SetAngleLock(0);
+            assert(camera.ScriptRig.AngleLocked && player.Combat.State.CameraAngleLock == 1,
+                "Actual187 camera angle-lock writes the canonical player8EC used by both PutBehind and player facing.");
+            camera.ScriptRig.SetAngleLock(lockValue == 0 ? (ushort)1 : (ushort)0);
+            assert(camera.ScriptRig.AngleLocked == (lockValue != 0) && player.Combat.State.CameraAngleLock == lockValue,
+                "Restoring the source lock uses the same player field without an independent rig-owned lock.");
+        }
+        if (!requestingSkip || !scene.Registry.Environment.FastForwardDeath) return;
+        sawAbortBeforePrivateWebs = true;
+        assert(player.Scripts is { Active: true } && player.PhysicalPad[3].Triggered == 0 &&
+            player.PhysicalPad[2].Triggered == 0 && player.PhysicalPad[16].Triggered == 0,
+            "The genuine physical pad gate consumes exactly original Cross/Circle/virtual Jump triggers while the VM is still active before private webs.");
+    }
+
+    private void AfterPendingCleanup()
+    {
+        if (!requestingSkip) return;
+        observedCleanup++;
+        GodotPlayerScripts scripts = player.Scripts ?? throw new InvalidDataException("The live source player input owner disappeared during cleanup.");
+        cleanupSnapshot = new(skip.ManualSkips, skip.CleanupCount, scripts.Active,
+            scene.Registry.Environment.FastForwardDeath, scripts.ProgramsStarted,
+            scripts.CurrentProgram!.Instructions[0].SourceOffset, scene.SourceClock);
+        assert(sawAbortBeforePrivateWebs && player.Scripts?.Active == false && !player.Combat.State.SynthesizedInputActive && scene.Mission.PendingCount == 0 &&
+            !scene.Registry.Environment.FastForwardDeath && skip.State.FieldE00 == 0 &&
+            player.PhysicalPad[3].Pressed == 1 && player.PhysicalPad[16].Pressed == 1,
+            "After actual pending commands drain, original cleanup clears E00/shared abort and forces pressed Cross/virtual Jump after the VM has completed.");
+        assert(idleAnimationVisits == 1 && player.Controller.Action == PlayerAction.Idle &&
+            player.Combat.State.ActionState == 1 && player.Model.ClipId == expectedStandClip &&
+            player.Controller.IsCrawling == preStandCrawling &&
+            camera.SourceControlMode == 3 && !speech.Controller.Busy && speech.Controller.Cooldown == 30,
+            "Genuine cleanup stops speech, plays animation0 then executes the original crawling/held-item stand branch and restores the actual demo camera start pose. " +
+            $"Busy={speech.Controller.Busy}, cooldown={speech.Controller.Cooldown}, clip={player.Model.ClipId} (sourceExpected{expectedStandClip}), preStandCrawling={preStandCrawling}, preStandHeldFlags={preStandHeldFlags}, action={player.Controller.Action}, combatAction={player.Combat.State.ActionState}, " +
+            $"mode={camera.SourceControlMode}, position={camera.SourcePosition}, startPosition={camera.SourceNormalPlacement.Position}, player={player.Controller.Position}, combatPosition={player.Combat.State.Position}.");
+    }
+
+    private void BeforeStand()
+    {
+        if (!requestingSkip) return;
+        idleAnimationVisits++;
+        assert(player.Model.ClipId == 0 && player.Controller.IsCrawling == player.Combat.State.IsCrawling &&
+            observedCleanup == 0 && scene.Registry.Environment.FastForwardDeath,
+            "Actual PlaySingleAnim0 completes before Stand, while the original live crawl flag agrees with combat state and shared abort remains set.");
+        preStandCrawling = player.Combat.State.IsCrawling;
+        preStandHeldFlags = player.Melee?.HeldObjectFlags;
+        // Independently read SwitchToStandMode's source default branch after mAnim0:
+        // crawling selects19; held field10C bit8 selects200/194; otherwise0.
+        expectedStandClip = preStandCrawling ? 19 : preStandHeldFlags is { } flags ? (flags & 8) != 0 ? 200 : 194 : 0;
+    }
+    private void RecordMission(MissionTrace trace)
+    {
+        if (trace.Kind == MissionTraceKind.CommandCompleted)
+            missionCommands.Add($"{trace.NodeId}/{trace.Opcode}@{trace.SourceOffset:X}/clock{scene.SourceClock}");
+    }
+    private void RecordSpawn(GodotScriptActor actor) => spawnedControls.Add($"{actor.SourceNodeId}/{actor.SourceActorType}/clock{scene.SourceClock}");
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        if (requestingSkip) SendCrossKey(false);
+        player.Controller.BeginPlayerAi -= BeforePrivateWebs;
+        skip.IdleAnimationPlayed -= BeforeStand;
+        skip.CleanupCompleted -= AfterPendingCleanup;
+        scene.Mission.Trace -= RecordMission;
+        scene.Registry.Spawned -= RecordSpawn;
+    }
+    private static void SendCrossKey(bool pressed)
+    {
+        using var key = new InputEventKey { PhysicalKeycode = Key.Space, Keycode = Key.Space, Pressed = pressed };
+        Input.ParseInputEvent(key);
+    }
+    private static IEnumerable<Node> Descendants(Node parent)
+    {
+        foreach (Node child in parent.GetChildren())
+        {
+            yield return child;
+            foreach (Node descendant in Descendants(child)) yield return descendant;
+        }
+    }
+    private sealed record CleanupSnapshot(int ManualSkips, int CleanupCount, bool ScriptsActive, bool Abort,
+        int ProgramsStarted, int ProgramOffset, uint Clock);
+}

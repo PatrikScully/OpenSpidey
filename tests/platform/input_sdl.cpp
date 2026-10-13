@@ -1,5 +1,5 @@
 // Drive through input_sdl.py on a private X11 display; no game assets needed.
-#include "../../platform/sdl3/plat_sdl3.cpp"
+#include "platform/sdl3/plat_sdl3.cpp"
 #include <cassert>
 
 i32 gWideScreen;

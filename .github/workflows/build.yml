@@ -1,96 +1,51 @@
-name: build
+name: Godot and .NET 64-bit
 
 on:
   push:
-    branches: [ "main", "phase2" ]
+    branches: [main, phase2]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: build-${{ github.ref }}
+  group: modern-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-
-  validate-repo:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
-    - name: Install tree-sitter
-      run: pip install tree-sitter tree-sitter-cpp
-    - name: Check the function tags
-      run: python tools/dunno.py
-    - name: Check the setup app
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-tk xvfb
-        xvfb-run -a python -m unittest discover -s tests/launcher -v
-
-  build-linux-check:
-    needs: validate-repo
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # g++ only: the repo's INLINE functions are called across translation
-    # units and rely on g++'s -fkeep-inline-functions; clang has no equivalent
-    # and fails to link.
+  managed-code:
     strategy:
       matrix:
-        compiler: [g++]
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install 32 bit toolchain
-      run: sudo apt-get update && sudo apt-get install -y g++-multilib cmake g++ clang
-    - name: Configure
-      run: CXX=${{ matrix.compiler }} cmake -B out
-    - name: Build
-      run: cmake --build out -j"$(nproc)"
-    - name: Run
-      run: ./out/spider
-    - name: Check native sound-bank playback
-      run: |
-        g++ -m32 -std=c++98 -fpermissive -ffunction-sections -fdata-sections \
-          -DSPIDEY_STANDALONE tests/platform/sfx_bank.cpp \
-          -Wl,--gc-sections -no-pie -o out/sfx-bank
-        ./out/sfx-bank
-
-  build-apps:
-    needs: validate-repo
-    uses: ./.github/workflows/packages.yml
-    with:
-      version: development
-
-  build-windows-dll:
-    needs: validate-repo
-    runs-on: windows-2025
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-      - name: Setup Visual Studio 6 toolchain
-        run: |
-          Invoke-WebRequest https://github.com/krystalgamer/spidey-decomp-vs/releases/download/v1.0/spidey-vs.zip -OutFile c:\spidey_vs.zip
-          7z x C:\spidey_vs.zip -oC:\vs
       - uses: actions/checkout@v4
-      - name: Setup validator
-        run: |
-          Invoke-WebRequest https://github.com/krystalgamer/tobey-validator/releases/download/v1/tobey_validator.zip -OutFile tobey_validator.zip
-          7z x tobey_validator.zip
-      - name: Write the build version
-        run: |
-          $version = git rev-parse HEAD
-          Write-Output "#define RUNTIME_VERSION `"$version`"" | Out-File -FilePath .\runtime_version.h -Encoding ascii
-      - name: Build
-        shell: cmd
-        run: build.bat
-      - name: Validate the struct layouts
-        shell: cmd
-        run: |
-          copy Release\spider.dll binkw32.dll
-          tobey_validator.exe binkw32.dll
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          name: spidey-windows-binkw32
-          path: binkw32.dll
+          global-json-file: modern/global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test managed asset readers and gameplay contracts
+        run: python tools/modern.py test
+      - name: Build Godot C# assemblies
+        run: python tools/modern.py build
+
+  engine-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: modern/global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install verified Godot .NET engine
+        run: python tools/modern.py bootstrap --godot-only
+      - name: Check 64-bit engine startup and physics contracts
+        run: python tools/modern.py smoke --physics-checks

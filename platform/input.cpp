@@ -1,8 +1,8 @@
-#include "plat.h"
-#include "../spidey.h"
-#include "../PCInput.h"
-#include "../front.h"
-#include "../ps2gamefmv.h"
+#include "platform/plat.h"
+#include "game/player/spidey.h"
+#include "engine/input/PCInput.h"
+#include "game/ui/front.h"
+#include "game/cinematics/ps2gamefmv.h"
 
 // @Bogus
 void Plat_InputMapCutsceneSkip(u8 dikState[256])
@@ -11,7 +11,7 @@ void Plat_InputMapCutsceneSkip(u8 dikState[256])
 	// CPlayer::AI (0x4C65C0) uses Circle/X for normal scene skips.
 	// The force-exit path at 0x4C6662 instead uses Start.
 	static const i32* const forceExit = (i32*)0x0068293C;
-	if (!dikState[1] || !player || !player->field_1AC ||
+	if (!dikState[1] || !player || !player->mSynthesizedInputActive ||
 		!player->field_1A4 || gPausedMenu || G_GAME_FMV_ACTIVE || *forceExit)
 		return;
 	u32 key;

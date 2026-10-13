@@ -1,4 +1,4 @@
-#include "../plat.h"
+#include "platform/plat.h"
 
 // @Bogus
 i32 Plat_MusicAudio(PlatMusicAudioOp op, const void*, i32 value)

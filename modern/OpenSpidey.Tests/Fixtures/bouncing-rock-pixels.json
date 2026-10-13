@@ -1,0 +1,16 @@
+[
+  {
+    "checksum": "F5A14AFF",
+    "width": 16,
+    "height": 16,
+    "hasMagentaKey": false,
+    "rgbaSha256": "1ccab95607395963df2c9f5bd707c1a5c7b997d341497b45e62445815c44cb2a"
+  },
+  {
+    "checksum": "8826BCA4",
+    "width": 32,
+    "height": 32,
+    "hasMagentaKey": true,
+    "rgbaSha256": "452c6d00fbac59e64264daa09ad7fec53af1b76b34e4bb8cf3abcb9a34b641c5"
+  }
+]

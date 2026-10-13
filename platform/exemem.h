@@ -16,7 +16,7 @@
 #ifndef EXEMEM_H
 #define EXEMEM_H
 
-#include "../my_types.h"
+#include "core/types.h"
 
 #define EXEMEM_START 0x0053B000u
 #define EXEMEM_END   0x02E0C000u

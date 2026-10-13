@@ -1,0 +1,16 @@
+#pragma once
+
+#ifndef L5A5LSC_H
+#define L5A5LSC_H
+
+#include "compatibility/export.h"
+
+#include "engine/assets/reloc.h"
+
+
+EXPORT void L5A5LSC_DisplayProgressBar(u32 const *,u32 *);
+EXPORT void L5A5LSC_RelocatableModuleInit(reloc_mod *);
+EXPORT void L5A5LSC_RelocatableModuleClear(void);
+EXPORT void L5A5LSC_WiggleSubwayCars(u32 const *,u32 *);
+
+#endif

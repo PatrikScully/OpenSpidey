@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <EmbeddedResource Include="Audio/speech-catalog.json" />
+    <EmbeddedResource Include="Audio/player-sound-names.json" />
+    <EmbeddedResource Include="Audio/sound-volume.json" />
+    <EmbeddedResource Include="Audio/sound-groups.json" />
+    <ProjectReference Include="../OpenSpidey.Assets/OpenSpidey.Assets.csproj" />
+  </ItemGroup>
+</Project>

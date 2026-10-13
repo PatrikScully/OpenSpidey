@@ -8,6 +8,9 @@ Release/
 out/
 out-sa/
 out_win/
+/build.log
+/.ida-mcp/
+/.pi/
 *.sh
 *.dll
 *.exe
@@ -25,3 +28,13 @@ __pycache__/
 !/docs/*.md
 !/CHANGELOG.md
 !/CONTRIBUTING.md
+
+# Architecture and regression documentation.
+!/tests/**/README.md
+
+# Modern Godot/.NET build output; original assets stay outside the source tree.
+modern/**/bin/
+modern/**/obj/
+modern/**/.godot/
+modern/**/build/
+!/modern/**/*.md

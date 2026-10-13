@@ -135,7 +135,7 @@ def main():
         return 1
 
     result = 0
-    for file in glob.glob('*.cpp'):
+    for file in glob.glob('src/**/*.cpp', recursive=True):
         
         if file.endswith('validate.cpp'):
             continue

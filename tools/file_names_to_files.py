@@ -48,7 +48,7 @@ def main(argc, argv):
 
     
     existingnames = set()
-    for entry in currentdir.iterdir():
+    for entry in currentdir.rglob("*"):
 
         if entry.is_dir():
             continue

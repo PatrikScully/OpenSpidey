@@ -6,29 +6,18 @@
 //   SPIDEY_EXE=path        SpideyPC.exe used to seed the exe data block,
 //                          default <game-dir>/SpideyPC.exe
 
-#include "exemem.h"
-#include "plat.h"
-#include "launcher.h"
+#include "platform/launcher.h"
 
-#include "../SpideyDX.h"
-#include "../DXinit.h"
-#include "../PCTimer.h"
-#include "../main.h"
+#include "game/application/game_application.h"
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <signal.h>
-#ifdef _WIN32
-#include <direct.h>
-#define chdir _chdir
-#else
+#ifndef _WIN32
 #include <unistd.h>
 #include <execinfo.h>
 #include <sys/prctl.h>
 #endif
-
-void compile_time_assertions(void);   // main.cpp
 
 // Debug aid: "kill -QUIT <pid>" (or timeout -s QUIT) prints where the main
 // thread is, for hangs the null backend cannot show otherwise.
@@ -54,44 +43,7 @@ int main(int argc, char** argv)
 #endif
 	Launcher_Bootstrap(argc, argv);
 
-	const char* gameDir = argc > 1 ? argv[1] : getenv("SPIDEY_GAME_DIR");
-	if (gameDir && chdir(gameDir) != 0)
-	{
-		perror(gameDir);
-		return 1;
-	}
-
-	const char* exe = getenv("SPIDEY_EXE");
-	if (!exe)
-		exe = "SpideyPC.exe";
-
-	// normally already done by exemem.cpp's early constructor
-	if (!ExeMem_Init(exe))
-		return 1;
-	if (!ExeMem_IsSeeded())
-		puts("WARNING: exe data block not seeded, menus and tables will be empty");
-
-	compile_time_assertions();
-
-	// RealWinMain from here on
-	SPIDEYDX_LoadSettings();
-
-	gRenderTest = 0;
-	G_GAME_RESOLUTION_X = 640;
-	gDxResolutionX = 640;
-	G_GAME_RESOLUTION_Y = 480;
-	gDxResolutionY = 480;
-	gMMXSupport = 1;
-
-	PCTIMER_Init();
-	// bit 0 of the flags is the game's "windowed" option (gDxOptionRelated:
-	// Blt to the window instead of a fullscreen Flip). Windowed by default,
-	// SPIDEY_FULLSCREEN=1 for fullscreen. Bit 1 = depth buffer.
-	i32 dxFlags = getenv("SPIDEY_FULLSCREEN") ? 2 : 3;
-	DXINIT_DirectX8(0, 0, dxFlags);   // creates the window in the standalone build
-
-	SpideyMain();
-
-	SPIDEYDX_Shutdown();
-	return 0;
+	const char* gameDirectory = argc > 1 ? argv[1] : getenv("SPIDEY_GAME_DIR");
+	spidey::application::GameApplication application;
+	return application.run(gameDirectory);
 }

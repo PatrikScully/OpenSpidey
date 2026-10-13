@@ -12,14 +12,16 @@
 //
 // Needs libsdl3-dev:i386 and libgl-dev:i386 (32 bit build).
 
-#include "../plat.h"
-#include "audio_settings.h"
-#include "../../DXsound.h"   // SDXPolyField
-#include "../../PCInput.h"
-#include "../../spidey.h"
-#include "../../camera.h"
-#include "../../ps2m3d.h"
-#include "../../front.h"
+#include "platform/plat.h"
+#include "engine/rendering/viewport_layout.h"
+#include "platform/sdl3/audio_settings.h"
+#include "engine/input/input_devices.h"
+#include "engine/rendering/polygon_pipeline.h"   // SDXPolyField
+#include "engine/input/PCInput.h"
+#include "game/player/spidey.h"
+#include "game/cinematics/camera.h"
+#include "engine/rendering/scene_renderer.h"
+#include "game/ui/front.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
@@ -53,6 +55,20 @@ static GenerateMipmapProc gGenerateMipmap;
 static i32 gWidth = 640, gHeight = 480;
 static i32 gViewportX, gViewportY, gViewportWidth = 640, gViewportHeight = 480;
 static i32 gQuit;
+static i32 gGameView;
+static i32 gHudView;
+static f32 gCanvasExtra;
+static spidey::rendering::ViewportLayout gDisplayLayout;
+
+f32 Plat_GfxGetAspectScale(void)
+{
+	if (!gGameView) return 1.0f;
+	i32 width = 0, height = 0;
+	if (!gWindow || !SDL_GetWindowSizeInPixels(gWindow, &width, &height) || height <= 0)
+		return 1.0f;
+	return spidey::rendering::ViewportLayout::calculate(width, height, gWidth, gHeight,
+		spidey::rendering::ViewMode::Gameplay).horizontalScale();
+}
 
 // @Bogus
 static i32 VideoSetting(const char* name, i32 fallback, i32 minimum, i32 maximum)
@@ -73,17 +89,56 @@ static void UpdateViewport(void)
 	i32 width = 0, height = 0;
 	if (!gWindow || !SDL_GetWindowSizeInPixels(gWindow, &width, &height) || width <= 0 || height <= 0)
 		return;
-	gViewportWidth = width;
-	gViewportHeight = height;
-	if ((f64)width / height > (f64)gWidth / gHeight)
-		gViewportWidth = (i32)((f64)height * gWidth / gHeight);
-	else
-		gViewportHeight = (i32)((f64)width * gHeight / gWidth);
-	if (gViewportWidth < 1) gViewportWidth = 1;
-	if (gViewportHeight < 1) gViewportHeight = 1;
-	gViewportX = (width - gViewportWidth) / 2;
-	gViewportY = (height - gViewportHeight) / 2;
+	gDisplayLayout = spidey::rendering::ViewportLayout::calculate(width, height, gWidth, gHeight,
+		gGameView ? spidey::rendering::ViewMode::Gameplay : spidey::rendering::ViewMode::Menu);
+	const spidey::rendering::PixelRectangle& viewport = gDisplayLayout.viewport();
+	gViewportX = viewport.x;
+	gViewportY = viewport.y;
+	gViewportWidth = viewport.width;
+	gViewportHeight = viewport.height;
+	gCanvasExtra = gDisplayLayout.canvasExtension();
 	glViewport(gViewportX, gViewportY, gViewportWidth, gViewportHeight);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	// D3D TL vertices address pixel centers; retain their half-pixel offset.
+	glOrtho(-gCanvasExtra - 0.5, gWidth + gCanvasExtra - 0.5, gHeight - 0.5, -0.5, 0.0, 1.0);
+	glMatrixMode(GL_MODELVIEW);
+}
+
+void Plat_GfxSetGameView(i32 enable)
+{
+	i32 oldX = gViewportX, oldWidth = gViewportWidth;
+	gGameView = enable;
+	UpdateViewport();
+	if (enable && gViewportWidth > oldWidth)
+	{
+		// BeginScene initially clears the menu canvas. Clear the newly exposed
+		// sides with the same scene color and depth before submitting the world.
+		GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST), depthMask;
+		GLint box[4];
+		glGetIntegerv(GL_SCISSOR_BOX, box);
+		glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
+		glEnable(GL_SCISSOR_TEST);
+		glDepthMask(GL_TRUE);
+		glScissor(gViewportX, gViewportY, oldX - gViewportX, gViewportHeight);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glScissor(oldX + oldWidth, gViewportY,
+			gViewportX + gViewportWidth - oldX - oldWidth, gViewportHeight);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDepthMask(depthMask);
+		glScissor(box[0], box[1], box[2], box[3]);
+		if (!scissor) glDisable(GL_SCISSOR_TEST);
+	}
+}
+
+i32 Plat_GfxGetHudView(void)
+{
+	return gHudView;
+}
+
+void Plat_GfxSetHudView(i32 enable)
+{
+	gHudView = enable;
 }
 
 // @Bogus
@@ -98,6 +153,8 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	gWidth = width;
 	gHeight = height;
 	gQuit = 0;
+	gGameView = 0;
+	gHudView = 0;
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -236,12 +293,6 @@ i32 Plat_Init(i32 width, i32 height, i32 fullscreen)
 	printf("Plat(sdl3): repeating world mipmaps %s\n", gGenerateMipmap ? "enabled" : "off");
 
 	UpdateViewport();
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	// D3D7 TL vertices address pixel centres, GL addresses pixel corners:
-	// the half pixel shift keeps textured 2D quads crisp.
-	glOrtho(-0.5, width - 0.5, height - 0.5, -0.5, 0.0, 1.0);
-	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	// glOrtho's near..far is along -z in eye space; the game's z (0 near ..
 	// 1 far) is positive, so mirror it. Screen winding is unaffected.
@@ -489,6 +540,8 @@ void Plat_TexDestroy(PlatTexture* t)
 // @Bogus
 void Plat_GfxBeginScene(u32 clearColorARGB, i32 clearDepth)
 {
+	gGameView = 0;
+	gHudView = 0;
 	UpdateViewport();
 	GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
 	GLint scissorBox[4];
@@ -649,17 +702,17 @@ static void applyTextureState(void)
 }
 
 // @Bogus
-void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
+void Plat_GfxDrawFan(const spidey::rendering::ScreenVertex* v, i32 count)
 {
 	applyTextureState();
 	// The game draws flat screen rectangles at integer pixel edges.
 	// Cancel the centre offset for these edges so scaled bars cover the
 	// whole viewport. Textured fans keep their pixel-centre mapping.
 	bool pixelRect = !gBoundTex && count == 4
-		&& v[0].field_0 == v[3].field_0 && v[1].field_0 == v[2].field_0
-		&& v[0].field_4 == v[1].field_4 && v[2].field_4 == v[3].field_4
-		&& v[0].field_8 == v[1].field_8 && v[0].field_8 == v[2].field_8
-		&& v[0].field_8 == v[3].field_8;
+		&& v[0].x == v[3].x && v[1].x == v[2].x
+		&& v[0].y == v[1].y && v[2].y == v[3].y
+		&& v[0].depth == v[1].depth && v[0].depth == v[2].depth
+		&& v[0].depth == v[3].depth;
 	bool tiled = false;
 	if (count > 0 && gBoundTex && gGenerateMipmap && gFilter && gAddrU == 1 && gAddrV == 1
 		&& glIsEnabled(GL_DEPTH_TEST) && !glIsEnabled(GL_BLEND) && !glIsEnabled(GL_ALPHA_TEST))
@@ -667,13 +720,13 @@ void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
 		// Atlas UVs can carry whole-period offsets. Only a span larger than a
 		// complete texture proves repetition, with tolerance for texel offsets.
 		f32 paddingU = 1.0f / gBoundTex->width, paddingV = 1.0f / gBoundTex->height;
-		f32 minU = v[0].field_14, maxU = minU, minV = v[0].field_18, maxV = minV;
+		f32 minU = v[0].u, maxU = minU, minV = v[0].v, maxV = minV;
 		for (i32 i = 1; i < count; i++)
 		{
-			if (v[i].field_14 < minU) minU = v[i].field_14;
-			if (v[i].field_14 > maxU) maxU = v[i].field_14;
-			if (v[i].field_18 < minV) minV = v[i].field_18;
-			if (v[i].field_18 > maxV) maxV = v[i].field_18;
+			if (v[i].u < minU) minU = v[i].u;
+			if (v[i].u > maxU) maxU = v[i].u;
+			if (v[i].v < minV) minV = v[i].v;
+			if (v[i].v > maxV) maxV = v[i].v;
 		}
 		tiled = maxU - minU > 1.0f + paddingU || maxV - minV > 1.0f + paddingV;
 		if (tiled)
@@ -707,20 +760,37 @@ void Plat_GfxDrawFan(const SDXPolyField* v, i32 count)
 		fprintf(stderr, "GLFAN #%d n=%d tex=%d cull=%d depth=%d/%d mask=%d alpha=%d blend=%d poly(blend=%d tex=%p bucket=%d) v0=(%.1f,%.1f,%.4f c=%08x) v1=(%.1f,%.1f,%.4f) v2=(%.1f,%.1f,%.4f)\n",
 			gDbgSinceClear, count, tex, glIsEnabled(GL_CULL_FACE), glIsEnabled(GL_DEPTH_TEST), dfunc, dmask,
 			glIsEnabled(GL_ALPHA_TEST), glIsEnabled(GL_BLEND), gDbgFanBlend, (void*)(size_t)gDbgFanTex, gDbgFanBucket,
-			v[0].field_0, v[0].field_4, v[0].field_8, v[0].field_10, v[1].field_0, v[1].field_4, v[1].field_8, v[2].field_0, v[2].field_4, v[2].field_8);
+			v[0].x, v[0].y, v[0].depth, v[0].colorArgb, v[1].x, v[1].y, v[1].depth, v[2].x, v[2].y, v[2].depth);
 	}
 
 	glBegin(GL_TRIANGLE_FAN);
+	f32 hudOffset = 0.0f;
+	if (gGameView && gHudView && count > 0)
+	{
+		f32 minX = v[0].x, maxX = minX;
+		for (i32 i = 1; i < count; i++)
+		{
+			if (v[i].x < minX) minX = v[i].x;
+			if (v[i].x > maxX) maxX = v[i].x;
+		}
+		// Keep centered prompts and aiming indicators centered. Corner HUD
+		// elements move together to the expanded edges without scaling.
+		hudOffset = gDisplayLayout.hudOffset(minX, maxX);
+	}
 	for (i32 i = 0; i < count; i++)
 	{
-		u32 c = v[i].field_10;
+		u32 c = v[i].colorArgb;
 		glColor4ub((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, (c >> 24) & 0xFF);
 		// D3D XYZRHW vertices carry reciprocal depth at offset 0xC.
 		// Projective texture coordinates preserve it with our screen-space vertices.
-		f32 rhw = v[i].field_C;
-		glTexCoord4f(v[i].field_14 * rhw, v[i].field_18 * rhw, 0.0f, rhw);
-		glVertex3f(v[i].field_0 - (pixelRect ? 0.5f : 0.0f),
-			v[i].field_4 - (pixelRect ? 0.5f : 0.0f), v[i].field_8);
+		f32 rhw = v[i].reciprocalW;
+		glTexCoord4f(v[i].u * rhw, v[i].v * rhw, 0.0f, rhw);
+		f32 x = v[i].x + hudOffset;
+		// Fades and cinematic bars cover the expanded gameplay canvas too.
+		if (gGameView && pixelRect && v[0].x == 0 && v[1].x == gWidth)
+			x += (i == 0 || i == 3 ? -gCanvasExtra : gCanvasExtra);
+		glVertex3f(x - (pixelRect ? 0.5f : 0.0f),
+			v[i].y - (pixelRect ? 0.5f : 0.0f), v[i].depth);
 	}
 	glEnd();
 }
@@ -879,7 +949,7 @@ void Plat_InputPollKeyboard(u8 dikState[256])
 	// Modern bindings feed the current action map, so remapped actions work too.
 	const char* modern = getenv("SPIDEY_MODERN_CONTROLS");
 	if ((!modern || atoi(modern)) && G_MECHLIST_PLAYER &&
-		!G_MECHLIST_PLAYER->field_1AC && !gWideScreen && !gPausedMenu &&
+		!G_MECHLIST_PLAYER->mSynthesizedInputActive && !gWideScreen && !gPausedMenu &&
 		SDL_GetKeyboardFocus() == gWindow)
 	{
 		const SDL_Scancode source[] = { SDL_SCANCODE_W, SDL_SCANCODE_S,
@@ -929,7 +999,7 @@ void Plat_InputPollMouse(i32* dx, i32* dy, u8 buttons[3])
 	const char* modern = getenv("SPIDEY_MODERN_CONTROLS");
 	CCamera* camera = G_CAMERA_LIST;
 	if ((!modern || atoi(modern)) && camera && G_MECHLIST_PLAYER &&
-		!G_MECHLIST_PLAYER->field_1AC && !gWideScreen && !gPausedMenu &&
+		!G_MECHLIST_PLAYER->mSynthesizedInputActive && !gWideScreen && !gPausedMenu &&
 		camera->mCameraMode == CAMERAMODE_DEMO &&
 		SDL_GetKeyboardFocus() == gWindow && SDL_GetWindowRelativeMouseMode(gWindow))
 	{

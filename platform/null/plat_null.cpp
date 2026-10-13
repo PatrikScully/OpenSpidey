@@ -3,7 +3,7 @@
 // the menus, e.g. SPIDEY_KEYS="3000:enter,2000:enter,2000:enter" presses
 // Enter 3 s after start, then 2 s later, then 2 s later.
 
-#include "../plat.h"
+#include "platform/plat.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -156,6 +156,11 @@ void Plat_TexDestroy(PlatTexture* t)
 	delete t;
 }
 
+void Plat_GfxSetGameView(i32) {}
+void Plat_GfxSetHudView(i32) {}
+i32 Plat_GfxGetHudView(void) { return 0; }
+f32 Plat_GfxGetAspectScale(void) { return 1.0f; }
+
 void Plat_GfxBeginScene(u32, i32)
 {
 	gFanCount = 0;
@@ -191,7 +196,7 @@ void Plat_GfxSetTexAlpha(i32) {}
 void Plat_GfxSetTexture(PlatTexture*) {}
 void Plat_GfxSetFog(i32, u32, f32, f32) {}
 
-void Plat_GfxDrawFan(const SDXPolyField*, i32)
+void Plat_GfxDrawFan(const spidey::rendering::ScreenVertex*, i32)
 {
 	gFanCount++;
 }

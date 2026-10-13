@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenSpidey.Core/OpenSpidey.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,138 @@
+#include "engine/assets/pcdcMem.h"
+#include <cstdlib>
+
+#include "compatibility/validate.h"
+
+EXPORT MEMORY_ALLOC* gSysMemory;
+
+// @Ok
+// @Matching
+void syFree(void* a1)
+{
+	if (!a1)
+	{
+		error("MEMORY FREE of NULL\n");
+		return;
+	}
+
+
+	MEMORY_ALLOC *i = gSysMemory;
+	while (i)
+	{
+		if (i->mAddress == a1)
+		{
+			removeMemoryAlloc(i);
+			break;
+		}
+
+		i = i->mNext;
+	}
+
+	if (!i)
+	{
+		error("MEMORY NOT FOUND: %08X\n", a1);
+	}
+}
+
+// @Ok
+// @AlmostMatching
+void *syMalloc(u32 size)
+{
+	if (!size)
+	{
+		error("MEMORY ALLOC of size 0\n");
+		return 0;
+	}
+
+	MEMORY_ALLOC* newBlock = static_cast<MEMORY_ALLOC*>(malloc(sizeof(MEMORY_ALLOC)));
+	newBlock->mSize = size;
+	newBlock->mAddress = malloc(newBlock->mSize);
+
+	addMemoryAlloc(newBlock);
+
+	return newBlock->mAddress;
+}
+
+// @Ok
+// @Matching
+void syMallocFinish(void)
+{
+	while (gSysMemory)
+	{
+		error("MEMORY NOT FREE: %08X, %i\n", gSysMemory->mAddress, gSysMemory->mSize);
+		removeMemoryAlloc(gSysMemory);
+	}
+}
+
+
+// @Ok
+// @Matching
+void syMallocInit(void)
+{
+	gSysMemory = 0;
+}
+
+// @Ok
+ void addMemoryAlloc(MEMORY_ALLOC *pBlock)
+{
+	if (!gSysMemory)
+	{
+		gSysMemory = pBlock;
+		pBlock->mPrev = 0;
+		pBlock->mNext = 0;
+	}
+	else
+	{
+		MEMORY_ALLOC* openNext = gSysMemory;
+		MEMORY_ALLOC* pSearch = gSysMemory->mNext;
+
+		while (pSearch)
+		{
+			openNext = pSearch;
+			pSearch = pSearch->mNext;
+		}
+
+		openNext->mNext = pBlock;
+		pBlock->mPrev = openNext;
+		pBlock->mNext = 0;
+	}
+}
+
+// @Ok
+// @Matching
+ void removeMemoryAlloc(MEMORY_ALLOC* pAlloc)
+{
+	if (gSysMemory == pAlloc)
+		gSysMemory = pAlloc->mNext;
+
+	if (pAlloc->mPrev)
+		pAlloc->mPrev->mNext = pAlloc->mNext;
+
+	if (pAlloc->mNext)
+		pAlloc->mNext->mPrev = pAlloc->mPrev;
+
+	free(pAlloc->mAddress);
+	free(pAlloc);
+}
+
+void validate_MEMORY_ALLOC(void)
+{
+	VALIDATE_SIZE(MEMORY_ALLOC, 0x10);
+
+	VALIDATE(MEMORY_ALLOC, mAddress, 0x0);
+	VALIDATE(MEMORY_ALLOC, mSize, 0x4);
+	VALIDATE(MEMORY_ALLOC, mNext, 0x8);
+	VALIDATE(MEMORY_ALLOC, mPrev, 0xC);
+}
+
+#include "compatibility/my_patch.h"
+
+// @Bogus
+void patch_pcdcMem(void)
+{
+	PATCH_PUSH_RET(0x005053F0, syMallocInit);
+	PATCH_PUSH_RET(0x00505400, syMallocFinish);
+
+	PATCH_PUSH_RET(0x00505470, syMalloc);
+	PATCH_PUSH_RET(0x005054E0, syFree);
+}

@@ -1,7 +1,7 @@
 #ifndef SPIDEY_DECODER_PROCESS_H
 #define SPIDEY_DECODER_PROCESS_H
 
-#include "../my_types.h"
+#include "core/types.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

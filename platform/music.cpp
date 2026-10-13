@@ -1,6 +1,6 @@
 // Stream the original Bink voice files independently of FMV audio.
-#include "plat.h"
-#include "decoder_process.h"
+#include "platform/plat.h"
+#include "platform/decoder_process.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

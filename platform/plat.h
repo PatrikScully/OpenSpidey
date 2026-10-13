@@ -12,9 +12,9 @@
 #ifndef PLAT_H
 #define PLAT_H
 
-#include "../my_types.h"
+#include "core/types.h"
 
-struct SDXPolyField;
+#include "engine/rendering/screen_vertex.h"
 
 // ---------------------------------------------------------------- window
 
@@ -54,6 +54,11 @@ void Plat_TexDestroy(PlatTexture*);
 
 // Frame
 void Plat_GfxBeginScene(u32 clearColorARGB, i32 clearDepth);
+// Gameplay expands horizontally; menus retain their original canvas.
+void Plat_GfxSetGameView(i32 enable);
+void Plat_GfxSetHudView(i32 enable);
+i32 Plat_GfxGetHudView(void);
+f32 Plat_GfxGetAspectScale(void);
 void Plat_GfxEndScene(void);
 void Plat_GfxFlip(void);
 
@@ -70,7 +75,7 @@ void Plat_GfxSetTexture(PlatTexture*);             // 0 = untextured
 void Plat_GfxSetFog(i32 enable, u32 colorRGB, f32 start, f32 end);
 
 // One pre-transformed triangle fan (x, y in pixels, z in 0..1, rhw, ARGB, u, v).
-void Plat_GfxDrawFan(const SDXPolyField* verts, i32 count);
+void Plat_GfxDrawFan(const spidey::rendering::ScreenVertex* verts, i32 count);
 
 // Reads back the frame as 24 bit BGR rows, top down. Returns 0 if unsupported.
 i32 Plat_GfxReadPixels(u8* dstBGR, i32 width, i32 height);

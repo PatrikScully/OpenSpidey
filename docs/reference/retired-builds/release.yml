@@ -1,0 +1,93 @@
+name: release
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+
+env:
+  BUILD_VERSION: ${{ github.ref_name }}
+
+jobs:
+
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require notes for this version
+        run: python3 packaging/release_notes.py "$BUILD_VERSION"
+
+  apps:
+    needs: notes
+    uses: ./.github/workflows/packages.yml
+    with:
+      version: ${{ github.ref_name }}
+
+  windows:
+    needs: notes
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Setup Visual Studio 6 toolchain
+        run: |
+          Invoke-WebRequest https://github.com/krystalgamer/spidey-decomp-vs/releases/download/v1.0/spidey-vs.zip -OutFile c:\spidey_vs.zip
+          7z x C:\spidey_vs.zip -oC:\vs
+      - uses: actions/checkout@v4
+      - name: Write the build version
+        run: |
+          $version = git rev-parse HEAD
+          Write-Output "#define RUNTIME_VERSION `"$version`"" | Out-File -FilePath .\src\game\application\runtime_version.h -Encoding ascii
+      - name: Build
+        shell: cmd
+        run: build.bat
+      - name: Package
+        shell: cmd
+        run: |
+          mkdir spidey-windows-dll
+          copy Release\spider.dll spidey-windows-dll\binkw32.dll
+          copy README.md spidey-windows-dll\
+          7z a "openspidey-%BUILD_VERSION%-windows-binkw32.zip" spidey-windows-dll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: openspidey-${{ github.ref_name }}-windows-binkw32.zip
+
+  source:
+    needs: notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - name: Pack the sources
+      run: |
+        [[ "$BUILD_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
+        git archive --format=tar.gz --prefix="OpenSpidey-$BUILD_VERSION/" -o "openspidey-$BUILD_VERSION-source.tar.gz" HEAD
+        git archive --format=zip --prefix="OpenSpidey-$BUILD_VERSION/" -o "openspidey-$BUILD_VERSION-source.zip" HEAD
+    - uses: actions/upload-artifact@v4
+      with:
+        name: source
+        path: |
+          openspidey-${{ github.ref_name }}-source.tar.gz
+          openspidey-${{ github.ref_name }}-source.zip
+
+  publish:
+    needs: [apps, windows, source]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/download-artifact@v4
+      with:
+        path: dist
+        merge-multiple: true
+    - name: Write download checksums
+      run: cd dist && sha256sum * > SHA256SUMS
+    - name: Create the release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: OpenSpidey ${{ github.ref_name }}
+        prerelease: true
+        body_path: .github/release-notes.md
+        files: dist/*

@@ -1,0 +1,9 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenSpidey.Assets/OpenSpidey.Assets.csproj" />
+    <ProjectReference Include="../OpenSpidey.Core/OpenSpidey.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,8 +1,8 @@
-#include "exemem.h"
-#include "launcher.h"
-#include "../FontTools.h"
-#include "../dcmodel.h"
-#include "../dcmemcard.h"
+#include "platform/exemem.h"
+#include "platform/launcher.h"
+#include "game/ui/FontTools.h"
+#include "engine/rendering/dcmodel.h"
+#include "engine/persistence/dcmemcard.h"
 #include <new>
 
 #include <cstdio>

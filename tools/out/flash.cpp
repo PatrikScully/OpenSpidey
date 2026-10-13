@@ -1,1 +1,1 @@
-#include "flash.h"
+#include "game/effects/flash.h"

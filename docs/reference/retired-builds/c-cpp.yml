@@ -1,0 +1,78 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master", "issa_dll" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  validate-repo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Check source modules and includes
+      run: python tools/check_source_structure.py
+
+
+  build-old-win:
+    needs: validate-repo
+    runs-on: windows-2025
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup Visual Studio
+        run: |
+          Invoke-WebRequest https://github.com/krystalgamer/spidey-decomp-vs/releases/download/v1.0/spidey-vs.zip -OutFile c:\spidey_vs.zip
+          7z x C:\spidey_vs.zip -oC:\vs
+      - uses: actions/checkout@v4
+      - name: Setup Validator
+        run: |
+          Invoke-WebRequest https://github.com/krystalgamer/tobey-validator/releases/download/v1/tobey_validator.zip -OutFile tobey_validator.zip
+          7z x tobey_validator.zip
+      - name: Setup build version
+        run: |
+          $version = git rev-parse HEAD
+          Write-Output "#define RUNTIME_VERSION `"$version`"" | Out-File -FilePath .\src\game\application\runtime_version.h -Encoding ascii
+      - name: Build
+        shell: cmd
+        run: build.bat
+      - name: Validate
+        shell: cmd
+        run: |
+          cp Release\spider.dll binkw32.dll
+          tobey_validator.exe binkw32.dll
+      - uses: actions/upload-artifact@v4
+        with:
+          path: binkw32.dll
+          name: spidey
+
+  build-linux:
+    needs: validate-repo
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Update package list
+      run: sudo apt update
+    - name: Install 32-bit libs
+      run: sudo apt install -y g++-multilib cmake g++ clang
+    - name: Setup Makefile
+      run: CXX=${{ matrix.compiler }} cmake -B out
+    - name: Build
+      run: cmake --build out
+    - name: Run layout and unit checks
+      run: |
+        ./out/spider
+        ctest --test-dir out --output-on-failure
+

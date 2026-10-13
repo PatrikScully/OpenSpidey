@@ -1,5 +1,5 @@
 // Run on a private X11 display with Mesa and SDL_AUDIO_DRIVER=dummy.
-#include "../../platform/sdl3/plat_sdl3.cpp"
+#include "platform/sdl3/plat_sdl3.cpp"
 #include <cassert>
 #include <vector>
 
@@ -16,14 +16,14 @@ static void DrawRect(f32 left, f32 top, f32 right, f32 bottom)
 {
 	SDXPolyField vertices[4];
 	memset(vertices, 0, sizeof(vertices));
-	vertices[0].field_0 = vertices[3].field_0 = left;
-	vertices[1].field_0 = vertices[2].field_0 = right;
-	vertices[0].field_4 = vertices[1].field_4 = top;
-	vertices[2].field_4 = vertices[3].field_4 = bottom;
+	vertices[0].x = vertices[3].x = left;
+	vertices[1].x = vertices[2].x = right;
+	vertices[0].y = vertices[1].y = top;
+	vertices[2].y = vertices[3].y = bottom;
 	for (i32 i = 0; i < 4; i++)
 	{
-		vertices[i].field_C = 1.0f;
-		vertices[i].field_10 = 0xFF000000;
+		vertices[i].reciprocalW = 1.0f;
+		vertices[i].colorArgb = 0xFF000000;
 	}
 	Plat_GfxDrawFan(vertices, 4);
 }
@@ -64,6 +64,41 @@ int main(int argc, char** argv)
 	printf("CHECK raster viewport=%dx%d MSAA=%d wrong_pixels=%d\n",
 		gViewportWidth, gViewportHeight, samples, failures);
 	assert(!failures);
+	// Gameplay fills wide outputs and retains the original vertical scale.
+	Plat_GfxBeginScene(0xFF336699, 1);
+	Plat_GfxSetGameView(1);
+	i32 outputWidth = 0, outputHeight = 0;
+	assert(SDL_GetWindowSizeInPixels(gWindow, &outputWidth, &outputHeight));
+	if ((f32)outputWidth / outputHeight >= 640.0f / 480.0f)
+	{
+		assert(gViewportWidth == outputWidth && gViewportHeight == outputHeight);
+		DrawRect(0, 0, 640, 60);
+		DrawRect(260, 180, 380, 300);
+		pixels.resize(gViewportWidth * gViewportHeight * 3);
+		glReadPixels(0, 0, gViewportWidth, gViewportHeight, GL_RGB, GL_UNSIGNED_BYTE, &pixels[0]);
+		// A fullscreen bar reaches both edges; a 120x120 square stays square.
+		for (i32 x = 0; x < outputWidth; x++)
+			assert(pixels[((outputHeight - 1) * outputWidth + x) * 3] == 0);
+		i32 squareWidth = 0;
+		for (i32 x = 0; x < outputWidth; x++)
+			if (pixels[((outputHeight / 2) * outputWidth + x) * 3] == 0)
+				squareWidth++;
+		assert(abs(squareWidth - outputHeight / 4) <= 1);
+		printf("CHECK widescreen viewport=%dx%d square_width=%d expected=%d\n",
+			outputWidth, outputHeight, squareWidth, outputHeight / 4);
+		Plat_GfxSetHudView(1);
+		DrawRect(20, 200, 60, 240);
+		DrawRect(580, 200, 620, 240);
+		glReadPixels(0, 0, outputWidth, outputHeight, GL_RGB, GL_UNSIGNED_BYTE, &pixels[0]);
+		i32 margin = outputHeight * 40 / 480;
+		i32 hudY = outputHeight * 260 / 480;
+		assert(pixels[(hudY * outputWidth + margin) * 3] == 0);
+		assert(pixels[(hudY * outputWidth + outputWidth - margin) * 3] == 0);
+		Plat_GfxSetHudView(0);
+	}
+	// The following menu frame returns to its original aspect ratio.
+	Plat_GfxBeginScene(0, 1);
+	assert(gViewportWidth * 480 == gViewportHeight * 640);
 	if (argc > 1 && !strcmp(argv[1], "borderless"))
 	{
 		assert(SDL_GetWindowFlags(gWindow) & SDL_WINDOW_FULLSCREEN);

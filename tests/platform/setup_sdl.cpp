@@ -1,5 +1,5 @@
 // Run on an X11 display with Mesa, SDL_AUDIO_DRIVER=dummy.
-#include "../../platform/sdl3/plat_sdl3.cpp"
+#include "platform/sdl3/plat_sdl3.cpp"
 #include <cassert>
 #include <vector>
 

@@ -1,5 +1,5 @@
-#include "../plat.h"
-#include "audio_settings.h"
+#include "platform/plat.h"
+#include "platform/sdl3/audio_settings.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 

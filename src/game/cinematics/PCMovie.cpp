@@ -1,0 +1,524 @@
+#include "game/cinematics/PCMovie.h"
+#ifdef SPIDEY_STANDALONE
+#include "platform/plat.h"
+#endif
+#include "engine/assets/pkr.h"
+#include "compatibility/non_win32.h"
+#include "game/application/SpideyDX.h"
+#include "compatibility/my_bink.h"
+#include "game/application/DXinit.h"
+#include "engine/rendering/polygon_pipeline.h"
+
+#include <cstring>
+
+
+// @Ok
+#ifndef SPIDEY_STANDALONE
+EXPORT char gMovieCurrentDirectory[0x200];
+#else
+extern char gMovieCurrentDirectory[0x200];
+#endif
+//#define G_MOVIECURRENTDIRECTORY (gMovieCurrentDirectory)
+#define G_MOVIECURRENTDIRECTORY (reinterpret_cast<char*>(0x00AC0CB0))
+
+// @Ok
+#ifndef SPIDEY_STANDALONE
+EXPORT u8 gFoundMediaPkr;
+#else
+extern u8 gFoundMediaPkr;
+#endif
+//#define G_FOUNDMEDIAPKR (gFoundMediaPkr)
+#define G_FOUNDMEDIAPKR (*reinterpret_cast<u8*>(0x00AC0EB0))
+
+// @Ok
+#ifndef SPIDEY_STANDALONE
+EXPORT char gCdPath[0x100];
+#else
+extern char gCdPath[0x100];
+#endif
+//#define G_CDPATH (gCdPath)
+#define G_CDPATH (reinterpret_cast<char*>(0x00AC0BB0))
+
+// @Ok
+#ifndef SPIDEY_STANDALONE
+EXPORT u8 gPcMovieInited;
+#else
+extern u8 gPcMovieInited;
+#endif
+//#define G_PC_MOVIE_INITED (gPcMovieInited)
+#define G_PC_MOVIE_INITED (*reinterpret_cast<u8*>(0x00AC0BA0))
+
+#ifndef SPIDEY_STANDALONE
+EXPORT HBINK gMovieBinkRelated;
+#else
+extern HBINK gMovieBinkRelated;
+#endif
+#ifndef SPIDEY_STANDALONE
+EXPORT HANDLE gMovieFileHandle;
+#else
+extern HANDLE gMovieFileHandle;
+#endif
+
+// @Ok
+#ifndef SPIDEY_STANDALONE
+EXPORT LIBPKR_HANDLE* gMediaPkr;
+#else
+extern LIBPKR_HANDLE* gMediaPkr;
+#endif
+//#define G_MEDIA_PKR (gMediaPkr)
+#define G_MEDIA_PKR (*reinterpret_cast<LIBPKR_HANDLE**>(0x00AC0BA8))
+
+//#define G_MOVIE_BINK_RELATED (gMovieBinkRelated)
+#define G_MOVIE_BINK_RELATED (*reinterpret_cast<HBINK*>(0x00AC0BA4))
+
+//#define G_MOVIE_FILE_HANDLE (gMovieFileHandle)
+#define G_MOVIE_FILE_HANDLE (*reinterpret_cast<HANDLE*>(0x00AC0BAC))
+
+EXPORT BINKSUMMARY g_BinkSummaryOne;
+EXPORT u32 g_CloneBinkSummaryOne;
+EXPORT u32 g_CloneBinkSummaryTwo;
+EXPORT u32 g_BinkDestx;
+EXPORT u32 g_BinkDesty;
+
+#ifndef SPIDEY_STANDALONE
+EXPORT LPDIRECTDRAW7 g_MovieDD7;
+#else
+extern LPDIRECTDRAW7 g_MovieDD7;
+#endif
+EXPORT LPDIRECTDRAWSURFACE7 g_MovieDD7Surface;
+EXPORT i32 g_MoviePrimarySurfaceType;
+
+
+// @Ok
+// @Matching
+void CloseMovieFile(void)
+{
+	if (G_MOVIE_BINK_RELATED)
+	{
+		BinkClose(G_MOVIE_BINK_RELATED);
+		if (G_MOVIE_FILE_HANDLE)
+		{
+			CloseHandle(G_MOVIE_FILE_HANDLE);
+			G_MOVIE_FILE_HANDLE = 0;
+			PKR_LockFile(G_MEDIA_PKR);
+		}
+
+		G_MOVIE_BINK_RELATED = 0;
+	}
+}
+
+// @Ok
+ u8 CreateMovieSurface(void)
+{
+#ifdef _WIN32
+
+	DDSURFACEDESC2 v12;
+	memset(&v12, 0, sizeof(v12));
+
+	v12.dwSize = sizeof(v12);
+	v12.dwFlags = 7;
+	v12.ddsCaps.dwCaps = 64;
+	v12.dwWidth = g_BinkSummaryOne.Width;
+	v12.dwHeight = g_BinkSummaryOne.Height;
+
+	HRESULT hr = g_MovieDD7->CreateSurface(
+			&v12,
+			&g_MovieDD7Surface, 0);
+	D3D_ERROR_LOG_AND_QUIT(hr);
+
+	g_MoviePrimarySurfaceType = BinkDDSurfaceType(g_MovieDD7Surface);
+	if (g_MoviePrimarySurfaceType == -1 || !g_MoviePrimarySurfaceType)
+		DXERR_printf("Bink: Unsupported primary surface format %d.", g_MoviePrimarySurfaceType);
+
+#endif
+	return 1;
+}
+
+// @Ok
+// @Matching
+ i32 NextMovieFrame(void)
+{
+#ifdef _WIN32
+	if (!G_MOVIE_BINK_RELATED)
+		return 0;
+	BinkDoFrame(G_MOVIE_BINK_RELATED);
+
+	DDSURFACEDESC2 v6;
+	memset(&v6, 0, sizeof(v6));
+	v6.dwSize = sizeof(v6);
+
+	HRESULT v1 = g_MovieDD7Surface->Lock(
+			0,
+			&v6,
+			2081,
+			0);
+	if (v1 == DDERR_SURFACELOST)
+	{
+		v1 = g_MovieDD7Surface->Restore();
+	}
+
+	D3D_ERROR_LOG_AND_QUIT(v1);
+
+	BinkCopyToBuffer(
+		G_MOVIE_BINK_RELATED,
+		v6.lpSurface,
+		v6.lPitch,
+		g_BinkSummaryOne.Height,
+		g_BinkDestx,
+		g_BinkDesty,
+		g_MoviePrimarySurfaceType);
+
+	HRESULT v2 = g_MovieDD7Surface->Unlock(0);
+
+	D3D_ERROR_LOG_AND_QUIT(v2);
+
+
+	DDBLTFX v7;
+	memset(&v7, 0, sizeof(v7));
+	v7.dwSize = sizeof(v7);
+	HRESULT v4 = g_pDDS_Scene->Blt(
+			0,
+			g_MovieDD7Surface,
+			0,
+			0x1000000,
+			&v7);
+
+	D3D_ERROR_LOG_AND_QUIT(v4);
+
+	DXPOLY_Flip();
+
+	if (G_MOVIE_BINK_RELATED->FrameNum == G_MOVIE_BINK_RELATED->Frames)
+	{
+		return 0;
+	}
+
+	BinkNextFrame(G_MOVIE_BINK_RELATED);
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+// @Ok
+ u8 OpenMovieFile(char *a1, bool)
+{
+	char v14[256];
+
+	strcpy(v14, "movie\\");
+	strcat(v14, a1);
+
+	DXERR_printf("\t\tMOVIE PLAYING %s\r\n", v14);
+	if (G_MEDIA_PKR)
+	{
+		char v10[32];
+		char a3[32];
+		char a2[32];
+		CHAR FileName[256];
+
+		strcpy(FileName, G_MEDIA_PKR->name);
+		strcpy(v10, v14);
+
+		strcpy(a3, strrchr(v14, '\\') + 1);
+
+		strrchr(v10, '\\')[1] = 0;
+		strcpy(a2, "data\\");
+		strcat(a2, v10);
+
+		i32 fileOffset = findFileOffsetPKR(a2, a3);
+		if (fileOffset == -1)
+			goto open_movie_file_error;
+		PKR_UnlockFile(G_MEDIA_PKR);
+
+#ifdef _WIN32
+		HANDLE FileA = CreateFileA(FileName, 0x80000000, 1u, 0, 3u, 1u, 0);
+		G_MOVIE_FILE_HANDLE = FileA;
+		if (FileA == INVALID_HANDLE_VALUE)
+		{
+			PKR_LockFile(G_MEDIA_PKR);
+			G_MOVIE_FILE_HANDLE = 0;
+			goto open_movie_file_error;
+		}
+
+		SetFilePointer(FileA, fileOffset, 0, 0);
+#endif
+	}
+
+	HBINK v5;
+	if (G_MOVIE_FILE_HANDLE)
+	{
+		v5 = BinkOpen(
+				G_MOVIE_FILE_HANDLE,
+				BINKIOSIZE | BINKFILEHANDLE);
+	}
+	else
+	{
+		strcpy(v14, "data\\movie\\");
+		strcat(v14, a1);
+		v5 = BinkOpen(v14, BINKIOSIZE);
+	}
+
+	G_MOVIE_BINK_RELATED = v5;
+
+	if (!G_MOVIE_BINK_RELATED)
+		goto open_movie_file_error;
+
+	BinkSetVideoOnOff(v5, 1);
+	BinkGetSummary(G_MOVIE_BINK_RELATED, &g_BinkSummaryOne);
+
+	g_BinkDestx = 0;
+	g_BinkDesty = 0;
+
+	g_CloneBinkSummaryOne = g_BinkSummaryOne.Width;
+	g_CloneBinkSummaryTwo = g_BinkSummaryOne.Height;
+
+	return 1;
+
+open_movie_file_error:
+	DXERR_printf("\t\tUnable to open movie file %s\r\n", a1);
+	return 0;
+}
+
+// @Ok
+// @Matching
+void PCMOVIE_ClosePKR(void)
+{
+	if (G_MEDIA_PKR)
+	{
+		if (!PKR_Close(G_MEDIA_PKR))
+		{
+			char buf[512];
+			if (PKR_GetLastError(buf))
+				error("PKR\t: %s\r\n", buf);
+		}
+		G_MEDIA_PKR = 0;
+		return;
+	}
+
+	error("PKR\t: No PKR currently open.\r\n");
+}
+
+// @Ok
+// @Matching - not really because Bink* is not resolved through the PE loader
+ void PCMOVIE_Init(void)
+{
+	if (!G_PC_MOVIE_INITED)
+	{
+#ifndef SPIDEY_STANDALONE
+		BinkSetSoundSystem(BinkOpenDirectSound, G_PDS);
+		BinkSetIOSize(256);
+#endif
+		G_PC_MOVIE_INITED = 1;
+	}
+}
+
+// @Ok
+// @Matching
+void PCMOVIE_InitOnce(void)
+{
+	CHAR RootPathName[32];
+	char rootCdPath[0x80];
+	char mediaPkrPath[0x100];
+
+	char v0 = 'C';
+	strcpy(RootPathName, "C:");
+	strcpy(G_CDPATH, RootPathName);
+
+	while (1)
+	{
+		RootPathName[0] = v0;
+		if (GetDriveTypeA(RootPathName) == DRIVE_CDROM)
+		{
+			strcpy(rootCdPath, RootPathName);
+			strcat(rootCdPath, "\\Setup");
+
+			strcpy(mediaPkrPath, rootCdPath);
+			strcat(mediaPkrPath, "\\");
+			strcat(mediaPkrPath, "SpideyPC.exe");
+			FILE* v1 = fopen(mediaPkrPath, "rb");
+			if (v1)
+			{
+				fclose(v1);
+				strcpy(G_CDPATH, rootCdPath);
+				printf_fancy("CDPATH: %s\r\n", G_CDPATH);
+				break;
+			}
+		}
+
+		v0++;
+		if (v0 < 'Z')
+			continue;
+
+		printf_fancy("CDPATH: %s - NOT FOUND\r\n", G_CDPATH);
+		break;
+	}
+
+	GetCurrentDirectoryA(0x200, G_MOVIECURRENTDIRECTORY);
+	strcpy(mediaPkrPath, G_MOVIECURRENTDIRECTORY);
+	strcat(mediaPkrPath, "\\");
+	strcat(mediaPkrPath, "Media.pkr");
+	FILE* mediaFp = fopen(mediaPkrPath, "rb");
+
+	if (mediaFp)
+	{
+		fclose(mediaFp);
+		G_FOUNDMEDIAPKR = 1;
+	}
+	else
+	{
+		G_FOUNDMEDIAPKR = 0;
+	}
+}
+
+// @Ok
+// @Matching
+u8 PCMOVIE_NextFrame(void)
+{
+#ifdef SPIDEY_STANDALONE
+	return Plat_MovieNextFrame() != 0;
+#else
+	if (!G_MOVIE_BINK_RELATED)
+		return 0;
+
+	if (BinkWait(G_MOVIE_BINK_RELATED) || NextMovieFrame())
+		return 1;
+
+	PCMOVIE_Stop();
+	return 0;
+#endif
+}
+
+// @Ok
+// @Matching - it wasn't before, now it is with the two strcpys
+void PCMOVIE_OpenPKR(void)
+{
+	if (!G_MEDIA_PKR)
+	{
+		char v2[512];
+		if (G_FOUNDMEDIAPKR)
+			strcpy(v2, G_MOVIECURRENTDIRECTORY);
+		else
+			strcpy(v2, G_CDPATH);
+
+		strcat(v2, "\\");
+		strcat(v2, "Media.pkr");
+
+		if (!PKR_Open(&G_MEDIA_PKR, v2, 1))
+		{
+			char v3[512];
+			if (PKR_GetLastError(v3))
+			{
+				printf_fancy("PKR\t: %s\r\n", v3);
+			}
+		}
+		else
+		{
+			LIBPKR_HANDLE *tmp = G_MEDIA_PKR;
+			printf_fancy("PKR\t: Name       : %s\r\n", tmp->name);
+			printf_fancy("PKR\t: N.O. Dir   : %i\r\n", tmp->mFooter.numDirs);
+			printf_fancy("PKR\t: N.O. Files : %i\r\n", tmp->mFooter.numFiles);
+		}
+	}
+	else
+	{
+		printf_fancy("PKR\t: PKR %s already open\r\n", G_MEDIA_PKR->name);
+	}
+}
+
+// @Ok
+u8 PCMOVIE_Play(char *a1, i32 a2)
+{
+#ifdef SPIDEY_STANDALONE
+	PCMOVIE_Stop();
+	if (!G_MEDIA_PKR)
+	{
+		const char* mediaPath = "media.pkr";
+		FILE* test = fopen(mediaPath, "rb");
+		if (!test)
+		{
+			mediaPath = "Media.pkr";
+			test = fopen(mediaPath, "rb");
+		}
+		if (test)
+		{
+			fclose(test);
+			PKR_Open(&G_MEDIA_PKR, mediaPath, 1);
+		}
+	}
+	if (G_MEDIA_PKR)
+	{
+		PKR_FILEINFO info;
+		if (PKR_GetFileInfo(G_MEDIA_PKR, "data\\movie\\", a1, &info) && info.compressed == -2)
+			return Plat_MovieOpen(G_MEDIA_PKR->name, info.fileOffset, info.uncompressedSize) != 0;
+	}
+	char path[256];
+	snprintf(path, sizeof(path), "data/movie/%s", a1);
+	return Plat_MovieOpen(path, 0, 0) != 0;
+#else
+	PCMOVIE_Init();
+	PCMOVIE_Stop();
+
+	print_if_false(a2 != 0, "Request to play a non-full screen movie!");
+	if (!OpenMovieFile(a1, 1))
+		return 0;
+	if (CreateMovieSurface())
+	{
+		WinYield();
+		return 1;
+	}
+
+	CloseMovieFile();
+	return 0;
+#endif
+}
+
+// @Ok
+// @Matching
+void PCMOVIE_SetVolume(i32 a1)
+{
+#ifdef SPIDEY_STANDALONE
+	Plat_MovieSetVolume(a1);
+#else
+	BinkSetVolume(G_MOVIE_BINK_RELATED, (a1 << 15) / 255);
+	BinkSetPan(G_MOVIE_BINK_RELATED, 0x8000);
+#endif
+}
+
+// @Ok
+// @Matching
+ void PCMOVIE_Stop(void)
+{
+#ifdef SPIDEY_STANDALONE
+	Plat_MovieStop();
+#else
+	CloseMovieFile();
+#endif
+}
+
+// @Ok
+// @Note: validate when inlined
+ i32 findFileOffsetPKR(
+		char *a1,
+		const char *a2)
+{
+	PKR_FILEINFO v3;
+	if (PKR_GetFileInfo(G_MEDIA_PKR, a1, a2, &v3))
+		return v3.fileOffset;
+
+	char v4[512];
+	if (PKR_GetLastError(v4))
+		printf_fancy("PKR\t: %s%s - %s\r\n", a1, a2, v4);
+
+	return -1;
+}
+
+#include "compatibility/my_patch.h"
+
+// @Bogus
+void patch_PCMovie(void)
+{
+	PATCH_PUSH_RET(0x0050AC90, PCMOVIE_InitOnce);
+	PATCH_PUSH_RET(0x0050AF30, PCMOVIE_OpenPKR);
+	PATCH_PUSH_RET(0x0050B080, PCMOVIE_ClosePKR);
+
+	PATCH_PUSH_RET(0x0050B0F0, PCMOVIE_Init);
+}

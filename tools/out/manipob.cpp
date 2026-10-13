@@ -1,1 +1,1 @@
-#include "manipob.h"
+#include "game/objects/manipob.h"

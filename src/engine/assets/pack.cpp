@@ -1,0 +1,124 @@
+#include "engine/assets/pack.h"
+#include "core/game_heap.h"
+#include "compatibility/validate.h"
+#include "compatibility/my_assert.h"
+
+EXPORT SPack Pack_pFull;
+EXPORT u32 gPackRelated;
+
+EXPORT u32 gFuckPackInit;
+EXPORT u32 gPackInitRelatedOne;
+EXPORT u32 gPackInitRelatedTwo;
+EXPORT u32 gInsidePackInitOne;
+EXPORT u32 gInsidePackInitTwo;
+
+// @Ok
+// @Matching
+void Pack_Init(void)
+{
+	gFuckPackInit = 0;
+	ASSERT(!gPackInitRelatedOne && !gPackInitRelatedTwo, "Pack_Init called before cleanup");
+
+	gPackInitRelatedOne = 0;
+	gPackInitRelatedTwo = 0;
+	gInsidePackInitOne = 0;
+	gInsidePackInitTwo = 0x200;
+}
+
+// @Ok
+// @Matching
+SPack* Pack_Pack(
+		i32 Type,
+		i32 WW,
+		i32 H,
+		i32 *X,
+		i32 *Y,
+		i32 BPP,
+		i32,
+		u32)
+{
+	ASSERT(Type < 0 || WW <= 512, "width out of range");
+	ASSERT(H <= 512, "height out of range");
+
+
+	ASSERT(BPP == 4 || BPP == 8 || BPP == 16, "Bad BPP param in pack_pack().");
+
+	SPack* pPack = static_cast<SPack*>(
+			DCMem_New(sizeof(SPack), 0, 1, 0, 1));
+
+	*X = 0;
+	pPack->X = 0;
+
+	gPackRelated += 256;
+	*Y = gPackRelated;
+	pPack->Y = gPackRelated;
+	pPack->pNext = 0;
+
+	if (BPP != 4)
+	{
+		if (BPP == 8)
+		{
+			WW >>= 1;
+		}
+	}
+	else
+	{
+		WW >>= 2;
+	}
+
+	ASSERT(WW > 0, "width too small");
+	
+	pPack->W = WW;
+	pPack->H = H;
+	pPack->pNext = Pack_pFull.pNext;
+	Pack_pFull.pNext = pPack;
+
+	return pPack;
+}
+
+// @Ok
+// @Matching
+void Pack_Unpack(SPack* a1)
+{
+	SPack* pPrev = &Pack_pFull;
+
+	for (SPack *pCur = pPrev->pNext;
+			pCur;
+			pCur = pCur->pNext)
+	{
+		if (a1 == pCur)
+		{
+			pPrev->pNext = pCur->pNext;
+			Mem_Delete(a1);
+			return;
+		}
+
+		pPrev = pCur;
+	}
+	
+	ASSERT(0, "Couldn't find pack structure.");
+	Mem_Delete(a1);
+}
+
+void validate_SPack(void)
+{
+	VALIDATE_SIZE(SPack, 0xC);
+
+	VALIDATE(SPack, X, 0x0);
+	VALIDATE(SPack, Y, 0x2);
+	VALIDATE(SPack, W, 0x4);
+	VALIDATE(SPack, H, 0x6);
+	VALIDATE(SPack, pNext, 0x8);
+}
+
+
+#include "compatibility/my_patch.h"
+
+// @Bogus
+void patch_pack(void)
+{
+	PATCH_PUSH_RET(0x004613B0, Pack_Init);
+
+	PATCH_PUSH_RET(0x00461500, Pack_Unpack);
+	PATCH_PUSH_RET(0x00461400, Pack_Pack);
+}

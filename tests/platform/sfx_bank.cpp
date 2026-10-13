@@ -1,6 +1,6 @@
 // Compile with -m32 -DSPIDEY_STANDALONE -ffunction-sections -fdata-sections
 // and link with -Wl,--gc-sections. File and audio mocks exercise bank lifetime.
-#include "../../ps2lowsfx.cpp"
+#include "engine/audio/ps2lowsfx.cpp"
 #include <cassert>
 #include <sys/mman.h>
 
