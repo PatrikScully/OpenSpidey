@@ -277,6 +277,7 @@ public partial class LevelSession : Node3D
                 .Append(new EnvironmentVisibilityCommandHandler(environmentVisibility))
                 .Append(new LinkedEnvironmentVisibilityCommandHandler(triggers, environmentVisibility))
                 .Append(new GameLevelCommandHandler(application))
+                .Append(new DualBufferSizeCommandHandler())
                 .Append(new FightMusicTimeCommandHandler(player.Combat))
                 .Append(new ModuleLoadCommandHandler(enemyRuntime.Modules))
                 .Append(new RunCinemaCommandHandler(cinema))
@@ -629,6 +630,13 @@ public partial class LevelSession : Node3D
             if (verifyFirstRoof) MissionMessageImportChecks.Verify(this, archive!, originalExecutable);
             if (verifyFirstRoof) await MissionTextBoxImportChecks.VerifyAsync(this, archive!, originalExecutable);
             if (verifyFirstRoof) await MusicImportChecks.VerifyAsync(this, archive!, player);
+            if (verifyFirstRoof) await ActorSpeechImportChecks.VerifyAsync(this, archive!, GetNode<GodotSpeechPlayer>("Speech").CacheDirectory);
+            if (verifyFirstRoof) await ScorpionApproachImportChecks.VerifyAsync(this, archive!, GetNode<GodotSpeechPlayer>("Speech").CacheDirectory);
+            if (verifyFirstRoof) await ScorpionConstructionImportChecks.VerifyAsync(this, archive!, originalExecutable);
+            if (verifyFirstRoof) await ScorpionTailImportChecks.VerifyAsync(this, archive!, originalExecutable);
+            if (verifyFirstRoof) await JonahFootprintImportChecks.VerifyAsync(this, archive!, originalExecutable);
+            if (verifyFirstRoof) await ScorpionHealthBarImportChecks.VerifyAsync(this, archive!);
+            if (verifyFirstRoof) await MissionRenderCompatibilityImportChecks.VerifyAsync(this, archive!);
             if (verifyFirstRoof) await CompassImportChecks.VerifyAsync(this, archive!.Read("data/bits.psx"));
             if (verifyFirstRoof) await PlatformActorImportChecks.VerifyAsync(this, GetNode<GodotActorRegistry>("Actors"));
             if (verifyFirstRoof) await EnvironmentVisibilityImportChecks.VerifyAsync(this, archive!, libraries.Repository);

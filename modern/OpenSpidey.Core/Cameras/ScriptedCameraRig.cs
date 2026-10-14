@@ -21,7 +21,8 @@ public sealed class ScriptedCameraRig
     public ushort Mode => checked((ushort)ModeState.Mode);
     public bool AngleLocked => readAngleLock?.Invoke() ?? angleLocked;
     public bool DistanceInterpolationEnabled { get; set; } = true;
-    public ushort WideScreenScriptValue { get; private set; }
+    public OpenSpidey.Core.UI.CinematicScreenState CinematicScreen { get; set; } = new();
+    public ushort WideScreenScriptValue => unchecked((ushort)CinematicScreen.WideScreenValue);
     public short Heading { get; set; }
     public CameraParameterTransition Parameter(CameraParameter parameter) => parameters[(int)parameter];
 
@@ -44,7 +45,7 @@ public sealed class ScriptedCameraRig
         if (writeAngleLock is not null) writeAngleLock(locked);
         else angleLocked = locked;
     }
-    public void SetWideScreenScriptValue(ushort value) => WideScreenScriptValue = value;
+    public void SetWideScreenScriptValue(ushort value) => CinematicScreen.Set(value);
     public void SetFixedPosition(FixedVector3 current, FixedVector3 target, ushort duration)
     {
         FixedPosition.Set(current, target, duration);

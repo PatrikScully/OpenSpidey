@@ -87,12 +87,88 @@ internal static class SourceModuleTests
             cleanup.UnloadAll();
             assert(cleared.Count == 3, "Repeated original module cleanup runs no second clear callback.");
         }
+        VerifyTypedContracts(assert);
         void Reject<T>(Action action) where T : Exception
         {
             try { action(); }
             catch (T) { assert(true, $"Source module boundary rejects {typeof(T).Name}."); return; }
             throw new InvalidDataException($"Expected {typeof(T).Name} at bounded source module input.");
         }
+    }
+
+    private static void VerifyTypedContracts(Action<bool, string> assert)
+    {
+        var modules = new SourceModuleRegistry<int, object>();
+        object target = new();
+        var actor = new QueryActor { Target = target, State = 5 };
+        int factoryCalls = 0, queryCalls = 0, actionCalls = 0, parameterlessCalls = 0, clearCalls = 0;
+        modules.Register("jonah", module =>
+        {
+            module.SetClear(() => clearCalls++);
+            module.SetUserFunction(0, node => { factoryCalls++; return actor; });
+            module.SetTypedUserFunction<QueryActor, uint>(1, value =>
+            {
+                queryCalls++;
+                return value.State switch { 5 => 2u, 8 => 0u, _ => 1u };
+            });
+            module.SetUserAction<QueryActor>(2, value => { actionCalls++; value.Flags |= 0xC; });
+        });
+        modules.Register("scorpion", module =>
+        {
+            module.SetClear(() => clearCalls++);
+            module.SetTypedUserFunction<QueryActor, object?>(1, value => value.Target);
+        });
+        modules.Load("jonah"); modules.Load("scorpion");
+        assert(ReferenceEquals(modules.CallUserFunction("jonah", 0, 2), actor) && factoryCalls == 1 &&
+            modules.CallTypedUserFunction<QueryActor, uint>("jonah", 1, actor) == 2 && queryCalls == 1 &&
+            ReferenceEquals(modules.CallTypedUserFunction<QueryActor, object?>("scorpion", 1, actor), target),
+            "Distinct source slots preserve factory references, unsigned behavior decisions and target identities in one loaded module table.");
+        actor.Flags = 0x80;
+        modules.CallUserAction("jonah", 2, actor);
+        assert(actor.Flags == 0x8C && actionCalls == 1,
+            "A typed void slot receives the actual actor identity and preserves unrelated plea flags.");
+        Reject(() => modules.CallUserFunction("jonah", 1, 0));
+        Reject(() => modules.CallTypedUserFunction<QueryActor, int>("jonah", 1, actor));
+        Reject(() => modules.CallParameterlessUserFunction("jonah", 2));
+        Reject(() => modules.CallUserAction("jonah", 1, actor));
+        Reject(() => modules.CallTypedUserFunction<QueryActor, uint>("jonah", 7, actor));
+        assert(factoryCalls == 1 && queryCalls == 1 && actionCalls == 1 && actor.Flags == 0x8C,
+            "Missing slots and mismatched argument/result contracts fail before any source callback or actor mutation.");
+        SourceModule<int, object> jonah = modules.SourceOrder.Single(module => module.Name == "jonah");
+        jonah.SetParameterlessUserFunction(2, () => parameterlessCalls++);
+        Reject(() => modules.CallUserAction("jonah", 2, actor));
+        modules.CallParameterlessUserFunction("jonah", 2);
+        assert(parameterlessCalls == 1 && actionCalls == 1,
+            "Replacing a user slot with a parameterless callback removes its prior typed action contract.");
+        jonah.SetUserAction<QueryActor>(2, value => { actionCalls++; value.Flags |= 0xC; });
+        Reject(() => modules.CallParameterlessUserFunction("jonah", 2));
+        modules.CallUserAction("jonah", 2, actor);
+        assert(actionCalls == 2 && parameterlessCalls == 1,
+            "Replacing a parameterless slot restores a single typed action without retaining a second callback.");
+        modules.UnloadAll();
+        Reject(() => modules.CallTypedUserFunction<QueryActor, uint>("jonah", 1, actor));
+        modules.Load("jonah");
+        assert(modules.CallTypedUserFunction<QueryActor, uint>("jonah", 1, actor) == 2 && clearCalls == 2,
+            "Unload retires typed slot access and reload installs the genuine initializer's contracts again.");
+        modules.UnloadAll();
+
+        void Reject(Action call)
+        {
+            try { call(); }
+            catch (InvalidOperationException)
+            {
+                assert(true, "A source module contract mismatch or unloaded slot is rejected before dispatch.");
+                return;
+            }
+            throw new InvalidDataException("An invalid typed source module call was accepted.");
+        }
+    }
+
+    private sealed class QueryActor
+    {
+        public object? Target { get; init; }
+        public uint State { get; init; }
+        public uint Flags { get; set; }
     }
     private sealed class Loader : IMissionModuleLoader
     {

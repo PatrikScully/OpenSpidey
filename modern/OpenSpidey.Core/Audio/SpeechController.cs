@@ -1,6 +1,7 @@
 namespace OpenSpidey.Core.Audio;
 
 public readonly record struct SpeechRequest(int Bank, int Slot, int Priority);
+public readonly record struct PositionSpeechStart(int Bank, int Slot, uint Vblank);
 public readonly record struct SpeechEnvironment(bool FileIoBusy = false, bool MovieActive = false, bool PostWaterEffect = false);
 
 public interface ISpeechPlayback
@@ -21,6 +22,7 @@ public sealed class SpeechController(ISpeechPlayback playback)
     public int Cooldown { get; private set; }
     public SpeechRequest? Pending { get; private set; }
     public SpeechRequest? Current { get; private set; }
+    public PositionSpeechStart LastPositionStart { get; private set; }
 
     public bool Play(int bank, int slot, int priority, SpeechEnvironment environment = default)
     {
@@ -37,6 +39,15 @@ public sealed class SpeechController(ISpeechPlayback playback)
         Priority = priority;
         Busy = true;
         Current = request;
+        return true;
+    }
+
+    /// <summary>PC Redbook_XAPlayPos retains bank/slot and reads vblank after an accepted XAPlay; it does not spatialize the voice.</summary>
+    public bool PlayAtPosition(int bank, int slot, int priority, Func<uint> readVblank, SpeechEnvironment environment = default)
+    {
+        ArgumentNullException.ThrowIfNull(readVblank);
+        if (!Play(bank, slot, priority, environment)) return false;
+        LastPositionStart = new(bank, slot, readVblank());
         return true;
     }
 

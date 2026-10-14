@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Godot;
+using OpenSpidey.Assets.Scripting;
 using OpenSpidey.Core.Cameras;
+using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Player;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Game.Actors;
@@ -29,8 +31,11 @@ internal sealed class PlayerStoryInputImportProbe : IDisposable
     private bool requestingSkip;
     private bool sawAbortBeforePrivateWebs;
     private bool disposed;
+    private int expectedCheckpoint;
     private readonly List<string> missionCommands = [];
     private readonly List<string> spawnedControls = [];
+    private readonly List<MissionTrace> traces = [];
+    private readonly List<ushort> spawnedNodes = [];
     private CleanupSnapshot? cleanupSnapshot;
 
     public PlayerStoryInputImportProbe(StoryLevelSession scene, Action<bool, string> assert)
@@ -83,11 +88,73 @@ internal sealed class PlayerStoryInputImportProbe : IDisposable
         int completed = skip.CleanupCount;
         await scene.ToSignal(scene.GetTree(), SceneTree.SignalName.PhysicsFrame);
         await scene.ToSignal(scene.GetTree(), SceneTree.SignalName.PhysicsFrame);
-        assert(skip.CleanupCount == completed && player.Scripts?.Active == false,
+        assert(skip.CleanupCount == completed && !scene.Registry.Environment.FastForwardDeath,
             "Subsequent genuine source frames cannot repeat the completed cutscene cleanup. " +
             $"Cleanup={completed}/{skip.CleanupCount}, active={player.Scripts?.Active}, abort={scene.Registry.Environment.FastForwardDeath}, programs={player.Scripts?.ProgramsStarted}, " +
             $"programOffset={player.Scripts?.CurrentProgram?.Instructions[0].SourceOffset:X}, instant={cleanupSnapshot}, currentClock={scene.SourceClock}, " +
             $"mission=[{string.Join(',', missionCommands)}], controls=[{string.Join(',', spawnedControls)}].");
+        await VerifyFollowOnCutsceneAsync();
+    }
+
+    private async Task VerifyFollowOnCutsceneAsync()
+    {
+        GodotPlayerScripts scripts = player.Scripts ?? throw new InvalidDataException("The actual first-mission player input owner disappeared.");
+        TriggerNode producerNode = scene.Registry.Triggers.Nodes[0], commandNode = scene.Registry.Triggers.Nodes[281];
+        TriggerActorDefinition producer = TriggerActorDefinition.Read(producerNode);
+        IReadOnlyList<TriggerInstruction> program = TriggerCommandReader.Read(commandNode);
+        TriggerInstruction input = program.Single(instruction => instruction.Opcode == 199);
+        PlayerScriptProgram authored = PlayerScriptProgram.Read(input.Arguments.Span, input.SourceOffset + 2);
+        TriggerNode checkpoint = scene.Registry.Triggers.Nodes[96];
+        TriggerPosition checkpointPosition = TriggerPlacement.Read(checkpoint).Position;
+        FixedVector3 target = new FixedVector3(checkpointPosition.X, checkpointPosition.Y, checkpointPosition.Z) << 12;
+        assert(producer.ActorType == 203 && !producer.InitializeOnLoad && producer.Links.SequenceEqual(new ushort[] { 43, 209, 228, 174, 184, 182, 187, 186, 281 }) &&
+            program.Select(instruction => instruction.Opcode).SequenceEqual(new ushort[] { 195, 199 }) &&
+            authored.Instructions[0] is { Opcode: PlayerScriptOpcode.SetCheckpoint, First: 96, SourceOffset: 0x2F8E } &&
+            checkpoint.TypeCode == 3 && MissionRuntime.ReadLinks(checkpoint).Count == 0,
+            "The unchanged L1A1 follow-on is control0's authored281 pulse, source195/199 and stream2F8E/checkpoint96, with no substituted actor or script.");
+
+        await Until(() => scripts.ProgramsStarted == 2 && scripts.Active && scripts.Runtime?.CheckpointNode == 96 && skip.State.Allowed == 1,
+            "The genuine follow-on281 input and original222 manual-skip gate did not become ready.");
+        assert(scripts.CurrentProgram is { } actual && actual.Instructions.SequenceEqual(authored.Instructions) &&
+            spawnedNodes.Contains(0) && traces.Count(trace => trace.Kind == MissionTraceKind.Queued && trace.NodeId == 281) == 1 &&
+            traces.Where(trace => trace.Kind == MissionTraceKind.CommandCompleted && trace.NodeId == 281)
+                .Select(trace => (trace.Opcode, trace.SourceOffset)).SequenceEqual(program.Select(instruction => ((ushort?)instruction.Opcode, instruction.SourceOffset))) &&
+            traces.Any(trace => trace.Kind == MissionTraceKind.CommandCompleted && trace.Opcode == 222) && !scene.Registry.Environment.FastForwardDeath,
+            "The real source actor0 constructs/completes, queues281 once and executes its exact195/199 bytes before the second original physical skip is legal.");
+
+        int oldManual = skip.ManualSkips, oldCleanup = skip.CleanupCount;
+        GodotPlayerDistanceAttackPreparation preparation = Descendants(scene).OfType<GodotPlayerWebRuntime>().Single().DistanceAttackPreparation!;
+        int oldPreparation = preparation.PreparationCount;
+        expectedCheckpoint = 96;
+        observedCleanup = 0; idleAnimationVisits = 0; sawAbortBeforePrivateWebs = false; cleanupSnapshot = null;
+        requestingSkip = true;
+        SendCrossKey(true);
+        try { await Until(() => observedCleanup == 1, "Physical Cross did not complete the genuine checkpoint96 follow-on cleanup."); }
+        finally { SendCrossKey(false); requestingSkip = false; }
+        assert(sawAbortBeforePrivateWebs && skip.ManualSkips == oldManual + 1 && skip.CleanupCount == oldCleanup + 1 &&
+            scripts.ProgramsStarted == 2 && !scripts.Active && !player.Combat.State.SynthesizedInputActive &&
+            preparation.PreparationCount == oldPreparation + 1 && player.Controller.Position == target &&
+            player.Combat.State.Position == target && !scene.Registry.Environment.FastForwardDeath && scene.Mission.PendingCount == 0,
+            "One second legal physical trigger must finish the actual281 VM, teleport to its original96 checkpoint, run genuine Prior cleanup once and drain pending commands before effects.");
+
+        int sourceUpdates = scene.Registry.SourceUpdates;
+        await Until(() => scene.Registry.SourceUpdates >= sourceUpdates + 2, "Source simulation did not resume after actual checkpoint96 cleanup.");
+        assert(scripts.ProgramsStarted == 2 && !scripts.Active && skip.CleanupCount == oldCleanup + 1 &&
+            preparation.PreparationCount == oldPreparation + 1 && !scene.Registry.Environment.FastForwardDeath,
+            "Two completed source-list visits after checkpoint96 retain the same completed program and cleanup counts before the live effect probe starts.");
+
+        async Task Until(Func<bool> complete, string failure)
+        {
+            var deadline = Stopwatch.StartNew();
+            while (!complete())
+            {
+                if (scene.Failure is { } sourceFailure) throw new InvalidDataException("The actual follow-on story script stopped the source scene.", sourceFailure);
+                if (deadline.Elapsed > TimeSpan.FromSeconds(15))
+                    throw new TimeoutException(failure + $" programs={scripts.ProgramsStarted},active={scripts.Active},checkpoint={scripts.Runtime?.CheckpointNode},allowed={skip.State.Allowed}," +
+                        $"manual={skip.ManualSkips},cleanup={skip.CleanupCount},clock={scene.SourceClock},mission=[{string.Join(',', missionCommands)}],controls=[{string.Join(',', spawnedControls)}].");
+                await scene.ToSignal(scene.GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+        }
     }
 
     private void BeforePrivateWebs(uint time)
@@ -114,7 +181,7 @@ internal sealed class PlayerStoryInputImportProbe : IDisposable
         }
         if (!requestingSkip || !scene.Registry.Environment.FastForwardDeath) return;
         sawAbortBeforePrivateWebs = true;
-        assert(player.Scripts is { Active: true } && player.PhysicalPad[3].Triggered == 0 &&
+        assert(player.Scripts is { Active: true } && player.Scripts.Runtime?.CheckpointNode == expectedCheckpoint && player.PhysicalPad[3].Triggered == 0 &&
             player.PhysicalPad[2].Triggered == 0 && player.PhysicalPad[16].Triggered == 0,
             "The genuine physical pad gate consumes exactly original Cross/Circle/virtual Jump triggers while the VM is still active before private webs.");
     }
@@ -128,6 +195,7 @@ internal sealed class PlayerStoryInputImportProbe : IDisposable
             scene.Registry.Environment.FastForwardDeath, scripts.ProgramsStarted,
             scripts.CurrentProgram!.Instructions[0].SourceOffset, scene.SourceClock);
         assert(sawAbortBeforePrivateWebs && player.Scripts?.Active == false && !player.Combat.State.SynthesizedInputActive && scene.Mission.PendingCount == 0 &&
+            scripts.Runtime?.CheckpointNode == expectedCheckpoint &&
             !scene.Registry.Environment.FastForwardDeath && skip.State.FieldE00 == 0 &&
             player.PhysicalPad[3].Pressed == 1 && player.PhysicalPad[16].Pressed == 1,
             "After actual pending commands drain, original cleanup clears E00/shared abort and forces pressed Cross/virtual Jump after the VM has completed.");
@@ -155,10 +223,15 @@ internal sealed class PlayerStoryInputImportProbe : IDisposable
     }
     private void RecordMission(MissionTrace trace)
     {
+        traces.Add(trace);
         if (trace.Kind == MissionTraceKind.CommandCompleted)
             missionCommands.Add($"{trace.NodeId}/{trace.Opcode}@{trace.SourceOffset:X}/clock{scene.SourceClock}");
     }
-    private void RecordSpawn(GodotScriptActor actor) => spawnedControls.Add($"{actor.SourceNodeId}/{actor.SourceActorType}/clock{scene.SourceClock}");
+    private void RecordSpawn(GodotScriptActor actor)
+    {
+        spawnedNodes.Add(actor.SourceNodeId);
+        spawnedControls.Add($"{actor.SourceNodeId}/{actor.SourceActorType}/clock{scene.SourceClock}");
+    }
 
     public void Dispose()
     {

@@ -27,6 +27,8 @@ public partial class StoryLevelSession
         player.SoundOutput = playerSounds.Play;
         camera = new() { Name = "PlayerCamera", Target = player, SourceTotalTime = () => unchecked((uint)LogicFrame),
             SourceProjectionCache = application.CameraProjectionCache, SourceRenderPhase = true }; AddChild(camera);
+        camera.ScriptRig.CinematicScreen = application.CinematicScreen;
+        player.ResetCinematicScreen = application.CinematicScreen.Reset;
         player.CameraStartup = new(player, () => camera);
         player.CameraHeading = () => camera.SourceHeading;
         player.Inventory = new(new() { Webbing = resources.Webbing, Cartridges = resources.Cartridges }, player,
@@ -70,6 +72,7 @@ public partial class StoryLevelSession
             BeginZip = player.Controller.BeginLookaroundZip, BeginSwing = _ => player.Controller.ApplyCombatState()
         });
         web.ConfigureSwing(camera, combat, lookaround.Targets);
+        player.Scripts.BindSourceOwners(web, combat);
         player.Combat.LookaroundExited = lookaround.Camera.ExitLookaroundMode;
         player.Controller.Lookaround = lookaround; player.Controller.Web = web;
         web.ConfigureDistanceAttack(combat, camera, libraries.Repository.Load("items"), sounds.Controller,
@@ -107,14 +110,11 @@ public partial class StoryLevelSession
             SourceBitCreated = (list, bit) => ownership!.Particles.Attach(list, bit), SourceBitRemoved = identity => ownership!.Particles.Detach(identity)
         });
         player.Controller.PowerUps = new GodotPlayerPowerUpCollection(player, Registry, player.PowerUpCollection, player.Combat.PlaySound);
-        ImportedLevelSource environment = World.Sources.Single(source => source.AssetPath.Equals(geometryAsset, StringComparison.OrdinalIgnoreCase));
-        PsxZoneGrid grid = PsxZoneGridReader.Read(archive!.Read(geometryAsset), environment.Scene.Instances.Count)
-            ?? throw new InvalidDataException("The original environment has no trigger grid.");
-        player.Controller.TriggerZones = new GodotPlayerTriggerZones(player, World, geometryAsset, grid, application.TriggerSweep,
-            () => Registry.SourceList(ActorUpdateGroup.Environment).SourceOrder.OfType<GodotScriptActor>().Where(Registry.Owns).ToArray(),
-            checksum => Mission.TriggerCommandPoint(checksum));
+        if (libraries.World is { } loadedWorld) BindPlayerWorld(loadedWorld);
+        PlayerModules = GodotPlayerModuleHook.Bind(player, application.PlayerModuleHook, codeModules.Modules);
         player.MissionContacts = Mission;
         GodotPlayerHud hud = GodotPlayerHud.Create(archive!, player, () => SourceClock);
+        hud.SourceScreenOffsetY = () => application.CinematicScreen.WideScreenShadow;
         hud.BindPowerUpResources(pickups); hud.Countdown = application.Countdown; hudLayer.AddChild(hud);
         GodotCompass compass = GodotCompass.Create(archive!.Read("data/bits.psx"), Registry.RequireControlServices().Compass,
             () => new CompassView(camera.SourcePosition >> 12, camera.SourceViewRotation, SourceClock, hud.ScreenOffsetY));
@@ -125,7 +125,9 @@ public partial class StoryLevelSession
             PlayerScriptGate = () => player.Combat.State.FieldE18,
             PlayerSynthesizedInput = () => player.Combat.State.SynthesizedInputActive,
             Random = random.Next, PlaySound = (sound, volume, pitch) => player.Combat.PlaySound(sound, volume, pitch),
-            CallModule = (module, function) => throw new NotSupportedException($"Timer display requires unported module {module}, function {function}.")
+            CallModule = codeModules.Modules.CallParameterlessUserFunction,
+            BeginModulePresentation = ScorpionApproach.BeginPresentationFrame,
+            DrawModulePresentation = ScorpionApproach.DrawOn
         });
         hud.AddChild(hud.Timer);
         var fade = new GodotCampaignFade { Name = "CampaignFade" }; AddChild(fade);
@@ -160,7 +162,27 @@ public partial class StoryLevelSession
             .Concat(new ushort[] { 215, 216 }.Select(opcode => new FightMusicFadeCommandHandler(opcode,
                 () => (Player ?? throw new InvalidOperationException("Fight-music fade requires the actual current player.")).Combat.State)))
             .Concat(PlayerStoryInputCommandHandler.CreateHandlers(cutsceneSkip.State, player.SetSourceFootstepBank))
-            .Concat(LevelTransitionCommandHandler.CreateHandlers(transitions)));
+            .Concat(LevelTransitionCommandHandler.CreateHandlers(transitions)
+                .Where(handler => handler.Opcode != (ushort)MissionOpcode.EndLevelNode)));
         player.Faulted += Fail;
+    }
+
+    private void BindPlayerWorld(ImportedLevelWorld world)
+    {
+        if (Player is not { } player || combat is null || ReferenceEquals(world, playerWorld)) return;
+        if (playerWorld is not null)
+            throw new NotSupportedException("Replacing a live player's environment requires source world-generation teardown.");
+        foreach (var claim in pendingModelClaims)
+            if (world.Sources.Any(source => ReferenceEquals(source.Scene, claim.Scene)))
+                world.ClaimObjectModel(claim.AssetPath, claim.Model);
+        pendingModelClaims.Clear();
+        objects!.PrepareEnvironment();
+        ImportedLevelSource source = world.Sources.Single(source => source.AssetPath.Equals(geometryAsset, StringComparison.OrdinalIgnoreCase));
+        PsxZoneGrid grid = PsxZoneGridReader.Read(archive!.Read(geometryAsset), source.Scene.Instances.Count)
+            ?? throw new InvalidDataException("The original environment has no trigger grid.");
+        player.Controller.TriggerZones = new GodotPlayerTriggerZones(player, world, geometryAsset, grid, application.TriggerSweep,
+            () => Registry.SourceList(ActorUpdateGroup.Environment).SourceOrder.OfType<GodotScriptActor>().Where(Registry.Owns).ToArray(),
+            checksum => Mission.TriggerCommandPoint(checksum));
+        playerWorld = world;
     }
 }

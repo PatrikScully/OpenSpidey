@@ -4,7 +4,8 @@ using OpenSpidey.Assets.Scripting;
 namespace OpenSpidey.Core.Missions;
 
 /// <summary>Source SendVisible13 resolves kind2/9 links in order and changes only each matched ENV item's flag0.</summary>
-public sealed class LinkedEnvironmentVisibilityCommandHandler(TriggerFile file, IEnvironmentVisibilityHost host)
+public sealed class LinkedEnvironmentVisibilityCommandHandler(TriggerFile file, IEnvironmentVisibilityHost host,
+    Action<TriggerNode>? invalidEnvironmentLink = null)
     : IMissionCommandHandler
 {
     public ushort Opcode => (ushort)MissionOpcode.SendVisible;
@@ -18,6 +19,12 @@ public sealed class LinkedEnvironmentVisibilityCommandHandler(TriggerFile file, 
         {
             if (id >= file.Nodes.Count) throw new InvalidDataException($"Node {context.Node.Id}: missing ENV link{id}.");
             TriggerNode node = file.Nodes[id];
+            if (node.TypeCode is not (2 or 9))
+            {
+                // The original PC debug stub returns, then iteration continues with the next original link.
+                invalidEnvironmentLink?.Invoke(node);
+                continue;
+            }
             host.SetVisibility(TriggerEnvironmentReference.ReadChecksum(node), visible);
         }
     }

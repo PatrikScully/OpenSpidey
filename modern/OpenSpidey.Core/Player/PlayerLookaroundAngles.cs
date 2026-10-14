@@ -4,6 +4,11 @@ namespace OpenSpidey.Core.Player;
 public static class PlayerLookaroundAngles
 {
     public static bool Advance(PlayerLookaroundState state, short effectiveHeading, bool ceiling, int elapsedTicks)
+        => Advance(state, () => effectiveHeading, ceiling, elapsedTicks, null);
+
+    /// <summary>Source setup stores both screen globals before reading the effective heading; inactive and steady branches leave them unchanged.</summary>
+    internal static bool Advance(PlayerLookaroundState state, Func<short> readEffectiveHeading, bool ceiling, int elapsedTicks,
+        Action<int>? setCinematicScreen)
     {
         if (!state.Active) return false;
         if (state.EntranceTicks > elapsedTicks)
@@ -11,6 +16,7 @@ public static class PlayerLookaroundAngles
             state.EntranceTicks = unchecked(state.EntranceTicks - elapsedTicks);
             state.HeadingTurnTicksRemaining = 0;
             state.TransitionFade = unchecked(32 * (24 - state.EntranceTicks)) / 24;
+            setCinematicScreen?.Invoke(state.TransitionFade);
         }
         else
         {
@@ -20,14 +26,17 @@ public static class PlayerLookaroundAngles
                 state.ExitTicks = unchecked(state.ExitTicks - elapsedTicks);
                 // PC4C3958 rejoins the common fade calculation with ESI still holding exit remaining.
                 state.TransitionFade = unchecked(32 * state.ExitTicks) / 24;
+                setCinematicScreen?.Invoke(state.TransitionFade);
             }
             else if (state.ExitTicks != 0)
             {
                 state.ExitTicks = 0; state.Active = false; state.TransitionFade = 0;
                 state.NeckPitch = state.NeckYaw = state.HeadPitch = state.HeadYaw = 0;
+                setCinematicScreen?.Invoke(0);
                 return false;
             }
         }
+        short effectiveHeading = readEffectiveHeading();
         short delta = unchecked((short)(effectiveHeading - state.PreviousHeading));
         if (delta > 512) delta = unchecked((short)(delta - 4096));
         else if (delta < -512) delta = unchecked((short)(delta + 4096));

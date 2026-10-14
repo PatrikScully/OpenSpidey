@@ -12,6 +12,7 @@ public partial class GodotMissionLibraries : Node3D, ISceneLibraryHost
     public PsxLibraryRepository Repository { get; init; } = null!;
     public ImportedLevelWorld? World { get; private set; }
     public PsxAssetLibrary? ObjectLibrary { get; private set; }
+    public event Action<ImportedLevelWorld>? EnvironmentLoaded;
 
     public void LoadLibrary(string name) => Repository.Load(name);
 
@@ -34,6 +35,7 @@ public partial class GodotMissionLibraries : Node3D, ISceneLibraryHost
         ClearWorld();
         World = next;
         AddChild(next);
+        EnvironmentLoaded?.Invoke(next);
     }
 
     public void SelectObjectLibrary(string name) => ObjectLibrary = Repository.RequireLoaded(name);

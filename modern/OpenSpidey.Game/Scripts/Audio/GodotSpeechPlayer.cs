@@ -37,6 +37,8 @@ public partial class GodotSpeechPlayer : Node, ISpeechPlayback
     }
 
     public bool Play(int bank, int slot, int priority) => Controller.Play(bank, slot, priority, Environment());
+    public bool PlayAtPosition(int bank, int slot, int priority, Func<uint> readVblank) =>
+        Controller.PlayAtPosition(bank, slot, priority, readVblank, Environment());
     public override void _PhysicsProcess(double delta)
     {
         try { Controller.UpdateVblank(Environment()); }

@@ -20,6 +20,7 @@ public sealed class PlayerLookaroundTransitionState(PlayerLookaroundState angles
 
 public interface IPlayerLookaroundExitHost
 {
+    void SetCinematicScreen(int value);
     void DeleteTransitionPath(FixedQuaternion[] path);
     void PopCameraMode();
     void PutCameraBehind(int argument);

@@ -23,6 +23,7 @@ public partial class GodotPlayerHud : Node2D
     private GodotPlayerPowerUpResources? powerUps;
     public uint LastHealthPickupClock { get; set; }
     public int ScreenOffsetY { get; set; }
+    public Func<int>? SourceScreenOffsetY { get; set; }
     public bool Enabled { get; set; } = true;
     public MissionCountdown? Countdown { get; set; }
     public GodotMissionTimerPresenter? Timer { get; set; }
@@ -84,6 +85,7 @@ public partial class GodotPlayerHud : Node2D
     public override void _Draw()
     {
         if (disposed) return;
+        if (SourceScreenOffsetY is { } readOffset) ScreenOffsetY = readOffset();
         Countdown?.Update(clock(), player.Combat.State.FieldE18 != 0 || player.Combat.State.SynthesizedInputActive);
         Vector2 size = GetViewport().GetVisibleRect().Size;
         if (size.X <= 0 || size.Y <= 0) return;

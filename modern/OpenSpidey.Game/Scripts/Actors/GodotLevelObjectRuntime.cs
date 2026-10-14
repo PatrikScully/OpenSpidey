@@ -42,7 +42,7 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
             SceneOwnership = combat.SceneOwnership, Sounds = sounds, Listener = () => new(camera.SourcePosition >> 12),
             Countdown = countdown, TriggerData = triggerData, Clock = clock, Visibility = visibility
         });
-        try { runtime.BindPlayer(combat, camera); return runtime; }
+        try { runtime.BindPlayer(combat, camera); runtime.PrepareEnvironment(); return runtime; }
         catch { runtime.Free(); throw; }
     }
 
@@ -89,9 +89,12 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
         if (!ReferenceEquals(combat.SceneOwnership, context.SceneOwnership) || !ReferenceEquals(combat.World, worldQuery) ||
             !ReferenceEquals(camera.Target, context.Registry.Player))
             throw new ArgumentException("Level objects require the actual registry player and canonical scene body owners.");
-        combat.Session.RegisterSwitchEnvironment(EnsureEnvironment());
         this.combat = combat; this.camera = camera;
+        if (environment is not null) combat.Session.RegisterSwitchEnvironment(environment);
     }
+
+    /// <summary>Prepare the actual ENV only after its source library command has loaded the world.</summary>
+    public void PrepareEnvironment() => _ = EnsureEnvironment();
 
     private GodotPlayerCombatRuntime RequireCombat()
     {
@@ -118,6 +121,7 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
         prepared.ItemClaimed += context.Visibility.TransferFlagsToClaimedItem;
         AddChild(prepared);
         environment = prepared;
+        combat?.Session.RegisterSwitchEnvironment(prepared);
         return prepared;
     }
 

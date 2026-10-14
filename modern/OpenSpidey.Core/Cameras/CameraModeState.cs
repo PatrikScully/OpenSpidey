@@ -19,6 +19,7 @@ public sealed class CameraModeState
     public FixedQuaternion DisplayRotation { get; set; }
     public FixedQuaternion SavedRotation { get; private set; }
     public int AngleInterpolationTicks { get; set; }
+    public byte ItemHidingEnabled { get; set; } // Source0xF9, independent of the placement collision result0x180.
     public byte CollisionFlag { get; set; }
 
     public void PushMode()

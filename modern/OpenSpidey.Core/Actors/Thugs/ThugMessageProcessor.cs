@@ -9,7 +9,9 @@ public sealed class ThugMessage(int code, object? senderHandle = null)
     public object? SenderHandle { get; } = senderHandle;
     public int Flags { get; set; }
     public int Age { get; set; }
+    public int Parameter32 { get; set; } // Shared CMessage::mParams[0], source +0x20.
     public FixedVector3 Vector0 { get; set; }
+    public FixedVector3 Vector1 { get; set; } // Shared CMessage::mVects[1], source +0x34.
     public ThugMessage? Next { get; internal set; }
 }
 

@@ -22,6 +22,7 @@ public sealed class PlayerCombatState(short health, int maxHealth)
     public bool IsCrawling { get; set; }
     public bool SynthesizedInputActive { get; set; }
     public int FieldE18 { get; set; }
+    public short SavedInputAnimationSpeed { get; set; } // Source +0xE12, saved by SetIgnoreInputTimer.
     public int Field36C { get; set; }
     public int Field8DC { get; set; }
     public byte Field8E8 { get; set; }

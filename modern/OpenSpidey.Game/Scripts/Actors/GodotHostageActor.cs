@@ -234,6 +234,8 @@ public partial class GodotHostageActor : GodotScriptActor, IHostageHost, IHostag
         if (GodotActorSparkCommands.TryExecute(registry, opcode, operands, SourcePosition, Actor.Body.Angles)) return true;
         if (GodotActorCameraShakeCommands.TryExecute(registry, opcode, operands, ReadVariable, SourcePosition)) return true;
         if (GodotActorVisualEffectCommands.TryExecute(registry, opcode, operands, SourcePosition)) return true;
+        if (GodotActorSpeechCommands.TryExecute(registry, opcode, operands, ScriptState, environment, SourcePosition)) return true;
+        if (opcode == 0x42B9 && GodotActorPlayerScriptCommands.TryExecute(registry, opcode, operands)) return true;
         if(Route.TryExecuteCommand(opcode,operands))return true;
         if(opcode==0x470F){Actor.BehaviorFlags|=0x02000000;return true;}
         if(opcode==0x4227)

@@ -32,6 +32,7 @@ public partial class GodotPlayer : Node3D
     public PlayerPowerUpCollectionState PowerUpCollection { get; } = new();
     public IMissionContactFrameHost? MissionContacts { get; set; }
     public Action<PlayerFrameSound>? SoundOutput { get; set; }
+    public Action? ResetCinematicScreen { get; set; }
     public uint SourceFootstepBank { get; private set; }
     public bool UseLevelFootstepAliases { get => SourceFootstepBank != 0; set => SourceFootstepBank = value ? 1u : 0u; }
     public void SetSourceFootstepBank(ushort value) => SourceFootstepBank = value;
@@ -215,6 +216,8 @@ public partial class GodotPlayer : Node3D
         Controller.BeginPlayerAi -= BeginSourceAi;
         Controller.Melee=null;
         Animation.SourceScriptsSelected=null;
+        ResetCinematicScreen?.Invoke();
+        ResetCinematicScreen = null;
     }
     public void ConfigureMelee(GodotPlayerMeleeConfiguration configuration)
     {

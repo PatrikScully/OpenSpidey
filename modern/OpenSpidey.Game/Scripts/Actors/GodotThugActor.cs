@@ -467,6 +467,8 @@ public partial class GodotThugActor : GodotScriptActor, IThugBrainHost, IThugCom
         if (GodotActorSparkCommands.TryExecute(registry, opcode, operands, SourcePosition, Actor.Body.Angles)) return true;
         if (GodotActorCameraShakeCommands.TryExecute(registry, opcode, operands, ReadVariable, SourcePosition)) return true;
         if (GodotActorVisualEffectCommands.TryExecute(registry, opcode, operands, SourcePosition)) return true;
+        if (GodotActorSpeechCommands.TryExecute(registry, opcode, operands, ScriptState, environment, SourcePosition)) return true;
+        if (opcode == 0x42B9 && GodotActorPlayerScriptCommands.TryExecute(registry, opcode, operands)) return true;
         if (Route.TryExecuteCommand(opcode, operands)) return true;
         // CBaddy::ExecuteCommand: 470F has no operands and sets body field2A8.
         if (opcode == 0x470F) { Actor.BehaviorFlags |= 0x02000000; return true; }

@@ -71,7 +71,7 @@ public sealed class GodotMissionLevelTransitions : ILevelTransitionHost, IDispos
     public void SetMissionName(string name)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        application.SelectMission(name, ResolveAuthoredGeometry(services.Archive, name));
+        application.SelectMission(name, ResolveAuthoredGeometry(services.Archive, name, application.AlternativeAutoexec));
     }
 
     public void SetEndLevelNode(ushort node)
@@ -108,28 +108,14 @@ public sealed class GodotMissionLevelTransitions : ILevelTransitionHost, IDispos
     }
 
     /// <summary>Reads the target mission's actual startup environment request, retaining original asset identity.</summary>
-    public static string ResolveAuthoredGeometry(PkrArchive archive, string missionName)
+    public static string ResolveAuthoredGeometry(PkrArchive archive, string missionName, bool alternativeAutoexec = false)
     {
         ArgumentNullException.ThrowIfNull(archive);
         ArgumentNullException.ThrowIfNull(missionName);
         if (missionName.Length is 0 or > 9 || missionName.Any(character => character == 0 || character > 255 || character is '/' or '\\' or ':'))
             throw new InvalidDataException("An authored mission name is a single original Latin1 archive name.");
         TriggerFile triggers = TriggerFile.Read(archive.Read("data/" + missionName + ".trg"));
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (TriggerNode node in triggers.Nodes)
-        {
-            if (node.TypeCode != (ushort)TriggerNodeKind.Autoexec) continue;
-            foreach (TriggerInstruction command in TriggerCommandReader.Read(node))
-            {
-                if (command.Opcode != (ushort)MissionOpcode.LoadEnvironment) continue;
-                int end = command.Arguments.Span.IndexOf((byte)0);
-                if (end < 0) throw new InvalidDataException($"Mission {missionName}, node {node.Id}: unterminated environment name.");
-                paths.Add(PsxLibraryRepository.AssetPath(Encoding.Latin1.GetString(command.Arguments.Span[..end])));
-            }
-        }
-        if (paths.Count != 1)
-            throw new NotSupportedException($"Mission {missionName} has {paths.Count} distinct startup environment requests; its scene selection needs explicit composition.");
-        string path = paths.Single();
+        string path = MissionEnvironmentPlan.Read(triggers, alternativeAutoexec: alternativeAutoexec).AssetPath;
         if (!archive.Contains(path)) throw new FileNotFoundException($"Mission {missionName} requests missing environment {path}.", path);
         return path;
     }

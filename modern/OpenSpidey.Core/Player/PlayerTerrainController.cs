@@ -494,6 +494,7 @@ public sealed class PlayerTerrainController
         ArgumentNullException.ThrowIfNull(timerHost);
         ArgumentNullException.ThrowIfNull(progressHost);
         CombatState = state;
+        InputSuppression.BindSourceState(state, host.ExitLookaroundMode);
         combatHost = host;
         combatTimerHost = timerHost;
         deathProgressHost = progressHost;
@@ -801,8 +802,12 @@ public sealed class PlayerTerrainController
     }
 
     public void SetScriptPosition(FixedVector3 position) => Position = position;
-    public void SetIgnoreInputTimer(int duration) => InputSuppression.Set(duration, animation.Speed);
-    public void SetScriptVelocity(FixedVector3 velocity) => Velocity = velocity;
+    public void SetIgnoreInputTimer(int duration) => InputSuppression.Set(duration, animation.Speed, CombatState?.LookaroundActive == true);
+    public void SetScriptVelocity(FixedVector3 velocity)
+    {
+        Velocity = velocity;
+        if (CombatState is { } state) state.Velocity = velocity;
+    }
     public void EnterScriptedDelay() => Action = PlayerAction.ScriptedDelay;
 
     public void TeleportFromScript(FixedVector3 position)

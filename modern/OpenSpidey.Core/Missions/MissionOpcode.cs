@@ -27,6 +27,7 @@ public enum MissionOpcode : ushort
     SetObjectLibrary = 142,
     IfPulseCount = 148,
     EndIf = 149,
+    SetDualBufferSize = 151,
     KillPlayer = 152,
     EndLevel = 158,
     SetCameraMode = 160,

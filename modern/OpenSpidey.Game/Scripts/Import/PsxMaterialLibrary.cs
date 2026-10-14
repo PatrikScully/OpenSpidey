@@ -48,6 +48,14 @@ public sealed class PsxMaterialLibrary : IDisposable
         materials.Clear(); untextured.Dispose();
     }
 
+    internal Resource[] CaptureOwnedResources()
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        return materials.Values.Append(untextured).Cast<Resource>()
+            .Concat(materials.Values.Where(material => material.AlbedoTexture is not null).Select(material => (Resource)material.AlbedoTexture!))
+            .DistinctBy(resource => resource.GetInstanceId()).ToArray();
+    }
+
     private static StandardMaterial3D CreateMaterial() => new()
     {
         VertexColorUseAsAlbedo = true,
