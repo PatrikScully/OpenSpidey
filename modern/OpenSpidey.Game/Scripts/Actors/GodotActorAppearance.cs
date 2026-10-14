@@ -21,8 +21,7 @@ public interface IGodotActorAppearanceHost
 public sealed class GodotActorAppearance : IDisposable
 {
     private sealed record Surface(MeshInstance3D Mesh, int Index, StandardMaterial3D Original,
-        StandardMaterial3D Owned, Color Color, BaseMaterial3D.TransparencyEnum Transparency,
-        BaseMaterial3D.BlendModeEnum Blend);
+        StandardMaterial3D Owned, SourceMaterialSnapshot Snapshot);
     private sealed record Geometry(MeshInstance3D Instance, ArrayMesh Original, ArrayMesh Owned,
         Godot.Collections.Array[] Arrays, Color[][] Colors);
     private readonly List<Geometry> geometry = [];
@@ -61,7 +60,7 @@ public sealed class GodotActorAppearance : IDisposable
                     if (mesh.GetActiveMaterial(index) is not StandardMaterial3D original)
                         throw new NotSupportedException("Original actor surface requires its imported standard material.");
                     var material = (StandardMaterial3D)original.Duplicate();
-                    owner.surfaces.Add(new(mesh, index, original, material, original.AlbedoColor, original.Transparency, original.BlendMode));
+                    owner.surfaces.Add(new(mesh, index, original, material, SourceMaterialSnapshot.Of(original)));
                     mesh.SetSurfaceOverrideMaterial(index, material);
                 }
             }
@@ -101,14 +100,11 @@ public sealed class GodotActorAppearance : IDisposable
             }
             lastTint = (tint,rgb);
         }
+        float? translucency = SourceItemTranslucency.Alpha(flags);
         foreach (Surface surface in surfaces)
         {
             surface.Mesh.SetSurfaceOverrideMaterial(surface.Index,surface.Owned);
-            surface.Owned.AlbedoColor = new(surface.Color.R, surface.Color.G,
-                surface.Color.B, (flags & 0x800) != 0 ? 128 / 255f : surface.Color.A);
-            // Global source face flag0x40 forces PC mode2/alpha128 for a transparent actor.
-            surface.Owned.Transparency = (flags & 0x800) != 0 ? BaseMaterial3D.TransparencyEnum.Alpha : surface.Transparency;
-            surface.Owned.BlendMode = (flags & 0x800) != 0 ? BaseMaterial3D.BlendModeEnum.Add : surface.Blend;
+            SourceItemTranslucency.Apply(surface.Owned, surface.Snapshot, translucency);
         }
         actor.Model.Visible = (flags & 0x8001) == 0;
         Shadow.State.Update(actor.BodyFlags, actor.ShadowPosition,
@@ -146,10 +142,8 @@ public sealed class GodotActorAppearance : IDisposable
     internal void VerifyTransparency(bool enabled)
     {
         foreach (Surface surface in surfaces)
-            if (surface.Owned.BlendMode != (enabled ? BaseMaterial3D.BlendModeEnum.Add : surface.Blend) ||
-                surface.Owned.Transparency != (enabled ? BaseMaterial3D.TransparencyEnum.Alpha : surface.Transparency) ||
-                surface.Owned.AlbedoColor.A != (enabled ? 128/255f : surface.Color.A))
-                throw new InvalidDataException("Native actor transparency differs from source global face override mode2/alpha128.");
+            if (!SourceItemTranslucency.IsApplied(surface.Owned, surface.Snapshot, enabled ? SourceItemTranslucency.ModelAlpha : null))
+                throw new InvalidDataException("Native actor transparency differs from the source DCModel global face override mode2/alpha0xFF.");
     }
     private float Channel(float original,byte channel)
     {

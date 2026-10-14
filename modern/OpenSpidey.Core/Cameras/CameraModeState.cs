@@ -9,17 +9,23 @@ public sealed class CameraModeState
     public uint Mode { get; set; } = 3;
     public uint SavedMode { get; private set; }
     public FixedVector3 Position { get; set; }
+    public FixedVector3 Velocity { get; set; }
     public FixedVector3 SavedPosition { get; private set; }
     public FixedVector3 FocusPosition { get; set; }
     public AimAngles Angles { get; private set; }
     public short ViewHeading { get; set; }
     public FixedQuaternion CurrentRotation { get; set; }
     public FixedQuaternion DesiredRotation { get; set; }
-    public FixedQuaternion PreviousRotation { get; private set; }
+    public FixedQuaternion PreviousRotation { get; internal set; }
     public FixedQuaternion DisplayRotation { get; set; }
     public FixedQuaternion SavedRotation { get; private set; }
     public int AngleInterpolationTicks { get; set; }
+    public byte ItemHidingEnabled { get; set; } // Source0xF9, independent of the placement collision result0x180.
     public byte CollisionFlag { get; set; }
+    public FixedVector3 CollisionPosition { get; set; } // Source0x1B8, the pulled-in placement anchor.
+    public int SmoothedDistance { get; set; } // Source0x1D0, retained across mode changes.
+    public int DesiredDistance { get; set; } // Source0x1D4.
+    public byte Field1A4 { get; set; } // Source clears this byte after an ordinary placement; its wider role is unestablished.
 
     public void PushMode()
     {
@@ -44,6 +50,13 @@ public sealed class CameraModeState
         if (Mode != 7) throw new InvalidOperationException("This leaf owns only the actual front camera mode7 MoveToDesiredPos branch.");
         PreviousRotation = CurrentRotation;
         CurrentRotation = DisplayRotation = DesiredRotation;
+    }
+    internal void InterpolateToDesiredRotation()
+    {
+        FixedQuaternion previous = CurrentRotation;
+        CurrentRotation = FixedQuaternion.Slerp(ref previous, DesiredRotation, 1023);
+        // Quat_Slerp can negate its actual first argument; retain that source204 store too.
+        PreviousRotation = previous;
     }
     public void CalculateAimAngles() => Angles = FixedAim.Calculate(Position, FocusPosition);
     public void LoadViewHeading(FixedJointTransform displayRotation)

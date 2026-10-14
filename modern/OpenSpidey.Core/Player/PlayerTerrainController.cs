@@ -65,6 +65,7 @@ public sealed class PlayerTerrainController
     }
     private IPlayerHitHost? combatHost;
     private IPlayerDamageTimerHost? combatTimerHost;
+    private IPlayerCostumeVisibilityHost? costumeVisibilityHost;
     private IPlayerDeathProgressHost? deathProgressHost;
     public IPlayerMeleeFrameHost? Melee {get;set;}
     public IPlayerWebFrameHost? Web { get; set; }
@@ -84,6 +85,8 @@ public sealed class PlayerTerrainController
     /// <summary>The actual sourceEA4 contact grace byte, shared with crawl/ground physics and CheckGroundGone.</summary>
     public byte SourceGroundContactGrace { get => groundGrace; set => groundGrace = value; }
     public void SetSourceSpeedRamp(int value) => SpeedRamp = value;
+    /// <summary>Story197 (0x4E04F1), the only writer of source E34.</summary>
+    public void SetSourceMotionAngleOffset(short heading) => input = input with { ReferenceHeading = heading };
     public byte PendingWebReleaseAnimation
     {
         get => CombatState?.PendingWebReleaseAnimation ?? pendingWebReleaseAnimation;
@@ -185,6 +188,7 @@ public sealed class PlayerTerrainController
         {
             CaptureCombatState(ticks);
             combat.SynthesizedInputActive = scriptedControls is not null;
+            PlayerCostumeVisibility.Update(combat, costumeVisibilityHost!);
             BeforeDamageTimers?.Invoke();
             PlayerCombatTimers.Advance(combat, combatTimerHost!);
             AfterDamageTimers?.Invoke();
@@ -487,15 +491,18 @@ public sealed class PlayerTerrainController
     }
 
     public void ConfigureCombat(PlayerCombatState state, IPlayerHitHost host, IPlayerDamageTimerHost timerHost,
-        IPlayerDeathProgressHost progressHost)
+        IPlayerDeathProgressHost progressHost, IPlayerCostumeVisibilityHost costumeHost)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(timerHost);
         ArgumentNullException.ThrowIfNull(progressHost);
+        ArgumentNullException.ThrowIfNull(costumeHost);
         CombatState = state;
+        InputSuppression.BindSourceState(state, host.ExitLookaroundMode);
         combatHost = host;
         combatTimerHost = timerHost;
+        costumeVisibilityHost = costumeHost;
         deathProgressHost = progressHost;
         CaptureCombatState(2);
     }
@@ -801,8 +808,12 @@ public sealed class PlayerTerrainController
     }
 
     public void SetScriptPosition(FixedVector3 position) => Position = position;
-    public void SetIgnoreInputTimer(int duration) => InputSuppression.Set(duration, animation.Speed);
-    public void SetScriptVelocity(FixedVector3 velocity) => Velocity = velocity;
+    public void SetIgnoreInputTimer(int duration) => InputSuppression.Set(duration, animation.Speed, CombatState?.LookaroundActive == true);
+    public void SetScriptVelocity(FixedVector3 velocity)
+    {
+        Velocity = velocity;
+        if (CombatState is { } state) state.Velocity = velocity;
+    }
     public void EnterScriptedDelay() => Action = PlayerAction.ScriptedDelay;
 
     public void TeleportFromScript(FixedVector3 position)

@@ -6,9 +6,11 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import urllib.request
 import zipfile
 
@@ -130,10 +132,10 @@ def main():
     if args.command in ("story-smoke", "story-transition-smoke"):
         if not args.assets:
             parser.error("story-smoke requires --assets with your original game folder")
-        if args.scene.lower() not in ("data/l1a1_g.psx", "data/l1a2_g.psx", "data/l1a3_g.psx", "data/l1a4_g.psx") or args.restart:
-            parser.error("story-smoke verifies original empty-save startup for L1A1 through L1A4")
-        if args.command == "story-transition-smoke" and args.scene.lower() not in ("data/l1a1_g.psx", "data/l1a2_g.psx"):
-            parser.error("story-transition-smoke verifies the authored transition from L1A1 or L1A2")
+        if not re.fullmatch(r"data/l[1-8]a[1-7]_g\.psx", args.scene.lower()) or args.restart:
+            parser.error("story-smoke verifies original empty-save startup of a campaign level (data/lXaY_g.psx)")
+        if args.command == "story-transition-smoke" and args.scene.lower() not in ("data/l1a1_g.psx", "data/l1a2_g.psx", "data/l1a4_g.psx"):
+            parser.error("story-transition-smoke verifies the authored transition from L1A1, L1A2 or L1A4")
     if (args.all_animations or args.enemy_models or args.enemy_patrol or args.physics_checks) and args.command != "smoke":
         parser.error("Animation, enemy and physics checks apply to asset smoke checks")
     if (args.enemy_models or args.enemy_patrol) and not args.assets:
@@ -180,7 +182,8 @@ def main():
             return
         environment["OPENSPIDEY_MEDIA"] = str(args.media_cache.resolve())
         if args.command in ("play", "story-smoke", "story-transition-smoke"):
-            mission = Path(args.scene).stem.removesuffix("_G") + "_T"
+            scene_name = Path(args.scene).stem
+            mission = (scene_name[:-2] if scene_name.lower().endswith("_g") else scene_name) + "_T"
             run([dotnet, "run", "--project", "OpenSpidey.MediaImporter", "--", args.assets.resolve(),
                  args.media_cache.resolve(), "level:" + mission, ffmpeg])
     if args.command in ("media", "cinema", "cinema-smoke"):
@@ -225,9 +228,12 @@ def main():
                     "data/l1a2_g.psx": "--smoke-mission-two-startup",
                     "data/l1a3_g.psx": "--smoke-mission-three-startup",
                     "data/l1a4_g.psx": "--smoke-mission-four-startup",
-                }[args.scene.lower()]
+                    "data/l2a1_g.psx": "--smoke-mission-five-startup",
+                    "data/l2a2_g.psx": "--smoke-mission-six-startup",
+                }.get(args.scene.lower(), "--smoke-mission-generic-startup")
             elif args.command == "story-transition-smoke":
-                check = "--smoke-story-two-transition" if args.scene.lower() == "data/l1a2_g.psx" else "--smoke-story-transition"
+                check = {"data/l1a1_g.psx": "--smoke-story-transition", "data/l1a2_g.psx": "--smoke-story-two-transition",
+                         "data/l1a4_g.psx": "--smoke-story-four-transition"}[args.scene.lower()]
             command.extend(["--", check])
     elif args.command == "smoke":
         if not args.rendered:
@@ -243,7 +249,33 @@ def main():
             command.append("--verify-collision")
     elif args.command == "editor":
         command.append("--editor")
+    if args.rendered and args.command.endswith("smoke") and offscreen(command, environment):
+        return
     run(command)
+
+
+def offscreen(command, environment):
+    """Rendered smoke checks run on an invisible display unless OPENSPIDEY_SHOW_WINDOW=1."""
+    if os.name == "nt" or environment.get("OPENSPIDEY_SHOW_WINDOW") == "1":
+        return False
+    if shutil.which("gamescope"):
+        display = ["gamescope", "--backend", "headless", "-W", "1280", "-H", "720", "--"]
+    elif shutil.which("xvfb-run"):
+        display = ["xvfb-run", "-a", "-s", "-screen 0 1280x720x24"]
+    else:
+        return False
+    environment = dict(environment)
+    environment.pop("WAYLAND_DISPLAY", None)
+    godot = [str(command[0]), "--display-driver", "x11", *map(str, command[1:])]
+    # gamescope always exits 0, so the child records its own status.
+    with tempfile.TemporaryDirectory(prefix="openspidey-offscreen-") as folder:
+        status = Path(folder) / "status"
+        script = 'status=$1; shift; "$@"; echo $? > "$status"'
+        subprocess.run([*display, "sh", "-c", script, "sh", status, *godot], cwd=MODERN, env=environment)
+        code = int(status.read_text()) if status.exists() else 1
+    if code:
+        raise subprocess.CalledProcessError(code, godot)
+    return True
 
 
 if __name__ == "__main__":

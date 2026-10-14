@@ -96,6 +96,7 @@ public sealed class GodotActorSessionDirectory : IDisposable
             actor.AddChild(observer);
             if (actor is GodotThugActor thug) RegisterStateOwner(thug.Actor, actor);
             else if (actor is GodotHostageActor hostage) RegisterStateOwner(hostage.Actor, actor);
+            else if (actor is GodotScorpionEncounterActor boss) RegisterStateOwner(boss.Motion, actor);
         }
         catch { Remove(actor); throw; }
     }
@@ -188,6 +189,7 @@ public sealed class GodotActorSessionDirectory : IDisposable
         GodotThugActor thug => thug.Actor.Body,
         GodotHostageActor hostage => hostage.Actor.Body,
         GodotBlackCatActor cat => cat.Body,
+        IGodotSourceBaddyBody baddy => baddy.Body,
         GodotManipulationDebris debris => debris.Body,
         IGodotEnvironmentalActor environmental => environmental.SupportMotion,
         _ => throw new NotSupportedException($"Source actor {actor.GetType().Name} has no physical CBody motion.")
@@ -203,6 +205,7 @@ public sealed class GodotActorSessionDirectory : IDisposable
             case GodotThugActor thug: thug.ReceiveMessage(code, source); break;
             case GodotHostageActor hostage: hostage.ReceiveMessage(code, source); break;
             case GodotBlackCatActor cat: cat.ReceiveMessage(code, source); break;
+            case IGodotSourceBaddyBody baddy: baddy.ReceiveMessage(code, source); break;
             default: throw new NotSupportedException($"Source message{code} recipient {target.GetType().Name} has no CMessage queue.");
         }
     }
@@ -218,6 +221,7 @@ public sealed class GodotActorSessionDirectory : IDisposable
             GodotThugActor thug => thug.Hit(hit),
             GodotHostageActor hostage => hostage.Hit(hit),
             GodotBlackCatActor cat => cat.Hit(hit),
+            IGodotSourceBaddyBody baddy => baddy.Hit(hit),
             GodotManipulationDebris debris => debris.Hit(hit),
             GodotManipulationActor manipulation => manipulation.Hit(hit),
             GodotPlatformActor platform => platforms.Hit(platform, hit),
@@ -274,7 +278,7 @@ public sealed class GodotActorSessionDirectory : IDisposable
         CheckAlive(); if (!Live(source)) throw new ArgumentException("Mission signal requires an allocated scene actor.", nameof(source));
         if (source.Definition is null) throw new NotSupportedException("Transient CBody has no authored mission links.");
     }
-    private static bool IsBaddyBody(GodotScriptActor actor) => actor is GodotThugActor or GodotHostageActor or GodotBlackCatActor or GodotManipulationDebris;
+    private static bool IsBaddyBody(GodotScriptActor actor) => actor is GodotThugActor or GodotHostageActor or GodotBlackCatActor or GodotManipulationDebris or IGodotSourceBaddyBody;
     private static bool KnownFamily(GodotScriptActor actor) => IsBaddyBody(actor) || actor is GodotManipulationActor or GodotPlatformActor or GodotSwitchActor;
     private static void RequireKnownFamily(GodotScriptActor actor)
     { if (!KnownFamily(actor)) throw new NotSupportedException($"Scene identity family {actor.GetType().Name} has no supported source adapter."); }

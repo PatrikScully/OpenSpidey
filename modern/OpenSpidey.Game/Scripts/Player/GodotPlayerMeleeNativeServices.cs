@@ -64,13 +64,19 @@ public sealed class GodotPlayerMeleeNativeServices : IGodotPlayerMeleeServices,I
         GodotScriptActor? actor = directory.Recover(ref handle);
         if (actor is null) return null;
         GodotPlayerMeleeDirectory.Body body = directory.RequireBody(actor);
-        short health = actor switch { GodotThugActor thug => unchecked((short)thug.State.Health), GodotHostageActor hostage => hostage.State.Health,
-            _ => throw new NotSupportedException("ZipDive requires an original baddy adapter.") };
+        short health = actor switch
+        {
+            GodotThugActor thug => unchecked((short)thug.State.Health),
+            GodotCopActor cop => cop.Health,
+            GodotHostageActor hostage => hostage.State.Health,
+            _ => throw new NotSupportedException("ZipDive requires an original baddy adapter.")
+        };
         return new(actor, body.Position, body.Type, health);
     }
     public bool GrabZipDiveTarget(PlayerZipDiveTarget target, FixedVector3 destination) => directory.RequireBody(target.Identity).Native switch
     {
         GodotThugActor thug => thug.Grab(destination),
+        GodotCopActor cop => cop.Grab(destination),
         GodotHostageActor => false, // Original CBaddy::Grab returns0; hostage supplies no override.
         _ => throw new NotSupportedException("ZipDive target has no proven original Grab slot.")
     };
@@ -78,6 +84,7 @@ public sealed class GodotPlayerMeleeNativeServices : IGodotPlayerMeleeServices,I
     {
         GodotScriptActor actor = directory.RequireBody(target.Identity).Native;
         if (actor is GodotThugActor thug) thug.Actor.BehaviorFlags &= ~0x40u;
+        else if (actor is GodotCopActor cop) cop.Actor.BehaviorFlags &= ~0x40u;
         else if (actor is GodotHostageActor hostage) hostage.Actor.BehaviorFlags &= ~0x40u;
         else throw new NotSupportedException("ZipDive target has no original behavior flags.");
     }

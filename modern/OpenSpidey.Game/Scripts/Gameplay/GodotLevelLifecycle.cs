@@ -57,7 +57,7 @@ public partial class GodotLevelLifecycle : CanvasLayer
     {
         var reason = (LevelExitReason)sourceValue;
         if (reason is not (LevelExitReason.PlayerDied or LevelExitReason.RestartFromBeginning or
-            LevelExitReason.RetryRequested or LevelExitReason.LevelCompleted))
+            LevelExitReason.RetryRequested or LevelExitReason.LevelCompleted or LevelExitReason.QuitLevel))
             throw new NotSupportedException($"Level exit {sourceValue} requires the remaining application flow.");
         if (ExitReason != LevelExitReason.Running) return;
         if (reason == LevelExitReason.LevelCompleted && (navigationOwner is null || completeLevel is null))
@@ -65,7 +65,7 @@ public partial class GodotLevelLifecycle : CanvasLayer
         ExitReason = reason;
         application?.SetExitReason(reason);
         Exited?.Invoke(reason);
-        if (reason == LevelExitReason.LevelCompleted) Callable.From(Navigate).CallDeferred();
+        if (reason is LevelExitReason.LevelCompleted or LevelExitReason.QuitLevel) Callable.From(Navigate).CallDeferred();
         else Callable.From(ShowRetry).CallDeferred();
     }
 
@@ -106,10 +106,12 @@ public partial class GodotLevelLifecycle : CanvasLayer
         {
             LevelExitReason reason = ExitReason;
             SceneTree tree = GetTree();
-            if (reason != LevelExitReason.LevelCompleted) Restarting?.Invoke(reason);
+            if (reason is not (LevelExitReason.LevelCompleted or LevelExitReason.QuitLevel)) Restarting?.Invoke(reason);
             prepareNavigation?.Invoke(reason);
             Error result;
-            if (reason == LevelExitReason.LevelCompleted)
+            if (reason == LevelExitReason.QuitLevel)
+                result = tree.ChangeSceneToFile(menuScenePath ?? throw new NotSupportedException("Quitting a level requires the shell menu scene."));
+            else if (reason == LevelExitReason.LevelCompleted)
             {
                 Func<CancellationToken, Task<bool>> completion = completeLevel ??
                     throw new NotSupportedException("The genuine level completion owner is unavailable.");

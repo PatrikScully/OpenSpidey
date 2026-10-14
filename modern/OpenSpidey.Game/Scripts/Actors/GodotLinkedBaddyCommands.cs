@@ -28,7 +28,7 @@ public sealed class GodotLinkedBaddyCommands(GodotActorRegistry registry) : IAct
     private sealed class Body(GodotScriptActor actor) : IActorLinkedBodyTarget
     {
         public ushort SourceNodeId => actor.SourceNodeId;
-        public SourceSuperItemDepth SourceDepth => actor is GodotThugActor or GodotHostageActor or GodotBlackCatActor
+        public SourceSuperItemDepth SourceDepth => actor is GodotThugActor or GodotHostageActor or GodotBlackCatActor or IGodotSourceBaddyBody
             ? actor.SourceDepth
             : throw new NotSupportedException($"Source active BaddyList type{actor.SourceActorType} is not a CSuper; writing100/102 would exceed its original body layout.");
         public ushort ItemFlags
@@ -38,6 +38,7 @@ public sealed class GodotLinkedBaddyCommands(GodotActorRegistry registry) : IAct
                 GodotThugActor thug => thug.ItemFlags,
                 GodotHostageActor hostage => hostage.ItemFlags,
                 GodotBlackCatActor cat => cat.ItemFlags,
+                IGodotSourceBaddyBody baddy => baddy.ItemFlags,
                 IGodotSourceActorVisibility source => source.SourceVisibilityFlags,
                 _ => throw Unported()
             };
@@ -48,6 +49,7 @@ public sealed class GodotLinkedBaddyCommands(GodotActorRegistry registry) : IAct
                     case GodotThugActor thug: thug.ItemFlags = value; break;
                     case GodotHostageActor hostage: hostage.ItemFlags = value; hostage.Variables.ItemFlags = value; break;
                     case GodotBlackCatActor cat: cat.ItemFlags = value; break;
+                    case IGodotSourceBaddyBody baddy: baddy.ItemFlags = value; break;
                     case IGodotSourceActorVisibility source: source.SetSourceVisibilityFlags(value); break;
                     default: throw Unported();
                 }

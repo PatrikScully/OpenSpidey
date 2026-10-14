@@ -74,17 +74,14 @@ public partial class GodotControlActor : GodotScriptActor, IActorScriptHost
         if (GodotActorSparkCommands.TryExecute(registry, opcode, operands, SourcePosition, Body.Angles)) return true;
         if (GodotActorCameraShakeCommands.TryExecute(registry, opcode, operands, ReadVariable, SourcePosition)) return true;
         if (GodotActorVisualEffectCommands.TryExecute(registry, opcode, operands, SourcePosition)) return true;
+        if (GodotActorSpeechCommands.TryExecute(registry, opcode, operands, ScriptState, environment, SourcePosition)) return true;
+        if (GodotActorPlayerScriptCommands.TryExecute(registry, opcode, operands)) return true;
         if (opcode == 0x4280)
         {
             Body.Position = Variables.Position;
             bool result = ActorTimedMotionCommands.Execute(ScriptState, Body, operands, ReadVariable, environment, ticks => Body.Integrate(ticks));
             Variables.Position = Body.Position;
             return result;
-        }
-        if (opcode == 0x42A3)
-        {
-            registry.PlayScriptVoice(operands);
-            return true;
         }
         if (opcode == 0x4506)
         {

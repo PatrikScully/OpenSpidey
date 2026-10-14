@@ -13,7 +13,8 @@ public sealed class GodotBaddyConstructionOwner : IDisposable
     public BaddyConstructionCount State { get; }
     public int OwnedCount => leases.Count;
 
-    public static bool IsSupportedBaddyType(short sourceType) => sourceType is 203 or 402 or 304 or 312 or 305 or 315 or 319;
+    public static bool IsSupportedBaddyType(short sourceType) =>
+        sourceType is 203 or 402 or 304 or 312 or 305 or 315 or 319 or 310 or 316 or 303 or 326 or 719 or 328 or 317 or 324 or 412 or 307 or 313 or 306 or 320 or 318 or 322 or 323;
 
     public GodotBaddyConstructionOwner(GodotActorRegistry registry, BaddyConstructionCount state)
     {
@@ -45,7 +46,7 @@ public sealed class GodotBaddyConstructionOwner : IDisposable
         {
             T actor = factory();
             allocated = actor;
-            if (!GodotObject.IsInstanceValid(actor) || actor.IsQueuedForDeletion() || actor.SourceActorType != sourceType)
+            if (!GodotObject.IsInstanceValid(actor) || actor.IsQueuedForDeletion() || actor.SourceActorType != SourceBodyType(sourceType))
                 throw new InvalidDataException("The CBaddy factory did not return its actual live source-family actor.");
             if (!MatchesFamily(sourceType, actor))
                 throw new InvalidDataException("CBaddy ordinal must belong to the real corresponding native actor adapter.");
@@ -77,10 +78,24 @@ public sealed class GodotBaddyConstructionOwner : IDisposable
         203 => actor is GodotControlActor,
         402 => actor is GodotPlatformActor,
         304 or 312 => actor is GodotThugActor,
+        306 or 320 => actor is GodotCopActor,
         305 or 315 => actor is GodotHostageActor,
+        318 => actor is GodotChopperActor,
+        322 => actor is GodotChopperSearchlightActor,
+        323 => actor is GodotChopperSniperActor,
         319 => actor is GodotBlackCatActor,
+        310 or 316 => actor is GodotScorpionEncounterActor,
+        303 or 326 or 719 => actor is GodotIdleNpcActor,
+        328 => actor is GodotTorchActor,
+        317 => actor is GodotLizManActor,
+        324 => actor is GodotSimbyActor,
+        412 => actor is GodotPunchObActor,
+        307 => actor is GodotRhinoActor,
+        313 => actor is GodotVenomActor,
         _ => false
     };
+    /// <summary>CSubmariner's constructor stores the CLizard type326 for trigger type719.</summary>
+    private static short SourceBodyType(short sourceType) => sourceType == 719 ? (short)326 : sourceType;
 
     public void ReleaseSourceActor(GodotScriptActor actor)
     {

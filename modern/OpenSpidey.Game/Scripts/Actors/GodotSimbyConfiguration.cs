@@ -1,0 +1,55 @@
+using OpenSpidey.Assets.Executables;
+using OpenSpidey.Assets.Models;
+using OpenSpidey.Core.Actors.Simby;
+using OpenSpidey.Core.Rendering;
+using OpenSpidey.Game.Import;
+
+namespace OpenSpidey.Game.Actors;
+
+/// <summary>Real scene dependencies for source324/412; the session binds each hook to its canonical owners.</summary>
+public sealed class GodotSimbyConfiguration
+{
+    public required Func<SimbyState, ImportedAnimatedModel> ModelFactory { get; init; }
+    public required Func<PunchObState, ImportedAnimatedModel> PunchObModelFactory { get; init; }
+    public required Func<int, ActorPoseLinkPacket> PosePacket { get; init; }
+    public required SourceVertexLightingState LightingState { get; init; }
+    public required Func<uint> Clock { get; init; }
+    public required Func<int> AttackClock { get; init; }
+    public required Func<int, int> Random { get; init; }
+    public required SimbyWorldState World { get; init; }
+    public required GodotBossGlobalOwner BossGlobal { get; init; }
+    public required Func<GodotSimbyActor, bool> IsSourceCulled { get; init; }
+    public required Func<GodotPunchObActor, bool> IsPunchObCulled { get; init; }
+    /// <summary>MakeVertexWibbler (0x4A2790) creates the owned CVertexWobble pair once.</summary>
+    public required Action EnsureVertexWibbler { get; init; }
+}
+
+/// <summary>Original symbi_02 / sym_dark / sym_gen models and the private 0x5554A0 pose packet.</summary>
+public sealed class GodotSimbyResources(PsxLibraryRepository libraries, ReadOnlyMemory<byte> originalImage)
+{
+    public ImportedAnimatedModel CreateSimbyModel(SimbyState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        PsxAssetLibrary library = libraries.Load(PsxLibraryRepository.AssetPath(state.ModelName));
+        if (library.Animations is null || library.Animations.ClipCount < 1)
+            throw new InvalidDataException($"Original {state.ModelName} assets require the authored animation bank.");
+        return ImportedAnimatedModel.Build(library.Scene, library.Textures, library.Animations, playerPartOrder: false);
+    }
+
+    public ImportedAnimatedModel CreatePunchObModel(PunchObState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        PsxAssetLibrary library = libraries.Load(PsxLibraryRepository.AssetPath(PunchObState.ModelName));
+        if (library.Animations is null || library.Animations.ClipCount < 1)
+            throw new InvalidDataException("Original sym_gen assets require the authored punch-ob animation bank.");
+        return ImportedAnimatedModel.Build(library.Scene, library.Textures, library.Animations, playerPartOrder: false);
+    }
+
+    public ActorPoseLinkPacket ReadPosePacket(int partCount)
+    {
+        OriginalExecutableData data = new(originalImage);
+        ReadOnlyMemory<byte> header = data.Slice(SimbyState.PosePacketAddress, 4);
+        int count = System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(header.Span[2..]);
+        return ActorPoseLinkPacket.Read(data.Slice(SimbyState.PosePacketAddress, checked(4 + count * 12)).Span, partCount);
+    }
+}

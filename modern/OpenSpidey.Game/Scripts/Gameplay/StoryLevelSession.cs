@@ -8,6 +8,8 @@ using OpenSpidey.Assets.Models;
 using OpenSpidey.Assets.Scripting;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Audio;
+using OpenSpidey.Core.Combat;
+using OpenSpidey.Core.Effects;
 using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Core.Player;
@@ -29,7 +31,10 @@ namespace OpenSpidey.Game.Gameplay;
 public partial class StoryLevelSession : Node3D
 {
     private static readonly string[] StoryChecks = ["--smoke-mission-startup", "--smoke-mission-two-startup",
-        "--smoke-mission-three-startup", "--smoke-mission-four-startup", "--smoke-story-transition", "--smoke-story-two-transition"];
+        "--smoke-mission-three-startup", "--smoke-mission-four-startup", "--smoke-mission-five-startup",
+        "--smoke-mission-six-startup",
+        "--smoke-story-transition", "--smoke-story-two-transition", "--smoke-story-four-transition",
+        "--smoke-mission-generic-startup"];
     private PkrArchive? archive;
     private ReadOnlyMemory<byte> executable;
     private OriginalPlayerData playerData = null!;
@@ -66,6 +71,9 @@ public partial class StoryLevelSession : Node3D
     private byte[] triggerBytes = [];
     private string geometryAsset = "";
     private string restartOverride = "";
+    private MissionEnvironmentPlan environmentPlan = null!;
+    private ImportedLevelWorld? playerWorld;
+    private readonly List<(string AssetPath, PsxScene Scene, int Model)> pendingModelClaims = [];
     private readonly GameRandom random = new(0x12A6CC58);
     private readonly SourceVertexLightingState lighting = new();
     private int physicsFrames, worldFirstFrame = -1, sourceTicks;
@@ -81,6 +89,9 @@ public partial class StoryLevelSession : Node3D
     public MissionStartupSequence Startup { get; private set; } = null!;
     public MissionCheckpointSession Checkpoints { get; private set; } = null!;
     public GodotCinemaPlayer Cinema { get; private set; } = null!;
+    internal GodotScorpionApproachModule ScorpionApproach { get; private set; } = null!;
+    internal GodotScorpionEncounterRuntime ScorpionEncounter { get; private set; } = null!;
+    internal GodotPlayerModuleHook PlayerModules { get; private set; } = null!;
     public uint SourceClock => unchecked((uint)sourceTicks);
     public int LogicFrame => sourceTicks / 2;
     public Exception? Failure { get; private set; }
@@ -119,8 +130,12 @@ public partial class StoryLevelSession : Node3D
         executable = System.IO.File.ReadAllBytes(System.IO.Path.Combine(directory, "SpideyPC.exe"));
         playerData = OriginalPlayerData.Read(executable.Span);
         levelCatalog = OriginalLevelCatalog.Read(executable);
+        application.PlayerModuleHook.Set(null, 0);
         triggerBytes = archive.Read("data/" + application.MissionName + ".trg");
         triggers = TriggerFile.Read(triggerBytes);
+        environmentPlan = MissionEnvironmentPlan.Read(triggers, restartOverride, application.AlternativeAutoexec);
+        if (!environmentPlan.AssetPath.Equals(geometryAsset, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"Mission {application.MissionName} requests {environmentPlan.AssetPath}, but its scene selected {geometryAsset}.");
         var messageData = OriginalMissionMessageData.Read(executable);
         messages = GodotMissionMessages.Create(messageData,
             OriginalBitmapFontReader.Read(archive.Read("data/sp_fnt00.fnt"), "sp_fnt00.fnt"));
@@ -151,21 +166,34 @@ public partial class StoryLevelSession : Node3D
                 return (checked((uint)size.X), checked((uint)size.Y));
             }, GodotGlowFlash.SourceBrightness());
         AddChild(waterEffect); waterEffect.SetProcess(false);
-        rendering.Backdrops.SourceModelClaimed += (path, index) => libraries.World?.ClaimObjectModel(path, index);
+        rendering.Backdrops.SourceModelClaimed += ClaimObjectModel;
         Registry = new() { Name = "Actors", Triggers = triggers, Difficulty = application.Difficulty,
             RandomSource = random.Next, Sounds = sounds.Controller, SoundListener = Listener,
             VoicePlayback = (bank, slot, priority) => speech.Play(bank, slot, priority),
+            PositionVoicePlayback = (bank, slot, _, priority) => speech.PlayAtPosition(bank, slot, priority, () => SourceClock),
             ObjectLibrary = () => libraries.ObjectLibrary ?? throw new InvalidOperationException("No authored object library is selected."),
             ObjectTextures = libraries.ObjectTextures,
-            ClaimObjectModel = (path, index) => World.ClaimObjectModel(path, index),
+            ClaimObjectModel = ClaimObjectModel,
             ShatterPlatform = (actor, checkSeen, processed) => (combat ?? throw new InvalidOperationException("Player combat is not initialized.")).ShatterPlatform(actor, checkSeen, processed),
             Environment = new(LevelId: MissionLevelId.FromAssetName(geometryAsset)), ProcessMode = ProcessModeEnum.Disabled };
         AddChild(Registry); ownership = new(Registry);
         music = new(application.Music, sounds, () => Player?.Combat.State,
             () => Registry.Environment.LevelId, () => application.FrontPauseState, () => application.EndTrainingFlag);
+        var electroLines = new GodotElectroLines
+        {
+            Name = "ElectroLines",
+            Random = random.Next,
+            TextureManifest = () => archive!.Read(geometryAsset[..^4] + ".tex"),
+            PlayerBodies = () => Player is null ? null :
+                [new(Player, Player.Controller.Position, Player.ActorState.MinorRadius, Player.ActorState.BodyFlags)]
+        };
+        electroLines.SourceBitCreated += bit => ownership!.Particles.Attach(SourceParticleList.Special, bit);
+        AddChild(electroLines); Registry.ElectroLines = electroLines;
         var sparks = GodotSparkParticles.Create(ownership.Particles, application.Sparks, random.Next);
         AddChild(sparks); Registry.Sparks = sparks;
         Registry.CameraShake = new GodotActorCameraShakeHost(() => camera);
+        Registry.CinematicScreenHost = application.CinematicScreen;
+        Registry.PlayerScriptHost = new GodotActorPlayerScriptHost(() => Player);
         var textBoxes = GodotMissionTextBoxes.Create(messages.Messages, ownership.Particles, () => sourceTicks);
         messages.AddChild(textBoxes);
         Registry.ControlServices = new GodotControlSceneServices(application.Compass, sounds.Controller, Listener,
@@ -192,12 +220,33 @@ public partial class StoryLevelSession : Node3D
         });
         codeModules = enemies.Modules;
         enemies.ProcessMode = ProcessModeEnum.Disabled; AddChild(enemies);
+        ScorpionApproach = GodotScorpionApproachModule.Create(new()
+        {
+            Archive = archive, Repository = libraries.Repository, Registry = Registry,
+            Countdown = application.Countdown, State = application.ScorpionApproach,
+            PlayerHook = application.PlayerModuleHook, Speech = speech, Clock = () => SourceClock,
+            ScreenOffsetY = () => application.CinematicScreen.WideScreenShadow,
+            AlternateStory = () => application.WhatIf, SendPulse = node => Mission.ReceivePulse(node)
+        });
+        AddChild(ScorpionApproach); ScorpionApproach.Register(codeModules.Modules);
+        ScorpionEncounter = GodotScorpionEncounterRuntime.Create(new()
+        {
+            Archive = archive, Repository = libraries.Repository, OriginalExecutable = executable, Registry = Registry,
+            Regions = regions!, LightingState = lighting, JoelJewettCheat = () => application.AlternativeAutoexec,
+            SceneOwnership = ownership, Player = () => Player, Clock = () => SourceClock, AttackClock = () => application.AttackClock,
+            Difficulty = () => application.Difficulty,
+            Music = application.Music, PositionSpeech = (bank, slot, priority) => speech.PlayAtPosition(bank, slot, priority, () => SourceClock)
+        });
+        AddChild(ScorpionEncounter); ScorpionEncounter.Register(codeModules.Modules);
         Cinema = new() { Name = "MissionCinema", CacheDirectory = speech.CacheDirectory, PauseGameplay = true }; AddChild(Cinema);
         lifecycle = new() { Name = "LevelLifecycle" }; AddChild(lifecycle);
         lifecycle.Exited += _ => StopGameplay();
         lifecycle.Restarting += reason => { if (reason == LevelExitReason.RestartFromBeginning) application.RestartFromBeginning(); };
-        playerCommands = new(new ushort[] { 152, 158, 160, 163, 167, 180, 181, 183, 184, 185, 186, 187, 195, 196, 199, 213, 215, 216, 222, 223, 302, 305 });
+        playerCommands = new(new ushort[] { 130, 152, 158, 160, 163, 167, 180, 181, 182, 183, 184, 185, 186, 187, 188, 195, 196, 197, 199, 213, 215, 216, 217, 222, 223, 305 });
         var visibilityLists = new GodotVisibilityBoxHost(Registry, visibility, libraries.Repository);
+        var actorDeath = new GodotMissionActorDeath(Registry, visibility);
+        var baddies = new GodotMissionBaddies(Registry);
+        var reverb = new SourceReverbState();
         IEnumerable<IMissionCommandHandler> handlers = SceneLibraryCommandHandler.CreateHandlers(libraries)
             .Concat(RenderEnvironmentCommandHandler.CreateHandlers(rendering))
             .Concat(OrderTablePushbackCommandHandler.CreateHandlers(rendering.SourceDepth))
@@ -205,8 +254,17 @@ public partial class StoryLevelSession : Node3D
                 .Select(opcode => new ActorSignalCommandHandler(opcode, triggers, Registry)))
             .Append(new EnvironmentVisibilityCommandHandler(visibility))
             .Append(new LinkedEnvironmentVisibilityCommandHandler(triggers, visibility))
-            .Concat(MissionActorDeathCommandHandler.CreateHandlers(triggers, new GodotMissionActorDeath(Registry, visibility)))
+            .Concat(MissionActorDeathCommandHandler.CreateHandlers(triggers, actorDeath))
+            .Append(MissionActorDeathCommandHandler.CreateLoudHandler(triggers,
+                new GodotMissionLoudDeath(actorDeath, () => combat?.Actors, () => enemies.Environment)))
+            .Concat(ChopperCommandHandler.CreateHandlers(triggers, baddies))
+            .Concat(VenomWaitCommandHandler.CreateHandlers(baddies))
+            .Append(new ReverbTypeCommandHandler(reverb))
             .Append(new GameLevelCommandHandler(application))
+            .Append(new DualBufferSizeCommandHandler())
+            .Append(new EndLevelNodeCommandHandler(application))
+            .Concat(SpeedupCommandHandler.CreateHandlers())
+            .Concat(PaletteFadeCommandHandler.CreateHandlers(new GodotMissionPaletteFade(codeModules.Modules)))
             .Append(new ModuleLoadCommandHandler(enemies.Modules))
             .Concat(MissionResourceCleanupCommandHandler.CreateHandlers(new GodotMissionResourceCleanup(libraries, regions, codeModules)))
             .Append(new RunCinemaCommandHandler(Cinema, previousExit is LevelExitReason.PlayerDied or LevelExitReason.RetryRequested))
@@ -228,7 +286,8 @@ public partial class StoryLevelSession : Node3D
         events = new() { Name = "MissionEvents", Runtime = Mission };
         events.Faulted += Fail; events.SourceFrameCompleted += AdvanceStartup; AddChild(events);
         Startup = new(triggers, Mission, Registry, InitializePlayerAndRestart);
-        Startup.Begin();
+        libraries.EnvironmentLoaded += BindPlayerWorld;
+        Startup.Begin(application.AlternativeAutoexec);
     }
 
     private async void VerifyStoryStartup()
@@ -236,6 +295,12 @@ public partial class StoryLevelSession : Node3D
         SceneTree tree = GetTree();
         try
         {
+            if (OS.GetCmdlineUserArgs().Contains("--smoke-story-four-transition"))
+            {
+                await StoryFourthMissionTransitionImportChecks.VerifyAsync(this);
+                if (!application.HasMeta(StoryFourthMissionTransitionImportChecks.ProofState)) tree.Quit();
+                return;
+            }
             if (OS.GetCmdlineUserArgs().Contains("--smoke-story-two-transition"))
             {
                 await StorySecondMissionTransitionImportChecks.VerifyAsync(this);
@@ -248,12 +313,20 @@ public partial class StoryLevelSession : Node3D
                 if (!application.HasMeta("story_end_transition_proof")) tree.Quit();
                 return;
             }
-            if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-four-startup"))
+            if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-six-startup"))
+                await StoryLevelSixSessionImportChecks.VerifyAsync(this);
+            else if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-generic-startup"))
+                await StoryGenericStartupImportChecks.VerifyAsync(this);
+            else if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-five-startup"))
+                await StoryLevelFiveSessionImportChecks.VerifyAsync(this);
+            else if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-four-startup"))
                 await StoryLevelFourSessionImportChecks.VerifyAsync(this);
             else if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-three-startup"))
                 await StoryMissionThreeImportChecks.VerifyAsync(this);
             else if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-two-startup"))
                 await StoryLevelTwoSessionImportChecks.VerifyAsync(this);
+            else if (OS.GetCmdlineUserArgs().Contains("--smoke-mission-l3a1-startup"))
+                await StoryGenericStartupImportChecks.VerifyAsync(this);
             else await StoryLevelSessionImportChecks.VerifyAsync(this);
             await StoryLevelSessionImportChecks.VerifyNativeDeletionAsync(this, tree);
             tree.Quit();
@@ -296,7 +369,9 @@ public partial class StoryLevelSession : Node3D
     {
         if (Failure is not null) return;
         if (Player is not null) cutsceneSkip?.FinishSourceFrame();
-        if (Startup.Phase == MissionStartupPhase.Autoexec && (worldFirstFrame < 0 || physicsFrames - worldFirstFrame < 2)) return;
+        if (Startup.Phase == MissionStartupPhase.Autoexec && environmentPlan.LoadsInAutoexec && libraries.World is null) return;
+        if ((Startup.Phase is MissionStartupPhase.Autoexec or MissionStartupPhase.Restart) && libraries.World is not null &&
+            (worldFirstFrame < 0 || physicsFrames - worldFirstFrame < 2)) return;
         Startup.Advance();
         if (Startup.Phase == MissionStartupPhase.Playing && !gameplayStarted)
         {
@@ -364,6 +439,7 @@ public partial class StoryLevelSession : Node3D
         rendering.SynchronizeSourceRender();
         music.Render(SourceClock);
         playerBrightness!.SynchronizeSourceLighting();
+        Player!.SynchronizeSourceTranslucency();
         enemies.SynchronizeSourceLighting();
         waterEffect.SynchronizeSourceRender();
         music.Render(SourceClock);
@@ -373,6 +449,8 @@ public partial class StoryLevelSession : Node3D
     {
         if (what != NotificationPredelete || destroyed) return;
         destroyed = true; Startup?.Dispose(); transitions?.Dispose();
+        if (libraries is not null) libraries.EnvironmentLoaded -= BindPlayerWorld;
+        if (rendering is not null) rendering.Backdrops.SourceModelClaimed -= ClaimObjectModel;
         if (sceneObjects is { IsDestroyed: false })
             sceneObjects.KillAllSceneObjects(application.ExitReason);
         codeModules?.UnloadAllCodeModules();
@@ -382,4 +460,11 @@ public partial class StoryLevelSession : Node3D
     }
 
     private static bool IsStoryVerificationRequested() => OS.GetCmdlineUserArgs().Any(StoryChecks.Contains);
+
+    private void ClaimObjectModel(string path, int model)
+    {
+        if (libraries.World is { } world) { world.ClaimObjectModel(path, model); return; }
+        PsxAssetLibrary bank = libraries.Repository.RequireLoaded(path);
+        pendingModelClaims.Add((bank.AssetPath, bank.Scene, model));
+    }
 }

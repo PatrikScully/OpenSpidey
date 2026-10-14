@@ -30,7 +30,7 @@ public partial class GodotPowerUpActor : GodotScriptActor, IPowerUpHost, IPlayer
     private PsxMaterialLibrary? materialLibrary;
     private readonly HashSet<StandardMaterial3D> materials = [];
     private readonly List<(Godot.Collections.Array Arrays, Color[] Colors, StandardMaterial3D Material)> surfaces = [];
-    private readonly Dictionary<StandardMaterial3D, BaseMaterial3D.TransparencyEnum> originalTransparency = [];
+    private readonly Dictionary<StandardMaterial3D, SourceMaterialSnapshot> originalMaterials = [];
     private (bool Enabled, uint Rgb)? lastTint;
     private GodotActorShadow? shadow;
     private GodotPowerUpSprite? pickupBit;
@@ -149,11 +149,12 @@ public partial class GodotPowerUpActor : GodotScriptActor, IPowerUpHost, IPlayer
         materialLibrary = new(library.Textures);
         modelMesh = PsxGeometryBuilder.BuildModel(model, library.Scene.ColorTable, materialLibrary) ??
             throw new InvalidDataException("Original items model has no visible source faces.");
-        materials.Add(materialLibrary.GetMaterial(null));
+        StandardMaterial3D untextured = materialLibrary.GetMaterial(null);
+        materials.Add(untextured); originalMaterials.TryAdd(untextured, SourceMaterialSnapshot.Of(untextured));
         for (int index = 0; index < modelMesh.GetSurfaceCount(); index++)
             if (modelMesh.SurfaceGetMaterial(index) is StandardMaterial3D material)
             {
-                materials.Add(material); originalTransparency.TryAdd(material, material.Transparency);
+                materials.Add(material); originalMaterials.TryAdd(material, SourceMaterialSnapshot.Of(material));
                 Godot.Collections.Array arrays = modelMesh.SurfaceGetArrays(index);
                 surfaces.Add((arrays, arrays[(int)Mesh.ArrayType.Color].AsColorArray(), material));
             }
@@ -218,13 +219,8 @@ public partial class GodotPowerUpActor : GodotScriptActor, IPowerUpHost, IPlayer
                 }
                 lastTint = (tinted, State.Tint);
             }
-            foreach (StandardMaterial3D material in materials)
-            {
-                material.AlbedoColor = new(1, 1, 1, (State.ItemFlags & 0x800) != 0 ? 128 / 255f : 1);
-                material.BlendMode = (State.ItemFlags & 0x800) != 0 ? BaseMaterial3D.BlendModeEnum.Add : BaseMaterial3D.BlendModeEnum.Mix;
-                material.Transparency = (State.ItemFlags & 0x800) != 0 ? BaseMaterial3D.TransparencyEnum.Alpha :
-                    originalTransparency.GetValueOrDefault(material, BaseMaterial3D.TransparencyEnum.Disabled);
-            }
+            float? translucency = SourceItemTranslucency.Alpha(State.ItemFlags);
+            foreach (StandardMaterial3D material in materials) SourceItemTranslucency.Apply(material, originalMaterials[material], translucency);
         }
         if ((State.BodyFlags & 0x40) != 0) Lifecycle.Kill();
     }
@@ -259,7 +255,7 @@ public partial class GodotPowerUpActor : GodotScriptActor, IPowerUpHost, IPlayer
         modelMesh?.Dispose(); modelMesh = null;
         foreach (var surface in surfaces) surface.Arrays.Dispose(); surfaces.Clear();
         materialLibrary?.Dispose(); materialLibrary = null;
-        materials.Clear(); originalTransparency.Clear();
+        materials.Clear(); originalMaterials.Clear();
     }
     public override void _Notification(int what)
     {

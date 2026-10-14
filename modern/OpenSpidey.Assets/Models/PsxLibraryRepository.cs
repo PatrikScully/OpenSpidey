@@ -18,7 +18,21 @@ public sealed class PsxLibraryRepository(PkrArchive archive)
         if (loaded.TryGetValue(path, out PsxAssetLibrary? library)) return library;
         library = PsxAssetLibrary.Read(path, archive.Read(path));
         loaded.Add(path, library);
-        LibraryLoaded?.Invoke(library);
+        try { LibraryLoaded?.Invoke(library); }
+        catch (Exception publicationFailure)
+        {
+            // A subscriber may already have reserved its source region when a later subscriber rejects publication.
+            // Roll back only this exact cached generation, preserving any replacement installed by a callback.
+            if (!loaded.TryGetValue(path, out PsxAssetLibrary? current) || !ReferenceEquals(current, library)) throw;
+            loaded.Remove(path);
+            var cleanupFailures = new List<Exception>();
+            foreach (Delegate callback in LibraryUnloaded?.GetInvocationList() ?? [])
+                try { ((Action<PsxAssetLibrary>)callback)(library); }
+                catch (Exception cleanupFailure) { cleanupFailures.Add(cleanupFailure); }
+            if (cleanupFailures.Count != 0)
+                throw new AggregateException("Source library publication and rollback failed.", new[] { publicationFailure }.Concat(cleanupFailures));
+            throw;
+        }
         return library;
     }
 

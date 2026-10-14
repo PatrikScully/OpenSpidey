@@ -12,13 +12,20 @@ public sealed class MissionActorDeathCommandHandler : IMissionCommandHandler
     public ushort Opcode { get; }
     public MissionActorDeathCommandHandler(ushort opcode, TriggerFile triggers, IMissionActorDeathHost host)
     {
-        if (opcode is not (11 or 133)) throw new ArgumentOutOfRangeException(nameof(opcode));
+        if (opcode is not (11 or 12 or 133)) throw new ArgumentOutOfRangeException(nameof(opcode));
+        if (opcode == 12 && host is not IMissionActorLoudDeathHost)
+            throw new ArgumentException("Source SendKillLoudly requires the Hit/Exp_HitEnvItem death host.", nameof(host));
         Opcode = opcode; this.triggers = triggers ?? throw new ArgumentNullException(nameof(triggers));
         this.host = host ?? throw new ArgumentNullException(nameof(host));
     }
     public void Execute(MissionCommandContext context, TriggerInstruction instruction)
     {
         if (instruction.Opcode != Opcode) throw new ArgumentException("Source death command does not match its handler.", nameof(instruction));
+        if (Opcode == 12)
+        {
+            if (instruction.Arguments.Length != 0) throw new InvalidDataException("Source SendKillLoudly has no operands.");
+            MissionActorDeath.SendKillLoudly(triggers, context.Node, (IMissionActorLoudDeathHost)host); return;
+        }
         if (Opcode == 11)
         {
             if (instruction.Arguments.Length != 0) throw new InvalidDataException("Source SendKill has no operands.");
@@ -45,4 +52,6 @@ public sealed class MissionActorDeathCommandHandler : IMissionCommandHandler
         unchecked(BinaryPrimitives.ReadInt32LittleEndian(bytes[8..]) << 12));
     public static IEnumerable<IMissionCommandHandler> CreateHandlers(TriggerFile triggers, IMissionActorDeathHost host) =>
         new ushort[] { 11, 133 }.Select(opcode => new MissionActorDeathCommandHandler(opcode, triggers, host));
+    public static IMissionCommandHandler CreateLoudHandler(TriggerFile triggers, IMissionActorLoudDeathHost host) =>
+        new MissionActorDeathCommandHandler(12, triggers, host);
 }

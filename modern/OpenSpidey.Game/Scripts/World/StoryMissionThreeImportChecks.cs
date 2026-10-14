@@ -146,6 +146,7 @@ internal static class StoryMissionThreeImportChecks
             await HostageMissionSignalImportChecks.VerifyAsync(story, Assert);
             await ActorScreenFlashImportChecks.VerifyAsync(story);
             await SparkImportChecks.VerifyAsync(story);
+            PlayerSynthesizedInputImportChecks.Verify(story);
             GodotScriptActor[] allocated = Enum.GetValues<ActorUpdateGroup>().SelectMany(story.Registry.SourceActors)
                 .Concat(story.Registry.SuspendedSourceList.SourceOrder.OfType<GodotScriptActor>()).Distinct().ToArray();
             story.SceneObjects.KillAllSceneObjects(LevelExitReason.RetryRequested);

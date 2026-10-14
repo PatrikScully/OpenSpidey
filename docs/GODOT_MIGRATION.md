@@ -43,9 +43,10 @@ and offset rather than silently skipping story progression.
 
 ## Current checkpoint
 
-The latest complete asset-inclusive managed run passes 1,664,005 assertions. See
-[the 2026-10-13 checkpoint](CHECKPOINT_2026-10-13.md) for the latest build and native
-verification status. The developing
+The latest complete asset-inclusive managed run passes 1,701,432 assertions. See
+[the 2026-10-14 checkpoint](CHECKPOINT_2026-10-14.md) for the saved build,
+verification and remaining work, and [the progress record](RESUME_2026-10-14.md)
+for integration details. The developing
 play scene includes original player health/web meters and cartridge lettering.
 HUD groups share the original 512×240 pixel aspect with height-based sizing,
 preserving connected pieces at 4:3 and 16:9. A separate centered 4:3 menu frame is

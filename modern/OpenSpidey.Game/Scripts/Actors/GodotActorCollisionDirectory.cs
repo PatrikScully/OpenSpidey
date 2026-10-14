@@ -23,6 +23,7 @@ public static class GodotActorCollisionDirectory
             GodotThugActor thug=>new(thug,thug.Type,thug.Position,unchecked((ushort)thug.State.MinorRadius),thug.State.BodyFlags,thug.State.Health),
             GodotHostageActor hostage=>new(hostage,hostage.Type,hostage.Position,hostage.State.MinorRadius,hostage.BodyFlags,hostage.State.Health),
             GodotBlackCatActor cat=>new(cat,319,cat.SourcePosition,cat.State.MinorRadius,cat.State.BodyFlags,0),
+            IGodotSourceBaddyBody baddy=>new(actor,checked((ushort)actor.SourceActorType),actor.SourcePosition,baddy.MinorRadius,baddy.BodyFlags,baddy.Health),
             // CManipObChunk has zero radius; preserve it even when the global ignore-radius query is active.
             GodotManipulationDebris debris=>new(debris,401,debris.Body.Position,debris.MinorRadius,debris.BodyFlags,debris.Variables.Health),
             _=>throw new NotSupportedException($"Source collision body family {actor.GetType().Name} has no proven metadata adapter.")

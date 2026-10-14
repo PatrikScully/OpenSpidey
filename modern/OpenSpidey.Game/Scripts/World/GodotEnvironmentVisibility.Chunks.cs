@@ -113,7 +113,13 @@ public sealed partial class GodotEnvironmentVisibility
             item.NativeModelRevision = model.Revision;
         }
         Transform3D transform = SourceItemTransform(item);
-        if (mesh is not null) { mesh.Transform = transform; mesh.Visible = visible; }
+        if (mesh is not null)
+        {
+            mesh.Transform = transform; mesh.Visible = visible;
+            // RenderSuperItem 475D61: chunk preparation's DCModelData flag4000 selects DC_PSXModel_RenderModel.
+            mesh.SetSourceTranslucency(SourceItemTranslucency.Alpha(flags,
+                (model.RendererFlags & 0x4000) != 0 ? SourceItemTranslucency.PsxModelAlpha : SourceItemTranslucency.ModelAlpha));
+        }
         CollisionObject3D[] bodies = collision.GetChildren().OfType<CollisionObject3D>().Where(body => Matches(body, item)).ToArray();
         if (item.NativeCollisionRevision != model.Revision)
         {

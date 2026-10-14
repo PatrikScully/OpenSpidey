@@ -7,6 +7,7 @@ using OpenSpidey.Core.Audio;
 using OpenSpidey.Core.Actors.Scripting;
 using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Missions;
+using OpenSpidey.Game.Effects;
 using OpenSpidey.Game.Import;
 using OpenSpidey.Game.Player;
 using OpenSpidey.Game.World;
@@ -14,7 +15,7 @@ using OpenSpidey.Game.World;
 namespace OpenSpidey.Game.Actors;
 
 /// <summary>Owns source actors in creation order and schedules them after the player.</summary>
-public partial class GodotActorRegistry : Node3D, IMissionActorFactory, IMissionActorSignals, IActorScriptVariableWorld
+public partial class GodotActorRegistry : Node3D, IMissionActorFactory, IMissionActorSignals, IActorScriptVariableWorld, IActorSpeechCommandHost
 {
     private readonly List<GodotScriptActor> active = [];
     private readonly List<GodotScriptActor> suspended = [];
@@ -33,6 +34,7 @@ public partial class GodotActorRegistry : Node3D, IMissionActorFactory, IMission
     public TriggerFile Triggers { get; init; } = null!;
     public GodotPlayer? Player { get; set; }
     public IGodotPowerUpFactory? PowerUps { get; set; }
+    public GodotElectroLines? ElectroLines { get; set; }
     public Func<int, int> RandomSource { get; init; } = new GameRandom(0x12A6CC58).Next;
     public FixedVector3 Gravity { get; set; } = new(0, 0x8000, 0);
     public SoundChannelController? Sounds { get; init; }
@@ -42,12 +44,16 @@ public partial class GodotActorRegistry : Node3D, IMissionActorFactory, IMission
     public IActorSparkEmitter? Sparks { get; set; }
     public IActorCameraShakeHost? CameraShake { get; set; }
     public IActorVisualEffectHost? ActorVisualEffects { get; set; }
+    public IActorPlayerScriptHost? PlayerScriptHost { get; set; }
+    public IActorCinematicScreenHost? CinematicScreenHost { get; set; }
     public GodotControlSceneServices RequireControlServices() => ControlServices ??
         throw new InvalidOperationException("Source control effects require the actual scene compass, sound channels, listener and clock.");
     public Func<SoundListener> SoundListener { get; init; } =
         () => throw new InvalidOperationException("The sound listener has not been connected.");
     public Action<int, int, int> VoicePlayback { get; init; } =
         (_, _, _) => throw new InvalidOperationException("Actor speech has not been connected.");
+    public Action<int, int, FixedVector3, int> PositionVoicePlayback { get; init; } =
+        (_, _, _, _) => throw new InvalidOperationException("Actor positional XA speech has not been connected.");
     public Func<PsxAssetLibrary> ObjectLibrary { get; init; } =
         () => throw new InvalidOperationException("The actor object library has not been selected.");
     public Action<string, int> ClaimObjectModel { get; init; } =
@@ -100,6 +106,13 @@ public partial class GodotActorRegistry : Node3D, IMissionActorFactory, IMission
             return;
         }
         short type = TriggerActorDefinition.Read(node).ActorType;
+        // Type409 is Effects_CreateElectroLines / CSpecialDisplay, not a CBaddy factory slot (trig.cpp returns 0).
+        if (type == 409)
+        {
+            (ElectroLines ?? throw new NotSupportedException("Effects_CreateElectroLines has no SpecialDisplay owner."))
+                .Create(Triggers, node.Id);
+            return;
+        }
         if (!factories.TryGetValue(type, out var factory))
             throw new NotSupportedException($"Actor type {type}, node {node.Id} has not been ported.");
         GodotScriptActor actor = GodotBaddyConstructionOwner.IsSupportedBaddyType(type)
@@ -245,8 +258,9 @@ public partial class GodotActorRegistry : Node3D, IMissionActorFactory, IMission
         return new(fragment.Data, fragment.SourceOffset);
     }
     public ushort FirstLink(ushort nodeId) => MissionRuntime.ReadLinks(GetNode(nodeId)).FirstOrDefault();
-    public void PlayScriptVoice(ActorScriptCursor operands) => VoicePlayback(unchecked((short)operands.ReadWord()),
-        unchecked((short)operands.ReadWord()), unchecked((short)operands.ReadWord()));
+    public void PlayGlobalSpeech(SpeechRequest request) => VoicePlayback(request.Bank, request.Slot, request.Priority);
+    public void PlayPositionSpeech(SpeechRequest request, FixedVector3 position) =>
+        PositionVoicePlayback(request.Bank, request.Slot, position, request.Priority);
     private TriggerNode GetNode(ushort id) => id < Triggers.Nodes.Count ? Triggers.Nodes[id]
         : throw new InvalidDataException($"Actor references missing trigger node {id}.");
     public int Random(int range) => RandomSource(range);

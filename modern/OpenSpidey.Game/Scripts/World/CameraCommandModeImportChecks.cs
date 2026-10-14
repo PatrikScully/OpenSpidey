@@ -47,17 +47,17 @@ internal static class CameraCommandModeImportChecks
                 "Source160(3) must immediately leave native front dispatch without destroying the saved mode/pose or timed fixed targets.");
             Mode(4); camera._PhysicsProcess(1.0 / 60); camera._PhysicsProcess(1.0 / 60);
             Assert(camera.SourceControlMode == 4 && !camera.LookaroundModeEnabled &&
-                camera.ScriptRig.FixedPosition.RemainingTicks == 15 && camera.ScriptRig.FixedOrientation.RemainingTicks == 17,
-                "Source160(4) must resume genuine native fixed-position dispatch and its timer, retaining the separate dormant quaternion transition.");
+                camera.ScriptRig.FixedPosition.RemainingTicks == 15 && camera.ScriptRig.FixedOrientation.RemainingTicks == 15,
+                "Source160(4) must resume genuine native fixed-position dispatch on the one shared fixed timer2BC.");
             Mode(5); camera._PhysicsProcess(1.0 / 60); camera._PhysicsProcess(1.0 / 60);
             Assert(camera.SourceControlMode == 5 && !camera.LookaroundModeEnabled &&
-                camera.ScriptRig.FixedPosition.RemainingTicks == 13 && camera.ScriptRig.FixedOrientation.RemainingTicks == 15 &&
+                camera.ScriptRig.FixedPosition.RemainingTicks == 13 && camera.ScriptRig.FixedOrientation.RemainingTicks == 13 &&
                 camera.SourceRotation == camera.ScriptRig.FixedOrientation.Value,
                 "Source160(5) must route native fixed quaternion display through the shared mode and resume both original timed transitions.");
             camera.PopLookaroundMode();
             Assert(camera.SourceControlMode == 5 && camera.LookaroundMode.Position == position &&
                 camera.LookaroundMode.CurrentRotation == rotation && camera.ScriptRig.FixedPosition.RemainingTicks == 13 &&
-                camera.ScriptRig.FixedOrientation.RemainingTicks == 15,
+                camera.ScriptRig.FixedOrientation.RemainingTicks == 13,
                 "Later genuine Pop restores the previously saved pose/mode while preserving all intervening fixed transition state.");
             Mode(4); camera.PushLookaroundMode();
             var savedFourPosition = camera.LookaroundMode.SavedPosition;
@@ -67,8 +67,8 @@ internal static class CameraCommandModeImportChecks
                 "A second genuine Push from mode4 must save that mode independently and publish current7 through the same script/native owner.");
             Mode(3);
             Assert(camera.SourceControlMode == 3 && !camera.LookaroundModeEnabled && camera.LookaroundMode.SavedMode == 4 &&
-                camera.ScriptRig.FixedPosition.RemainingTicks == 13 && camera.ScriptRig.FixedOrientation.RemainingTicks == 15,
-                "Source160 while current7 must also preserve a saved4 snapshot and both independently retained fixed timers.");
+                camera.ScriptRig.FixedPosition.RemainingTicks == 13 && camera.ScriptRig.FixedOrientation.RemainingTicks == 13,
+                "Source160 while current7 must also preserve a saved4 snapshot and the retained shared fixed timer.");
             camera.PopLookaroundMode();
             Assert(camera.SourceControlMode == 4 && camera.LookaroundMode.Position == savedFourPosition &&
                 camera.LookaroundMode.CurrentRotation == savedFourRotation,
@@ -78,7 +78,7 @@ internal static class CameraCommandModeImportChecks
                 .Execute(new(commandContext, 0), new(160, 0, new byte[] { 42, 0 }));
             Assert(!GodotObject.IsInstanceValid(camera) && camera.ScriptRig.Mode == 4,
                 "Actual native camera deletion must make source160's presence guard skip its body and renderer without inventing an unsupported mode.");
-            GD.Print($"PASS: {checks} native camera mode ownership checks: actual shared160/186/7 dispatch, retained Push/Pop pose, separate fixed/zoom timers and real deleted-camera guard.");
+            GD.Print($"PASS: {checks} native camera mode ownership checks: actual shared160/186/7 dispatch, retained Push/Pop pose, shared fixed timer, separate zoom timer and real deleted-camera guard.");
 
             void Mode(ushort mode)
             {

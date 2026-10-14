@@ -146,6 +146,7 @@ public partial class LevelSession : Node3D
             AddChild(playerSounds);
             player.SoundOutput = playerSounds.Play;
             var camera = new PlayerFollowCamera { Name = "PlayerCamera", Target = player, SourceTotalTime = () => unchecked((uint)ticks) };
+            camera.SourceWorld = () => combatRuntime?.World;
             AddChild(camera);
             player.CameraHeading = () => camera.SourceHeading;
             renderEnvironment = GodotRenderEnvironment.Create(libraries,
@@ -277,6 +278,7 @@ public partial class LevelSession : Node3D
                 .Append(new EnvironmentVisibilityCommandHandler(environmentVisibility))
                 .Append(new LinkedEnvironmentVisibilityCommandHandler(triggers, environmentVisibility))
                 .Append(new GameLevelCommandHandler(application))
+                .Append(new DualBufferSizeCommandHandler())
                 .Append(new FightMusicTimeCommandHandler(player.Combat))
                 .Append(new ModuleLoadCommandHandler(enemyRuntime.Modules))
                 .Append(new RunCinemaCommandHandler(cinema))
@@ -629,6 +631,23 @@ public partial class LevelSession : Node3D
             if (verifyFirstRoof) MissionMessageImportChecks.Verify(this, archive!, originalExecutable);
             if (verifyFirstRoof) await MissionTextBoxImportChecks.VerifyAsync(this, archive!, originalExecutable);
             if (verifyFirstRoof) await MusicImportChecks.VerifyAsync(this, archive!, player);
+            if (verifyFirstRoof) await ActorSpeechImportChecks.VerifyAsync(this, archive!, GetNode<GodotSpeechPlayer>("Speech").CacheDirectory);
+            if (verifyFirstRoof) await ScorpionApproachImportChecks.VerifyAsync(this, archive!, GetNode<GodotSpeechPlayer>("Speech").CacheDirectory);
+            if (verifyFirstRoof) await ScorpionConstructionImportChecks.VerifyAsync(this, archive!, originalExecutable);
+            if (verifyFirstRoof) await ScorpionTailImportChecks.VerifyAsync(this, archive!, originalExecutable);
+            if (verifyFirstRoof) await JonahFootprintImportChecks.VerifyAsync(this, archive!, originalExecutable);
+            if (verifyFirstRoof) await IdleNpcImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
+                enemyRuntime!.Thugs, enemyRuntime.BlackCat);
+            if (verifyFirstRoof) await TorchImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
+                enemyRuntime!.Thugs, enemyRuntime.BlackCat, player);
+            if (verifyFirstRoof) await LizManImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
+                enemyRuntime!.Thugs, enemyRuntime.BlackCat);
+            if (verifyFirstRoof) await SimbyImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
+                enemyRuntime!.Thugs, enemyRuntime.BlackCat, player);
+            if (verifyFirstRoof) await RhinoImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
+                enemyRuntime!.Thugs, enemyRuntime.BlackCat);
+            if (verifyFirstRoof) await ScorpionHealthBarImportChecks.VerifyAsync(this, archive!);
+            if (verifyFirstRoof) await MissionRenderCompatibilityImportChecks.VerifyAsync(this, archive!);
             if (verifyFirstRoof) await CompassImportChecks.VerifyAsync(this, archive!.Read("data/bits.psx"));
             if (verifyFirstRoof) await PlatformActorImportChecks.VerifyAsync(this, GetNode<GodotActorRegistry>("Actors"));
             if (verifyFirstRoof) await EnvironmentVisibilityImportChecks.VerifyAsync(this, archive!, libraries.Repository);

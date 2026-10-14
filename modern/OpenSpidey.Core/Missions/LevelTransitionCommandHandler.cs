@@ -5,7 +5,7 @@ using OpenSpidey.Assets.Scripting;
 namespace OpenSpidey.Core.Missions;
 
 /// <summary>Actual session/save fields and application teardown required by original level-transition commands.</summary>
-public interface ILevelTransitionHost
+public interface ILevelTransitionHost : IMissionEndLevelNodeHost
 {
     string MissionName { get; }
     LevelExitReason ExitReason { get; }
@@ -14,7 +14,6 @@ public interface ILevelTransitionHost
     void SetExitReason(LevelExitReason reason);
     void SetMissionName(string name);
     void KillAllSceneObjects();
-    void SetEndLevelNode(ushort node);
 }
 
 /// <summary>Original EndLevel, LoadNewTrg and EndLevelNode policy; engine navigation belongs to the scene host.</summary>

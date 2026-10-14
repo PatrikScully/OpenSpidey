@@ -29,6 +29,10 @@ public partial class ImportedAnimatedModel : Node3D, IPlayerAnimationDriver
             if(partMeshes[part] is { } mesh)mesh.Visible=part<32?(lower&(1u<<part))==0:(upper&(1u<<(part-32)))==0;
     }
     private ExactPoseSkin? exactSkin;
+    private PsxMaterialLibrary? sourceMaterials;
+    private OwnedMaterialTranslucency? translucency;
+    private readonly List<ArrayMesh> ownedMeshes = [];
+    private bool resourcesDisposed;
     private FixedJointTransform[] pose = [];
     private FixedJointTransform[] sourceAnimationPose = [];
     private FixedJointTransform[] correctedPose = [];
@@ -100,6 +104,13 @@ public partial class ImportedAnimatedModel : Node3D, IPlayerAnimationDriver
         ApplyFrame(Playback.Frame, Playback.Mode == AnimationPlaybackMode.Loop);
     }
     public void SetAnimationFinished(byte finished) => Playback = Playback with { Finished = finished };
+    /// <summary>Restore canonical source metadata, including constructor frameCount1, without issuing an animation command.</summary>
+    public void RestoreSourcePlayback(AnimationPlaybackState state)
+    {
+        LoadClip(state.ClipId, state.Mode == AnimationPlaybackMode.Loop);
+        Playback = state;
+        ApplyPlayback();
+    }
     /// <summary>Source combo frame streams assign mFrame directly; preserve fraction, direction and finish state.</summary>
     public void SetSourceAnimationFrame(int frame)
     {
@@ -177,7 +188,8 @@ public partial class ImportedAnimatedModel : Node3D, IPlayerAnimationDriver
         }
         partMeshes=new MeshInstance3D?[library.Parents.Count];
         sourceBaseColours = new Color[library.Parents.Count][][];
-        var materials = new PsxMaterialLibrary(textures);
+        sourceMaterials = new PsxMaterialLibrary(textures);
+        translucency = new(sourceMaterials);
         var sourceGeometry = new ImportedAnimatedPartGeometry[library.Parents.Count];
         for (int part = 0; part < library.Parents.Count; part++)
         {
@@ -185,8 +197,9 @@ public partial class ImportedAnimatedModel : Node3D, IPlayerAnimationDriver
             sourceBaseColours[part] = [];
             sourceGeometry[part] = new(scene.Models[part], sourceVertices.AsReadOnly());
             if ((scene.Models[part].Flags & 0x20) != 0) continue;
-            ArrayMesh? mesh = PsxGeometryBuilder.BuildModel(scene.Models[part], scene.ColorTable, materials, bindings[part], sourceVertices);
+            ArrayMesh? mesh = PsxGeometryBuilder.BuildModel(scene.Models[part], scene.ColorTable, sourceMaterials, bindings[part], sourceVertices);
             if (mesh is null) continue;
+            ownedMeshes.Add(mesh);
             sourceBaseColours[part] = Enumerable.Range(0, mesh.GetSurfaceCount()).Select(surface =>
             {
                 using var arrays = mesh.SurfaceGetArrays(surface);
@@ -202,6 +215,15 @@ public partial class ImportedAnimatedModel : Node3D, IPlayerAnimationDriver
         SourceGeometryParts = Array.AsReadOnly(sourceGeometry);
         SetSourceHiddenParts(SourceHiddenParts,SourceHiddenPartsUpper);
     }
+
+    public float? SourceTranslucency => translucency?.Alpha;
+
+    /// <summary>CItem flag800 over this instance's own source materials; DCModel actors keep vertex alpha0xFF.</summary>
+    public void SetSourceTranslucency(float? alpha) =>
+        (translucency ?? throw new InvalidOperationException("Source translucency requires the model's imported materials.")).Set(alpha);
+
+    internal void VerifySourceTranslucency(float? alpha) =>
+        (translucency ?? throw new InvalidOperationException("Source translucency requires the model's imported materials.")).Verify(alpha, partMeshes);
 
     public void ApplySourceVertexColours(int part, IReadOnlyList<SourceRgb24> colours)
     {
@@ -370,6 +392,23 @@ public partial class ImportedAnimatedModel : Node3D, IPlayerAnimationDriver
         exactSkin?.Dispose();
         exactSkin = null;
         RequestReady();
+    }
+
+    internal Resource[] CaptureOwnedResources() => ownedMeshes.Cast<Resource>()
+        .Concat(sourceMaterials?.CaptureOwnedResources() ?? [])
+        .DistinctBy(resource => resource.GetInstanceId()).ToArray();
+
+    public override void _Notification(int what)
+    {
+        if (what != NotificationPredelete || resourcesDisposed) return;
+        resourcesDisposed = true;
+        exactSkin?.Dispose(); exactSkin = null;
+        foreach (MeshInstance3D? instance in partMeshes)
+            if (instance is not null && GodotObject.IsInstanceValid(instance)) instance.Mesh = null;
+        foreach (ArrayMesh mesh in ownedMeshes) mesh.Dispose();
+        ownedMeshes.Clear();
+        translucency = null;
+        sourceMaterials?.Dispose(); sourceMaterials = null;
     }
 
     private void ApplyFrame(int frame, bool loop = true)

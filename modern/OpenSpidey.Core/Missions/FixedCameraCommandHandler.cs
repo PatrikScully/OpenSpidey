@@ -5,7 +5,7 @@ using OpenSpidey.Core.Mathematics;
 
 namespace OpenSpidey.Core.Missions;
 
-/// <summary>Chooses the first linked type-twelve camera node, preserving source link order.</summary>
+/// <summary>Source185/186/188: chooses the first linked type-twelve camera node, preserving source link order.</summary>
 public sealed class FixedCameraCommandHandler(TriggerFile file, ScriptedCameraRig camera,
     Func<FixedVector3> currentPosition, MissionOpcode opcode = MissionOpcode.SetFixedCameraPosition,
     Func<FixedQuaternion>? currentRotation = null, Func<bool>? cameraPresent = null) : IMissionCommandHandler
@@ -27,6 +27,8 @@ public sealed class FixedCameraCommandHandler(TriggerFile file, ScriptedCameraRi
             TriggerPosition position = placement.Position;
             FixedVector3 target = new FixedVector3(position.X, position.Y, position.Z) << 12;
             if (opcode == MissionOpcode.SetFixedCameraPosition) camera.SetFixedPosition(currentPosition(), target, duration);
+            else if (opcode == MissionOpcode.SetFixedCameraFocus)
+                camera.SetFixedFocus(target, duration, BinaryPrimitives.ReadUInt16LittleEndian(instruction.Arguments.Span[2..]));
             else if (opcode == MissionOpcode.SetFixedCameraPositionAndRotation)
             {
                 if (currentRotation is null) throw new InvalidOperationException("Quaternion camera command needs the current view rotation.");
@@ -46,6 +48,6 @@ public sealed class FixedCameraCommandHandler(TriggerFile file, ScriptedCameraRi
 
     public static IEnumerable<IMissionCommandHandler> CreateHandlers(TriggerFile file, ScriptedCameraRig camera,
         Func<FixedVector3> currentPosition, Func<FixedQuaternion> currentRotation, Func<bool>? cameraPresent = null) =>
-        new MissionOpcode[] { MissionOpcode.SetFixedCameraPosition, MissionOpcode.SetFixedCameraPositionAndRotation }
+        new MissionOpcode[] { MissionOpcode.SetFixedCameraPosition, MissionOpcode.SetFixedCameraPositionAndRotation, MissionOpcode.SetFixedCameraFocus }
             .Select(opcode => new FixedCameraCommandHandler(file, camera, currentPosition, opcode, currentRotation, cameraPresent));
 }

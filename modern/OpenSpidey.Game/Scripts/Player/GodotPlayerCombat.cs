@@ -55,7 +55,7 @@ public sealed class GodotPlayerCombat : IPlayerHitHost, IPlayerDamageTimerHost, 
     {
         this.player = player;
         State = new(health, maxHealth);
-        player.Controller.ConfigureCombat(State, this, this, this);
+        player.Controller.ConfigureCombat(State, this, this, this, player.CostumeVisibility);
     }
 
     public void ConfigureCollisionBoxes(IReadOnlyList<ActorPartBox> boxes)

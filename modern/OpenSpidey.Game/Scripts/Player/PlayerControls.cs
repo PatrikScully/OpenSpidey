@@ -67,6 +67,16 @@ internal static class PlayerControls
         return action is not null && InputMap.HasAction(action) ? action : null;
     }
 
+    /// <summary>PCINPUT_IsKeyPressed reads only the DirectInput keyboard state for the action's mapped key, never the pad.</summary>
+    public static bool KeyboardActionHeld(ushort sourceAction)
+    {
+        if (SourceActionName(sourceAction) is not { } action) return false;
+        foreach (InputEvent binding in InputMap.ActionGetEvents(action))
+            if (binding is InputEventKey key && (key.PhysicalKeycode != Key.None ? Input.IsPhysicalKeyPressed(key.PhysicalKeycode) : Input.IsKeyPressed(key.Keycode)))
+                return true;
+        return false;
+    }
+
     public static PlayerButtonInput ReadButtons()
     {
         PlayerButton held = PlayerButton.None, triggered = PlayerButton.None;

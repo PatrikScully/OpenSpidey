@@ -7,9 +7,11 @@ public enum CinematicActorSignalSource { BodyFlags, InputFlags }
 
 public readonly record struct CinematicActorScriptProfile(int WalkSpeed, int WalkStartAnimation,
     int WalkLoopAnimation, int WalkEndAnimation, bool ScaleMoveVelocity,
-    CinematicActorSignalSource SignalSource, bool HasCheckpoint)
+    CinematicActorSignalSource SignalSource, bool HasCheckpoint, bool AbortClearsVelocity = true,
+    bool FinishRestoresCheckpoint = true)
 {
     public static CinematicActorScriptProfile BlackCat => new(3, 2, 3, 4, true, CinematicActorSignalSource.InputFlags, true);
+    public static CinematicActorScriptProfile Torch => new(3, 0, 0, 0, true, CinematicActorSignalSource.InputFlags, true, false, false);
     public static CinematicActorScriptProfile SpiderClone => new(8, 1, 21, 13, false, CinematicActorSignalSource.InputFlags, false);
 }
 
@@ -61,7 +63,8 @@ public sealed class CinematicActorScriptRuntime
         ElapsedTicks = unchecked(ElapsedTicks + ticks);
         if (profile.HasCheckpoint && abort)
         {
-            Decoding = false; commands.Clear(); host.Body.Velocity = default;
+            Decoding = false; commands.Clear();
+            if (profile.AbortClearsVelocity) host.Body.Velocity = default;
             if (CheckpointNode != 0)
             {
                 host.Body.Position = host.TriggerPosition(CheckpointNode);
@@ -123,7 +126,7 @@ public sealed class CinematicActorScriptRuntime
         if (commands.Count == 0 && !Decoding)
         {
             Running = false;
-            if (profile.HasCheckpoint && abort && CheckpointNode != 0) host.Body.Position = host.TriggerPosition(CheckpointNode);
+            if (profile.FinishRestoresCheckpoint && profile.HasCheckpoint && abort && CheckpointNode != 0) host.Body.Position = host.TriggerPosition(CheckpointNode);
         }
     }
 

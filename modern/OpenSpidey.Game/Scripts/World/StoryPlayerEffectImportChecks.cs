@@ -175,7 +175,14 @@ internal static class StoryPlayerEffectImportChecks
             Check(phase == 2 && player.Model.Playback.ClipId == 106 && hands.State.Current.All(trail => trail is SmokeTrail) &&
                 smash.CurrentTrails.Select((foot, index) => foot is not null && foot.Cursor == frame + 1 &&
                     foot.Points[foot.Cursor] == melee.GetPlayerHookPosition(index + 5)).All(value => value),
-                "The genuine after-pose hook must finish both hand trails before updating both foot endpoints from current posed hooks5/6.");
+                "The genuine after-pose hook must finish both hand trails before updating both foot endpoints from current posed hooks5/6. " +
+                $"phase={phase}, frame={frame}, clip={player.Model.Playback.ClipId}, action={player.Combat.State.ActionState:X}, " +
+                $"programs={player.Scripts!.ProgramsStarted}, scriptActive={player.Scripts.Active}, " +
+                $"programOffset={player.Scripts.CurrentProgram?.Instructions.FirstOrDefault().SourceOffset:X}, " +
+                $"cleanup={player.Scripts.CutsceneSkip!.CleanupCount}, checkpoint={player.Scripts.Runtime?.CheckpointNode}, " +
+                $"hands=[{string.Join(',', hands.State.Current.Select(trail => trail?.GetType().Name ?? "null"))}], " +
+                $"feet=[{string.Join(';', smash.CurrentTrails.Select((foot, index) => foot is null ? "null" :
+                    $"cursor={foot.Cursor}, point={foot.Points[foot.Cursor]}, hook={melee.GetPlayerHookPosition(index + 5)}"))}].");
             phase = 3; phaseOrder.Add("pose");
         }
         void EmberCreated(SourceParticleRegistration bit)

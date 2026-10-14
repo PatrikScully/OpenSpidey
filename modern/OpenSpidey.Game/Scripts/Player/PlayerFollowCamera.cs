@@ -7,42 +7,34 @@ using OpenSpidey.Game.Import;
 
 namespace OpenSpidey.Game.Player;
 
-/// <summary>A usable orbit camera while original mission camera behaviors are ported.</summary>
+/// <summary>The source CCamera: one CameraAi417CB0 update per source frame, displayed through this node.</summary>
 public partial class PlayerFollowCamera : Camera3D
 {
     private float yaw;
-    private float pitch = 0.25f;
     private int physicsTicks;
-    private bool shakeSampleValid;
-    private bool shakeApplied;
-    private FixedQuaternion shakeDisplay;
-    private Basis unshakenBasis;
-    private short unshakenHeading;
+    private bool aiUpdated;
+    private Transform3D? appliedTransform;
+    private CameraAi? ai;
     public CameraShakeState ShakeState {get;}=new();
     public Func<uint>? SourceTotalTime {get;set;}
     public ScriptedCameraRig ScriptRig { get; } = new();
     public bool SourceRenderPhase { get; set; }
     public GodotPlayer Target { get; init; } = null!;
-    public bool TerrainObstructed { get; private set; }
     public int FocusHookIndex { get; private set; } = -1;
-    public short SourceHeading
-    {
-        get
-        {
-            if (LookaroundModeEnabled) return LookaroundMode.ViewHeading;
-            if (!ScriptRig.Enabled) return OrbitSourceHeading;
-            if (ScriptRig.Mode is 4 or 5) return shakeApplied ? unshakenHeading : HeadingFor(-GlobalBasis.Z);
-            return ScriptRig.Heading;
-        }
-    }
-    public FixedVector3 SourcePosition => PsxCoordinates.OriginalWorldPosition(GlobalPosition);
+    public CameraAi Ai => ai ??= new(ScriptRig, Tripod, SourceNormalPlacement, ShakeState);
+    /// <summary>Source gBossRelated0x56E998 for CM_Boss3; null when no boss body is registered.</summary>
+    public Func<CameraFocusTarget?>? SourceBoss { get; set; }
+    /// <summary>The416B10 item-hiding phase for field F9. Null keeps CameraPlacement's NotSupported guard.</summary>
+    public Action? SourceHideItems { get => Ai.HideItems; set => Ai.HideItems = value; }
+    /// <summary>Source field23A after the last AI update; the orbit heading before the first one.</summary>
+    public short SourceHeading => aiUpdated && PoseOwned ? ScriptRig.ModeState.ViewHeading : OrbitSourceHeading;
+    public FixedVector3 SourcePosition => PoseOwned ? ScriptRig.ModeState.Position : PsxCoordinates.OriginalWorldPosition(GlobalPosition);
     public FixedJointTransform SourceViewRotation => FixedRotation.TransposeRotation(
-        shakeApplied ? shakeDisplay.ToMatrix() : LookaroundModeEnabled ? LookaroundMode.DisplayRotation.ToMatrix()
-            : ScriptRig.Enabled && ScriptRig.Mode == 5 ? ScriptRig.FixedOrientation.Value.ToMatrix()
-            : PsxCoordinates.OriginalRotation(GlobalBasis));
-    public FixedQuaternion SourceRotation => shakeApplied ? shakeDisplay : LookaroundModeEnabled ? LookaroundMode.DisplayRotation
-        : ScriptRig.Enabled && ScriptRig.Mode == 5
-        ? ScriptRig.FixedOrientation.Value : FixedQuaternion.FromMatrix(PsxCoordinates.OriginalRotation(GlobalBasis));
+        PoseOwned ? ScriptRig.ModeState.DisplayRotation.ToMatrix() : PsxCoordinates.OriginalRotation(GlobalBasis));
+    /// <summary>Source display quaternion214, including shake.</summary>
+    public FixedQuaternion SourceRotation => PoseOwned ? ScriptRig.ModeState.DisplayRotation
+        : FixedQuaternion.FromMatrix(PsxCoordinates.OriginalRotation(GlobalBasis));
+    private bool PoseOwned => appliedTransform == GlobalTransform;
     private static short HeadingFor(Vector3 forward) =>
         (short)((1024 - GameAngle.Atan2((int)(forward.Z * 4096), (int)(-forward.X * 4096))) & 4095);
     private short OrbitSourceHeading
@@ -76,7 +68,6 @@ public partial class PlayerFollowCamera : Camera3D
             Input.MouseMode = Input.MouseModeEnum.Visible;
         if (@event is not InputEventMouseMotion motion || Input.MouseMode != Input.MouseModeEnum.Captured) return;
         yaw -= motion.ScreenRelative.X * 0.003f;
-        pitch = Mathf.Clamp(pitch + motion.ScreenRelative.Y * 0.003f, -0.2f, 1.2f);
         SynchronizeSourceHeadingFromOrbit();
     }
 
@@ -96,88 +87,45 @@ public partial class PlayerFollowCamera : Camera3D
 
     private void AdvanceCameraFrame(bool sourceUpdate)
     {
-        TerrainObstructed = false;
-        if(shakeApplied)GlobalBasis=unshakenBasis;
-        shakeApplied = false;
         if (sourceUpdate)
         {
-            ScriptRig.Advance(2);
-            AdvanceSourceTracking(2);
-            UpdateNormalProjectionCache();
+            InitializeSourceTracking();
+            SynchronizeFromNode();
+            CameraAi camera = Ai;
+            camera.Projection = SourceProjectionCache ??= new();
+            camera.Update(2, sourceHost ??= new(this));
+            aiUpdated = true;
+            ApplySourceOrbitHeading();
         }
         Fov = (float)CameraProjection.VerticalFieldOfView(ScriptRig.Zoom.Value);
-        if (ApplySourceLookaroundPose(sourceUpdate)) return;
-        if (ScriptRig.Enabled)
-        {
-            ScriptedCameraPose pose = ScriptRig.DesiredPose(SourceTripodPosition);
-            Vector3 sourceFocus = PsxCoordinates.FixedWorldPosition(pose.Focus);
-            Vector3 desired = PsxCoordinates.FixedWorldPosition(pose.Position);
-            GlobalPosition = ScriptRig.Mode is 4 or 5 ? desired : AvoidTerrain(sourceFocus, desired);
-            if (ScriptRig.Mode == 5)
-            {
-                // Camera3D requires a pure rotation; retain fixed-point rounding in the core state.
-                GlobalBasis = PsxCoordinates.CharacterTransform(ScriptRig.FixedOrientation.Value.ToMatrix()).Basis.Orthonormalized();
-                ApplyShake(sourceUpdate);
-                return;
-            }
-            Vector3 up = -PsxCoordinates.FixedWorldPosition(pose.Down).Normalized();
-            if (GlobalPosition.DistanceSquaredTo(sourceFocus) > 0.0001f) LookAt(sourceFocus, up);
-            ApplyShake(sourceUpdate);
-            return;
-        }
-        Vector3 focus = PsxCoordinates.FixedWorldPosition(SourceTripodPosition) + Vector3.Up * 0.7f;
-        Vector3 offset = new Vector3(Mathf.Sin(yaw) * Mathf.Cos(pitch), Mathf.Sin(pitch),
-            Mathf.Cos(yaw) * Mathf.Cos(pitch)) * 4;
-        Vector3 destination = focus + offset;
-        GlobalPosition = AvoidTerrain(focus, destination);
-        LookAt(focus);
-        ApplyShake(sourceUpdate);
+        if (sourceUpdate || !PoseOwned) ApplySourcePose(ScriptRig.ModeState.DisplayRotation);
+    }
+
+    /// <summary>Another owner moved the node; the source camera resumes from that displayed pose.</summary>
+    private void SynchronizeFromNode()
+    {
+        if (PoseOwned) return;
+        CameraModeState state = ScriptRig.ModeState;
+        state.Position = PsxCoordinates.OriginalWorldPosition(GlobalPosition);
+        state.CurrentRotation = state.DisplayRotation = FixedQuaternion.FromMatrix(PsxCoordinates.OriginalRotation(GlobalBasis));
+        appliedTransform = GlobalTransform;
+    }
+
+    private void ApplySourcePose(FixedQuaternion rotation)
+    {
+        GlobalPosition = PsxCoordinates.FixedWorldPosition(ScriptRig.ModeState.Position);
+        // Camera3D requires a pure rotation; the fixed-point rounding stays in the source state.
+        GlobalBasis = PsxCoordinates.CharacterTransform(rotation.ToMatrix()).Basis.Orthonormalized();
+        appliedTransform = GlobalTransform;
     }
 
     public void Shake(FixedVector3 position,int magnitude)
     {
         if(SourceTotalTime is null)throw new InvalidOperationException("Camera shake requires the owning session's source total-time clock.");
         ShakeState.Shake(position,magnitude);
-        shakeSampleValid=false;
-    }
-    private void ApplyShake(bool sourceUpdate)
-    {
-        unshakenBasis=GlobalBasis;
-        unshakenHeading=HeadingFor(-GlobalBasis.Z);
-        if(sourceUpdate && !ShakeState.Active)shakeSampleValid=false;
-        if(ShakeState.Active && (sourceUpdate || !shakeSampleValid))
-        {
-            uint time=(SourceTotalTime ?? throw new InvalidOperationException("Camera shake lost its owning source clock."))();
-            FixedQuaternion baseline=LookaroundModeEnabled ? LookaroundMode.DisplayRotation
-                : ScriptRig.Enabled && ScriptRig.Mode==5 ? ScriptRig.FixedOrientation.Value
-                : FixedQuaternion.FromMatrix(PsxCoordinates.OriginalRotation(GlobalBasis));
-            shakeDisplay=sourceUpdate?ShakeState.Advance(baseline,time):ShakeState.Evaluate(baseline,time);
-            shakeSampleValid=true;
-        }
-        if(!shakeSampleValid)return;
-        // Display-only orientation: original camera position/collision and desired script quaternion stay intact.
-        GlobalBasis=PsxCoordinates.CharacterTransform(shakeDisplay.ToMatrix()).Basis.Orthonormalized();
-        shakeApplied=true;
     }
 
     public void PutBehind(int duration) => SourcePutBehind(duration);
 
     public void SetFocusHook(int sourceIndex) => SetSourceFocusHook(sourceIndex);
-
-    private Vector3 AvoidTerrain(Vector3 focus, Vector3 destination)
-    {
-        Vector3 offset = destination - focus;
-        if (offset.LengthSquared() < 0.0001f) return focus + Vector3.Back * 0.01f;
-        using var query = PhysicsRayQueryParameters3D.Create(focus, destination, CollisionLayers.CameraTerrain);
-        query.HitBackFaces = false;
-        query.CollideWithAreas = false;
-        using Godot.Collections.Dictionary hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
-        if (hit.Count != 0)
-        {
-            TerrainObstructed = true;
-            destination = hit["position"].AsVector3() - offset.Normalized() * 0.15f;
-        }
-        if (destination.DistanceSquaredTo(focus) < 0.0001f) destination = focus + offset.Normalized() * 0.01f;
-        return destination;
-    }
 }

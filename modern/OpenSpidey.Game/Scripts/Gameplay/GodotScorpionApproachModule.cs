@@ -10,7 +10,6 @@ using OpenSpidey.Core.Player;
 using OpenSpidey.Core.Presentation;
 using OpenSpidey.Game.Actors;
 using OpenSpidey.Game.Audio;
-using OpenSpidey.Game.Player;
 
 namespace OpenSpidey.Game.Gameplay;
 
@@ -39,18 +38,16 @@ public partial class GodotScorpionApproachModule : Node, IScorpionApproachCountd
     private readonly DecodedTexture?[] sourceTextures = new DecodedTexture?[5];
     private readonly List<ScorpionProgressDraw> draws = [];
     private SourceModuleRegistry<GodotActorModuleArguments, GodotScriptActor>? modules;
-    private PlayerTerrainController? boundController;
     private bool loaded, disposed;
     internal bool ResourcesDisposed => disposed;
     internal int LiveTextures => textures.Count(texture => texture is not null);
     internal int TextureLookups { get; private set; }
-    internal int SourceHookVisits { get; private set; }
     internal int MonitorCalls { get; private set; }
     internal int DisplayCalls { get; private set; }
     internal int ClearCalls { get; private set; }
     internal int AllocatedPolys { get; private set; }
     internal int SubmittedPrimitives { get; private set; }
-    internal bool PlayerHookBound => boundController is not null;
+    internal bool SourceModuleLoaded => loaded;
     internal IReadOnlyList<ScorpionProgressDraw> Draws => draws;
     internal ImageTexture? SourceTexture(int index) => textures[index];
     internal DecodedTexture? OriginalTexture(int index) => sourceTextures[index];
@@ -83,25 +80,6 @@ public partial class GodotScorpionApproachModule : Node, IScorpionApproachCountd
         modules = registry;
     }
 
-    public void BindPlayer(GodotPlayer player)
-    {
-        ObjectDisposedException.ThrowIf(disposed, this); ArgumentNullException.ThrowIfNull(player);
-        if (modules is null) throw new InvalidOperationException("The source Scorpion module has not been registered.");
-        if (boundController is not null)
-        {
-            if (ReferenceEquals(boundController, player.Controller)) return;
-            throw new InvalidOperationException("A level-script source hook cannot transfer between live player owners.");
-        }
-        boundController = player.Controller;
-        boundController.AfterPlayerAi += RunPlayerHook;
-    }
-
-    private void RunPlayerHook()
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        SourceHookVisits++;
-        configuration.PlayerHook.Run(modules!.CallParameterlessUserFunction);
-    }
     public void Monitor()
     {
         ObjectDisposedException.ThrowIf(disposed, this); MonitorCalls++;
@@ -185,8 +163,6 @@ public partial class GodotScorpionApproachModule : Node, IScorpionApproachCountd
     private void Release()
     {
         if (disposed) return;
-        if (boundController is not null) boundController.AfterPlayerAi -= RunPlayerHook;
-        boundController = null;
         try
         {
             if (loaded) modules!.Unload("l2a1lsc");

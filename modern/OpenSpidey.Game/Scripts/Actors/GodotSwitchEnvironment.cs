@@ -97,6 +97,7 @@ public partial class GodotSwitchEnvironmentItem : Node3D
     private PsxModel model = null!;
     private EnvironmentChunkModelState? sharedModel;
     private PsxMaterialLibrary? materials;
+    private OwnedMaterialTranslucency? translucency;
     private readonly List<Shape3D> collisionShapes = [];
     private int appliedModelRevision = -1;
     private bool resourcesDisposed;
@@ -130,6 +131,7 @@ public partial class GodotSwitchEnvironmentItem : Node3D
                 if (!textures.Any(texture => texture.Checksum == checksum))
                     throw new InvalidDataException($"Original switch ENV texture {checksum:X8} is missing.");
             item.materials = new(textures);
+            item.translucency = new(item.materials);
             // Source ruin faces can initially have every draw bit disabled. Their native owner remains valid until actual chunk reveal.
             item.sourceMesh = PsxGeometryBuilder.BuildModel(item.model, library.Scene.ColorTable, item.materials) ?? new ArrayMesh();
             item.ownedMesh = new ArrayMesh();
@@ -159,6 +161,11 @@ public partial class GodotSwitchEnvironmentItem : Node3D
         model = model with { Faces = Array.AsReadOnly(faces) };
         BuildCollision(); Synchronize();
     }
+    /// <summary>RenderSuperItem 475D61: a chunk-prepared model (DCModelData flag4000) draws through DC_PSXModel_RenderModel.</summary>
+    internal float SourceTranslucencyAlpha => sharedModel is { } shared && (shared.RendererFlags & 0x4000) != 0
+        ? SourceItemTranslucency.PsxModelAlpha : SourceItemTranslucency.ModelAlpha;
+    internal void VerifySourceTranslucency(float? alpha) =>
+        (translucency ?? throw new InvalidOperationException("Switch ENV translucency requires its imported materials.")).Verify(alpha, [mesh]);
     public void HideModel()
     {
         if (sharedModel is not null) sharedModel.Flags |= 0x20;
@@ -201,6 +208,7 @@ public partial class GodotSwitchEnvironmentItem : Node3D
         mesh.Transform = transform;
         if (collision is not null) collision.Transform = transform;
         mesh.Visible = (State.ItemFlags & 0x1001) == 0 && (SourceModelFlags & 0x20) == 0;
+        translucency?.Set(SourceItemTranslucency.Alpha(State.ItemFlags, SourceTranslucencyAlpha));
         foreach ((ImportedCollisionBody body, uint layers) in bodies)
         {
             body.SourceFlags = State.ItemFlags;
@@ -237,6 +245,7 @@ public partial class GodotSwitchEnvironmentItem : Node3D
         foreach (var surface in surfaces) surface.Arrays.Dispose(); surfaces.Clear();
         sourceMesh?.Dispose(); ownedMesh?.Dispose();
         foreach (Shape3D shape in collisionShapes) shape.Dispose(); collisionShapes.Clear();
+        translucency = null;
         materials?.Dispose(); materials = null;
     }
 

@@ -5,8 +5,28 @@ public readonly record struct PlayerInputSuppressionStep(bool ClearButtons, bool
 /// <summary>Recovered physical-input countdown, including exact-zero expiry and script-driven suspension.</summary>
 public sealed class PlayerInputSuppression(Action? exitLookaround = null)
 {
-    public int RemainingTicks { get; private set; }
-    public short SavedAnimationSpeed { get; private set; }
+    private PlayerCombatState? sourceState;
+    private Action? exit = exitLookaround;
+    private int remainingTicks;
+    private short savedAnimationSpeed;
+    public int RemainingTicks
+    {
+        get => sourceState?.FieldE18 ?? remainingTicks;
+        private set { if (sourceState is { } state) state.FieldE18 = value; else remainingTicks = value; }
+    }
+    public short SavedAnimationSpeed
+    {
+        get => sourceState?.SavedInputAnimationSpeed ?? savedAnimationSpeed;
+        private set { if (sourceState is { } state) state.SavedInputAnimationSpeed = value; else savedAnimationSpeed = value; }
+    }
+
+    /// <summary>Input decay, damage eligibility and the timer HUD all read the same original E18/E12 fields.</summary>
+    public void BindSourceState(PlayerCombatState state, Action exitLookaround)
+    {
+        ArgumentNullException.ThrowIfNull(state); ArgumentNullException.ThrowIfNull(exitLookaround);
+        if (sourceState is not null) throw new InvalidOperationException("The source input countdown already has a player owner.");
+        sourceState = state; exit = exitLookaround;
+    }
 
     public void Set(int duration, int animationSpeed, bool lookaroundActive = false)
     {
@@ -15,8 +35,8 @@ public sealed class PlayerInputSuppression(Action? exitLookaround = null)
         SavedAnimationSpeed = unchecked((short)animationSpeed);
         if (lookaroundActive)
         {
-            if (exitLookaround is null) throw new NotSupportedException("Input suppression needs the active lookaround exit adapter.");
-            exitLookaround();
+            if (exit is null) throw new NotSupportedException("Input suppression needs the active lookaround exit adapter.");
+            exit();
         }
     }
 

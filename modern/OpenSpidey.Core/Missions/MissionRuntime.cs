@@ -46,13 +46,7 @@ public sealed class MissionRuntime : IMissionContactFrameHost
 
     public void QueueAutoexec(bool alternative = false)
     {
-        if (alternative)
-        {
-            TriggerNode? node = file.Nodes.FirstOrDefault(node => node.TypeCode == (ushort)TriggerNodeKind.AlternativeAutoexec);
-            if (node is not null) { Queue(node.Id); return; }
-        }
-        foreach (TriggerNode node in file.Nodes)
-            if (node.TypeCode == (ushort)TriggerNodeKind.Autoexec) Queue(node.Id);
+        foreach (TriggerNode node in MissionAutoexecSelection.Select(file, alternative)) Queue(node.Id);
     }
 
     public void ReceivePulse(ushort nodeId)

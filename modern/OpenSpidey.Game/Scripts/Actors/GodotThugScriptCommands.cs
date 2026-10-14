@@ -32,8 +32,6 @@ public sealed class GodotThugScriptCommands(GodotActorRegistry registry)
             case 0x428E: case 0x4290:
                 (registry.Sounds ?? throw new InvalidOperationException("Live thug sound commands require the actual scene channels."))
                     .Play(ActorScriptSoundCode.Global(operands.ReadWord(), opcode == 0x428E)); return true;
-            case 0x42A3:
-                registry.PlayScriptVoice(operands); return true;
             default: return false;
         }
     }

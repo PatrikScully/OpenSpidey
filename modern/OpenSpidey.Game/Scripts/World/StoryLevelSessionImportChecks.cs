@@ -204,6 +204,7 @@ internal static class StoryLevelSessionImportChecks
             GodotCombatSceneOwnership ownership = liveCombat.SceneOwnership;
             GodotActorSessionHandle retainedHandle = ownership.Actors.StoreHandle(thugs[0]);
             await (inputProbe ?? throw new InvalidDataException("Actual gameplay did not bind its native story-input observer.")).VerifyManualSkipAsync();
+            await StoryItemTranslucencyImportChecks.VerifyAsync(scene);
             GodotPlayerWebRuntime effectRuntime = await StoryPlayerEffectImportChecks.VerifyAsync(scene);
             GodotScriptActor[] allocatedActors = Enum.GetValues<ActorUpdateGroup>().SelectMany(scene.Registry.SourceActors)
                 .Concat(scene.Registry.SuspendedSourceList.SourceOrder.OfType<GodotScriptActor>()).Distinct().ToArray();

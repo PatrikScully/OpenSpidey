@@ -71,6 +71,11 @@ public sealed class GodotPlayerLookaroundCamera : IPlayerLookaroundInputHost, IP
     public void PopCameraMode() => camera.PopLookaroundMode();
     public void PutCameraBehind(int argument) => player.Combat.PutCameraBehind(argument);
     public void SetTargetVisible(bool visible) => setTargetVisible(visible);
+    public void SetCinematicScreen(int value)
+    {
+        camera.ScriptRig.CinematicScreen.WideScreenValue = value;
+        camera.ScriptRig.CinematicScreen.WideScreenShadow = value;
+    }
     public void SetDesiredCameraRotation(FixedQuaternion rotation) => camera.SetLookaroundDesiredRotation(rotation);
     public void SetCameraPosition(FixedVector3 position) => camera.SetLookaroundPosition(position);
     public void SetTargetTorsoAngle(short wanted, bool fast) => Melee.SetTargetTorsoAngle(wanted, fast);

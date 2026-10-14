@@ -9,6 +9,7 @@ namespace OpenSpidey.Game.Player;
 public sealed class GodotPlayerScripts(GodotPlayer player, TriggerFile triggers,
     Func<PlayerScriptEnvironment> environment) : IPlayerScriptHost
 {
+    private readonly GodotPlayerSynthesizedInput synthesizedInput = new(player);
     public PlayerScriptRuntime? Runtime { get; private set; }
     public PlayerScriptProgram? CurrentProgram { get; private set; }
     public int ProgramsStarted { get; private set; }
@@ -24,16 +25,28 @@ public sealed class GodotPlayerScripts(GodotPlayer player, TriggerFile triggers,
     public PlayerCutsceneSkipState SkipState { get; } = new();
     public GodotPlayerCutsceneSkip? CutsceneSkip { get; internal set; }
 
+    public void BindSourceOwners(GodotPlayerWebRuntime web, GodotPlayerCombatRuntime combat) =>
+        synthesizedInput.BindSourceOwners(web, combat);
+
+    /// <summary>470E embeds the player stream before later actor commands; return the original zero/FF boundary.</summary>
+    public int StartEmbedded(ReadOnlyMemory<byte> source, int sourceOffset)
+    {
+        int consumed = PlayerSynthesizedInput.StreamLength(source.Span, sourceOffset);
+        Start(PlayerScriptProgram.Read(source.Span[..consumed], sourceOffset));
+        return consumed;
+    }
+
     public void Start(PlayerScriptProgram program)
     {
-        SkipState.BeginScript();
-        if (Runtime is null) Runtime = new(program, this);
-        else Runtime.ReplaceProgram(program);
-        CurrentProgram = program;
-        ProgramsStarted++;
-        player.Combat.State.SynthesizedInputActive = true;
-        player.Controller.SetScriptVelocity(default);
-        LastInput = null;
+        ArgumentNullException.ThrowIfNull(program);
+        PlayerSynthesizedInput.Begin(player.Combat.State, SkipState, player.PhysicalPad, synthesizedInput, () =>
+        {
+            if (Runtime is null) Runtime = new(program, this);
+            else Runtime.ReplaceProgram(program);
+            CurrentProgram = program;
+            ProgramsStarted++;
+            LastInput = null;
+        });
     }
 
     public PlayerControlFrame ReadControls()

@@ -32,6 +32,9 @@ internal static class PlayerWalkingImportChecks
         var heading = (camera.HeadingTransition.Heading, camera.HeadingTransition.Target,
             camera.HeadingTransition.RemainingTicks, camera.HeadingTransition.Rate, camera.HeadingTransition.PublishedHeading);
         var tripod = (camera.Tripod.Position, camera.Tripod.Target, camera.Tripod.Rate, camera.Tripod.RemainingTicks);
+        short viewHeading = camera.LookaroundMode.ViewHeading;
+        // The player reads field23A, which the source rebuilds from SetCamAngle only on the next camera AI update.
+        void SetViewAngle(short angle) { camera.SetCameraAngle(angle, 0); camera.LookaroundMode.ViewHeading = angle; }
         CameraParameter[] parameters = Enum.GetValues<CameraParameter>();
         CameraParameterTransitionSnapshot[] parameterStates = parameters.Select(parameter => camera.ScriptRig.Parameter(parameter).Capture()).ToArray();
         byte[] pressed = melee.State.Input.Pressed.ToArray(), triggered = melee.State.Input.Triggered.ToArray(), mirrors = melee.State.Input.Mirrors.ToArray();
@@ -47,7 +50,7 @@ internal static class PlayerWalkingImportChecks
             Array.Clear(melee.State.Input.Pressed); Array.Clear(melee.State.Input.Triggered); Array.Clear(melee.State.Input.Mirrors);
             SetFloorWalking(21);
             melee.State.Input.Sideways = -127; melee.State.Input.Forward = 0;
-            camera.SetCameraAngle(unchecked((short)((controller.Orientation.GetEffectiveHeading(false) - controller.MovementInput.Heading) & 4095)), 0);
+            SetViewAngle(unchecked((short)((controller.Orientation.GetEffectiveHeading(false) - controller.MovementInput.Heading) & 4095)));
             walking.UpdateWalking(ushort.MaxValue);
             Assert(combat.ActionState == 16 && combat.AnimationId == 21 && combat.FieldEA6 == 0,
                 "Actual production walking must run all genuine web/jump/kick/airborne/corner guards and retain forward gait21 on the real roof.");
@@ -57,7 +60,7 @@ internal static class PlayerWalkingImportChecks
                 "Released movement must use actual SwitchToStandMode's original21 stop clip.");
 
             SetFloorWalking(21); melee.State.Input.Sideways = -127;
-            camera.SetCameraAngle(unchecked((short)((controller.Orientation.GetEffectiveHeading(false) + 2048 - controller.MovementInput.Heading) & 4095)), 0);
+            SetViewAngle(unchecked((short)((controller.Orientation.GetEffectiveHeading(false) + 2048 - controller.MovementInput.Heading) & 4095)));
             walking.UpdateWalking(ushort.MaxValue);
             Assert(combat.ActionState == 0x400000 && combat.AnimationId == 25 && combat.Velocity == default && combat.HeadingTurnTicksRemaining == 0,
                 "Actual rearward input must select original25, zero all velocity and call the real torso lock before source rolling.");
@@ -100,6 +103,7 @@ internal static class PlayerWalkingImportChecks
             Array.Copy(mirrors, melee.State.Input.Mirrors, mirrors.Length); melee.State.Input.Sideways = primary; melee.State.Input.Forward = secondary;
             melee.State.EffectiveHeading = effective; melee.State.RightDirection = right; melee.State.AnimationFinished = finished;
             camera.SetCameraAngle(heading.Heading, 0);
+            camera.LookaroundMode.ViewHeading = viewHeading;
             (camera.HeadingTransition.Heading, camera.HeadingTransition.Target, camera.HeadingTransition.RemainingTicks,
                 camera.HeadingTransition.Rate, camera.HeadingTransition.PublishedHeading) = heading;
             (camera.Tripod.Position, camera.Tripod.Target, camera.Tripod.Rate, camera.Tripod.RemainingTicks) = tripod;

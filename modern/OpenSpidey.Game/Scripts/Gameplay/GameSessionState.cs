@@ -11,7 +11,7 @@ using OpenSpidey.Core.UI;
 namespace OpenSpidey.Game.Gameplay;
 
 /// <summary>Application-owned source state that survives a level scene reload.</summary>
-public partial class GameSessionState : Node, IMissionGameLevelHost
+public partial class GameSessionState : Node, IMissionGameLevelHost, IMissionEndLevelNodeHost
 {
     public GameSessionState() => WaterPost = new(WaterEffect);
     private string? openedSceneAsset;
@@ -41,6 +41,12 @@ public partial class GameSessionState : Node, IMissionGameLevelHost
     public PlayerWaterEffectState WaterEffect { get; } = new();
     public SparkSettings Sparks { get; } = new();
     public SourceMusicState Music { get; } = new();
+    public ScorpionApproachState ScorpionApproach { get; } = new();
+    public PlayerModuleHook PlayerModuleHook { get; } = new();
+    public CinematicScreenState CinematicScreen { get; } = new();
+    public bool WhatIf { get; set; }
+    /// <summary>Separate source JoelJewCheatCode flag selecting the first alternate autoexec node.</summary>
+    public bool AlternativeAutoexec { get; set; }
     public int EndTrainingFlag { get; set; }
     public SourceWaterPostState WaterPost { get; }
     public int FrontPauseState { get; set; }

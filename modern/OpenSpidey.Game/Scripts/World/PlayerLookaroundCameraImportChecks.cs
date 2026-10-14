@@ -20,6 +20,8 @@ internal static class PlayerLookaroundCameraImportChecks
         var lookaround = new GodotPlayerLookaroundCamera(player, aim, camera, combat.World, target.SetTargetVisible);
         Action<int>? oldCameraBehind = player.Combat.CameraBehind;
         bool oldActive = player.Combat.State.LookaroundActive;
+        var screen = camera.ScriptRig.CinematicScreen;
+        var oldScreen = (screen.WideScreenValue, screen.WideScreenShadow);
         byte oldSurface = melee.Kick.SurfaceTransition;
         var neck = player.Model.GetSourceJoint(1); var head = player.Model.GetSourceJoint(3);
         player.Combat.CameraBehind = camera.PutBehind;
@@ -40,6 +42,9 @@ internal static class PlayerLookaroundCameraImportChecks
             for (int frame = 0; frame < 12; frame++)
             {
                 result = lookaround.UpdateCameraPlacement(2);
+                int sourceFade = frame < 11 ? 32 * (frame + 1) * 2 / 24 : 29;
+                Assert(screen.WideScreenValue == sourceFade && screen.WideScreenShadow == sourceFade,
+                    "Actual lookaround entrance must publish both canonical source screen globals, retaining29 on its terminal steady tick rather than inventing32.");
                 camera._PhysicsProcess(1.0 / 60); camera._PhysicsProcess(1.0 / 60);
                 Assert(camera.SourceRotation == camera.LookaroundMode.DisplayRotation && camera.SourceControlMode == 7,
                     "Native front camera must display the exact source desired quaternion after its own source update, without orbit interpolation.");
@@ -54,6 +59,10 @@ internal static class PlayerLookaroundCameraImportChecks
                 "The real twelve source updates must complete entry, query imported geometry through the actual clearance grid and expose genuine steady target selection.");
             Assert(player.Model.GetSourceJoint(1).RotationX == 85 && player.Model.GetSourceJoint(3).RotationX == 85,
                 "Actual native lookaround placement must retain the original half-pitch neck/head corrections.");
+            camera.ScriptRig.SetWideScreenScriptValue(37);
+            lookaround.UpdateCameraPlacement(2);
+            Assert(screen.WideScreenValue == 37 && screen.WideScreenShadow == 37 && aim.State.TransitionFade == 29,
+                "A steady lookaround update must preserve an authored195/42B9 screen value instead of copying its retained scalar transition fade over the real shared state.");
             var targets = new GodotPlayerLookaroundTargets(player, webs.Actions, lookaround, combat.Directory, combat.Session,
                 combat.World, target, new()
                 {
@@ -79,13 +88,30 @@ internal static class PlayerLookaroundCameraImportChecks
             Assert(!aim.State.Active && aim.State.EntranceTicks == 0 && aim.State.ExitTicks == 0 && lookaround.State.Path is null &&
                 !camera.LookaroundModeEnabled && camera.SourceControlMode == 3 && !target.State.Visible &&
                 player.Model.GetSourceJoint(1).RotationX == 0 && player.Model.GetSourceJoint(1).RotationY == 0 &&
-                player.Model.GetSourceJoint(3).RotationX == 0 && player.Model.GetSourceJoint(3).RotationY == 0,
+                player.Model.GetSourceJoint(3).RotationX == 0 && player.Model.GetSourceJoint(3).RotationY == 0 &&
+                screen.WideScreenValue == 0 && screen.WideScreenShadow == 0,
                 "Actual native exit must retire its24-sample path, pop original mode, call genuine PutCameraBehind0, hide target and clear both original neck/head joints.");
-            GD.Print("Verified native lookaround camera: original posed hook8, exact camera-to-body24 path, twelve source mode7 updates, real world clearance grid/target selection, separate display heading/focus aim, shared web torso aim, original4 target triangles and complete exit.");
+            camera.ScriptRig.SetWideScreenScriptValue(41);
+            lookaround.UpdateCameraPlacement(2); lookaround.ExitLookaroundMode();
+            Assert(screen.WideScreenValue == 41 && screen.WideScreenShadow == 41,
+                "Inactive setup and explicit exit must retain an authored screen value and emit no unconditional reset.");
+            lookaround.EnterLookaroundMode();
+            // Bounded source-field setup selects the independently captured exit branch over its genuine allocated camera path.
+            aim.State.EntranceTicks = 0; aim.State.ExitTicks = 4;
+            lookaround.UpdateCameraPlacement(2);
+            Assert(aim.State.Active && aim.State.ExitTicks == 2 && screen.WideScreenValue == 2 && screen.WideScreenShadow == 2,
+                "Actual source exit fade uses remaining2 ticks and publishes2 to both shared screen globals before camera/world placement.");
+            lookaround.UpdateCameraPlacement(2);
+            Assert(!aim.State.Active && aim.State.ExitTicks == 0 && lookaround.State.Path is null &&
+                screen.WideScreenValue == 0 && screen.WideScreenShadow == 0 && camera.SourceControlMode == 7,
+                "The terminal source setup exit clears both globals and its path while preserving mode7, without inventing an explicit-exit camera pop.");
+            camera.PopLookaroundMode(); camera.PutBehind(0);
+            GD.Print("Verified native lookaround camera: original posed hook8, exact camera-to-body24 path, twelve source mode7 updates, canonical entrance/exit screen globals and authored steady/inactive preservation, real world clearance grid/target selection, separate display heading/focus aim, shared web torso aim, original4 target triangles and complete exit.");
         }
         finally
         {
             if (aim.State.Active) lookaround.ExitLookaroundMode();
+            (screen.WideScreenValue, screen.WideScreenShadow) = oldScreen;
             player.Combat.CameraBehind = oldCameraBehind;
             player.Combat.State.LookaroundActive = oldActive; melee.Kick.SurfaceTransition = oldSurface;
             player.Model.SetSourceJoint(1, neck); player.Model.SetSourceJoint(3, head); melee.LockTargetTorsoAngle();

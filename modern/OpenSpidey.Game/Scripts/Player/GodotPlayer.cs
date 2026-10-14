@@ -26,12 +26,14 @@ public partial class GodotPlayer : Node3D
     public PlayerFrameSounds FrameSounds { get; private set; } = new();
     public PlayerAnimationSoundDriver Animation { get; private set; } = null!;
     public GodotPlayerCombat Combat { get; private set; } = null!;
+    public GodotPlayerCostumeVisibility CostumeVisibility { get; private set; } = null!;
     public GodotPlayerMelee? Melee {get;private set;}
     public GodotPlayerInventory? Inventory { get; set; }
     public PlayerActorState ActorState { get; } = new();
     public PlayerPowerUpCollectionState PowerUpCollection { get; } = new();
     public IMissionContactFrameHost? MissionContacts { get; set; }
     public Action<PlayerFrameSound>? SoundOutput { get; set; }
+    public Action? ResetCinematicScreen { get; set; }
     public uint SourceFootstepBank { get; private set; }
     public bool UseLevelFootstepAliases { get => SourceFootstepBank != 0; set => SourceFootstepBank = value ? 1u : 0u; }
     public void SetSourceFootstepBank(ushort value) => SourceFootstepBank = value;
@@ -58,12 +60,18 @@ public partial class GodotPlayer : Node3D
         player.Animation = new(model, player.FrameSounds);
         player.Controller = new(position, yaw, new GodotPlayerWorldQuery(player), player.Animation, policy, random);
         player.Controller.BeginPlayerAi += player.BeginSourceAi;
+        player.CostumeVisibility = new(player);
         player.Combat = new(player, health, maxHealth ?? health);
         player.Combat.HiddenParts=model.SourceHiddenParts;
         player.CacheBodyHook();
         player.ApplyTransform();
         return player;
     }
+
+    /// <summary>Render reads the final physics-frame flag800 written by the suit switch or the camera.</summary>
+    public override void _Process(double delta) => SynchronizeSourceTranslucency();
+
+    public void SynchronizeSourceTranslucency() => Model.SetSourceTranslucency(SourceItemTranslucency.Alpha(ActorState.ItemFlags));
 
     public override void _PhysicsProcess(double delta)
     {
@@ -75,6 +83,7 @@ public partial class GodotPlayer : Node3D
             PhysicalPad[index] = PhysicalPad[index] with { Triggered = pendingPhysicalTriggers[index] };
         }
         pendingButtons |= buttons.Triggered;
+        CostumeVisibility.Sample();
         if (++physicsTicks % 2 != 0) return;
         try
         {
@@ -82,6 +91,7 @@ public partial class GodotPlayer : Node3D
                 buttons with { Triggered = pendingButtons });
             pendingButtons = PlayerButton.None;
             Array.Clear(pendingPhysicalTriggers);
+            CostumeVisibility.ConsumeTriggers();
         }
         catch (Exception exception)
         {
@@ -89,6 +99,12 @@ public partial class GodotPlayer : Node3D
             if (Faulted is null) GD.PushError(exception.ToString());
             else Faulted(exception);
         }
+    }
+
+    internal void ClearPhysicalTrigger(int slot)
+    {
+        pendingPhysicalTriggers[slot] = 0;
+        PhysicalPad[slot] = PhysicalPad[slot] with { Triggered = 0 };
     }
 
     private void BeginSourceAi(uint sourceTime)
@@ -215,6 +231,8 @@ public partial class GodotPlayer : Node3D
         Controller.BeginPlayerAi -= BeginSourceAi;
         Controller.Melee=null;
         Animation.SourceScriptsSelected=null;
+        ResetCinematicScreen?.Invoke();
+        ResetCinematicScreen = null;
     }
     public void ConfigureMelee(GodotPlayerMeleeConfiguration configuration)
     {

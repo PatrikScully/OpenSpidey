@@ -8,7 +8,8 @@ namespace OpenSpidey.Game.Player;
 public partial class PlayerFollowCamera : IPlayerCameraBehindHost
 {
     private bool sourceTrackingInitialized;
-    public CameraHeadingTransition HeadingTransition { get; } = new();
+    private CameraFocusTarget? playerBody;
+    public CameraHeadingTransition HeadingTransition => ScriptRig.HeadingTransition;
     public CameraTripodState Tripod { get; } = new();
     public FixedVector3 SourceTripodPosition => Tripod.Position;
 
@@ -20,9 +21,12 @@ public partial class PlayerFollowCamera : IPlayerCameraBehindHost
         HeadingTransition.Heading = OrbitSourceHeading;
         HeadingTransition.PublishedHeading = HeadingTransition.Heading;
         Tripod.Position = SourcePosition;
+        // Source mTripod0xFC and focus body0x13C are both the player.
+        playerBody = new(Target, () => Target.Controller.Position);
+        Ai.Focus.Target = playerBody;
     }
 
-    /// <summary>The source camera's tripod/heading phase, before mode placement and display shake.</summary>
+    /// <summary>Only the tripod/heading phase of CameraAi.Update, for native checks of those two leaves.</summary>
     public void AdvanceSourceTracking(int elapsedTicks)
     {
         InitializeSourceTracking();
@@ -36,7 +40,6 @@ public partial class PlayerFollowCamera : IPlayerCameraBehindHost
     {
         InitializeSourceTracking();
         HeadingTransition.Set(OrbitSourceHeading, 0, SourceControlMode);
-        ScriptRig.Heading = HeadingTransition.Heading;
     }
 
     public void SetSourceFocusHook(int sourceIndex)
@@ -92,6 +95,5 @@ public partial class PlayerFollowCamera : IPlayerCameraBehindHost
     private void ApplySourceOrbitHeading()
     {
         yaw = (2048 - HeadingTransition.Heading) * (Mathf.Tau / 4096);
-        ScriptRig.Heading = HeadingTransition.Heading;
     }
 }

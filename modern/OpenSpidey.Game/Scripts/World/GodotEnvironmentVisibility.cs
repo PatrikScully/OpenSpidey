@@ -57,6 +57,36 @@ public sealed partial class GodotEnvironmentVisibility : IEnvironmentVisibilityH
         item.StoredFlags = flags;
     }
 
+    /// <summary>A whole CItem flag word write, rendered by the item's current native owner.</summary>
+    public void WriteSourceItemFlags(GodotEnvironmentVisibilityItem item, ushort flags)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!ReferenceEquals(RequireItem(item.Source, item.InstanceIndex), item))
+            throw new InvalidOperationException("ENV flag write references a previous source item generation.");
+        if (claimedItem(item.Source, item.InstanceIndex) is { } claimed)
+        {
+            claimed.State.ItemFlags = flags;
+            claimed.Synchronize();
+        }
+        else SynchronizeNative(item, flags);
+        item.StoredFlags = flags;
+    }
+
+    internal ImportedSceneMesh? NativeMesh(GodotEnvironmentVisibilityItem item)
+    {
+        RequireItem(item.Source, item.InstanceIndex);
+        string groupName = System.IO.Path.GetFileNameWithoutExtension(item.Source.AssetPath);
+        Node3D geometry = currentWorld().Geometry.GetChildren().OfType<Node3D>().Single(group => group.Name.ToString().Equals(groupName, StringComparison.OrdinalIgnoreCase));
+        return geometry.GetChildren().OfType<ImportedSceneMesh>().SingleOrDefault(mesh => mesh.SourceInstanceIndex == item.InstanceIndex);
+    }
+
+    public bool IsCurrentSourceItem(GodotEnvironmentVisibilityItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        SynchronizeSource();
+        return ReferenceEquals(item.Source, source) && (uint)item.InstanceIndex < items.Length && ReferenceEquals(items[item.InstanceIndex], item);
+    }
+
     /// <summary>Preserves source flags when a real switch transfers this static model into its own native owner.</summary>
     public void TransferFlagsToClaimedItem(GodotSwitchEnvironmentItem claimed)
     {
@@ -154,7 +184,7 @@ public sealed partial class GodotEnvironmentVisibility : IEnvironmentVisibilityH
                 geometry.AddChild(mesh);
             }
         }
-        if (mesh is not null) mesh.Visible = renderVisible;
+        if (mesh is not null) { mesh.Visible = renderVisible; mesh.SetSourceTranslucency(SourceItemTranslucency.Alpha(flags)); }
         CollisionObject3D[] bodies = collision.GetChildren().OfType<CollisionObject3D>().Where(body => Matches(body, item)).ToArray();
         if (bodies.Length == 0 && OriginalCollisionFilter.IsInstanceEnabled(flags))
         {

@@ -40,6 +40,7 @@ public partial class GodotManipulationActor : GodotScriptActor, IGodotEnvironmen
     private readonly List<ImportedCollisionBody> colliders = [];
     private readonly List<Shape3D> collisionShapes = [];
     private PsxMaterialLibrary? modelMaterials;
+    private OwnedMaterialTranslucency? translucency;
     private ArrayMesh? modelMesh;
     private bool resourcesDisposed;
     public ManipulationState State { get; private set; } = null!;
@@ -113,6 +114,7 @@ public partial class GodotManipulationActor : GodotScriptActor, IGodotEnvironmen
         Transform3D transform = PsxCoordinates.CharacterTransform(rotation);
         transform.Origin = PsxCoordinates.FixedWorldPosition(Body.Position); Transform = transform;
         Visible = (State.ItemFlags & 0x1001) == 0;
+        translucency?.Set(SourceItemTranslucency.Alpha(State.ItemFlags));
         foreach (ImportedCollisionBody collider in colliders)
         {
             collider.SourceRotation = rotation; collider.SourceFlags = State.ItemFlags; collider.SupportId = GetInstanceId();
@@ -121,6 +123,8 @@ public partial class GodotManipulationActor : GodotScriptActor, IGodotEnvironmen
         }
         if ((State.BodyFlags & 0x40) != 0) Lifecycle.Kill();
     }
+    internal void VerifySourceTranslucency(float? alpha) =>
+        (translucency ?? throw new InvalidOperationException("Manipulation translucency requires its selected OBJ model.")).Verify(alpha, [mesh]);
     public void InitializeObjectLibrary() => _ = registry.ObjectLibrary();
     public void AttachToEnvironmentalList(ManipulationState state)
     {
@@ -138,6 +142,7 @@ public partial class GodotManipulationActor : GodotScriptActor, IGodotEnvironmen
             if (!textures.Any(candidate => candidate.Checksum == texture))
                 throw new InvalidDataException($"Manipulation OBJ model texture{texture:X8} is missing.");
         modelMaterials = new PsxMaterialLibrary(textures);
+        translucency = new(modelMaterials);
         modelMesh = PsxGeometryBuilder.BuildModel(model, library.Scene.ColorTable, modelMaterials)
             ?? throw new InvalidDataException("Manipulation source OBJ model has no drawable faces.");
         mesh = new() { Name = "OriginalOBJModel", Mesh = modelMesh };
@@ -189,6 +194,7 @@ public partial class GodotManipulationActor : GodotScriptActor, IGodotEnvironmen
             if (mesh is not null) mesh.Mesh = null;
             modelMesh?.Dispose(); modelMesh = null;
             foreach (Shape3D shape in collisionShapes) shape.Dispose(); collisionShapes.Clear();
+            translucency = null;
             modelMaterials?.Dispose(); modelMaterials = null;
             colliders.Clear();
         }

@@ -158,6 +158,8 @@ public sealed class GodotLevelSceneObjects
         GodotThugActor actor => unchecked((ushort)actor.State.BodyFlags),
         GodotHostageActor actor => unchecked((ushort)actor.BodyFlags),
         GodotBlackCatActor actor => unchecked((ushort)actor.State.BodyFlags),
+        GodotScorpionEncounterActor actor => actor.State.BodyFlags,
+        IGodotSourceBaddyBody actor => actor.BodyFlags,
         GodotManipulationDebris actor => actor.BodyFlags,
         GodotManipulationActor actor => actor.State.BodyFlags,
         GodotPlatformActor actor => actor.BodyFlags,

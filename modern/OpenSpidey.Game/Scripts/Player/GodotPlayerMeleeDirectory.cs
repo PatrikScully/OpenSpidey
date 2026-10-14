@@ -21,13 +21,13 @@ public sealed class GodotPlayerMeleeDirectory : IDisposable
         public FixedVector3 Position => Native.SourcePosition;
         public ushort Type => checked((ushort)Native.SourceActorType);
         public ushort ItemFlags => Native switch
-        {GodotThugActor thug=>thug.ItemFlags,GodotHostageActor hostage=>hostage.ItemFlags,GodotBlackCatActor cat=>cat.ItemFlags,GodotManipulationDebris debris=>debris.ItemFlags,_=>throw Unsupported()};
+        {GodotThugActor thug=>thug.ItemFlags,GodotHostageActor hostage=>hostage.ItemFlags,GodotBlackCatActor cat=>cat.ItemFlags,IGodotSourceBaddyBody baddy=>baddy.ItemFlags,GodotManipulationDebris debris=>debris.ItemFlags,_=>throw Unsupported()};
         public ushort Radius => Native switch
-        {GodotThugActor thug=>unchecked((ushort)thug.State.MinorRadius),GodotHostageActor hostage=>hostage.State.MinorRadius,GodotBlackCatActor cat=>cat.State.MinorRadius,GodotManipulationDebris debris=>debris.MinorRadius,_=>throw Unsupported()};
+        {GodotThugActor thug=>unchecked((ushort)thug.State.MinorRadius),GodotHostageActor hostage=>hostage.State.MinorRadius,GodotBlackCatActor cat=>cat.State.MinorRadius,IGodotSourceBaddyBody baddy=>baddy.MinorRadius,GodotManipulationDebris debris=>debris.MinorRadius,_=>throw Unsupported()};
         public ushort BodyFlags => Native switch
-        {GodotThugActor thug=>unchecked((ushort)thug.State.BodyFlags),GodotHostageActor hostage=>unchecked((ushort)hostage.BodyFlags),GodotBlackCatActor cat=>unchecked((ushort)cat.State.BodyFlags),GodotManipulationDebris debris=>debris.BodyFlags,_=>throw Unsupported()};
+        {GodotThugActor thug=>unchecked((ushort)thug.State.BodyFlags),GodotHostageActor hostage=>unchecked((ushort)hostage.BodyFlags),GodotBlackCatActor cat=>unchecked((ushort)cat.State.BodyFlags),IGodotSourceBaddyBody baddy=>baddy.BodyFlags,GodotManipulationDebris debris=>debris.BodyFlags,_=>throw Unsupported()};
         public uint BehaviorFlags => Native switch
-        {GodotThugActor thug=>thug.Actor.BehaviorFlags,GodotHostageActor hostage=>hostage.Actor.BehaviorFlags,GodotBlackCatActor cat=>cat.State.BehaviorFlags,GodotManipulationDebris debris=>debris.SourceBehaviorFlags,_=>throw Unsupported()};
+        {GodotThugActor thug=>thug.Actor.BehaviorFlags,GodotHostageActor hostage=>hostage.Actor.BehaviorFlags,GodotBlackCatActor cat=>cat.State.BehaviorFlags,IGodotSourceBaddyBody baddy=>baddy.BehaviorFlags,GodotManipulationDebris debris=>debris.SourceBehaviorFlags,_=>throw Unsupported()};
         public byte CanShowSenseIndicator => Native is GodotThugActor thug && thug.State.TurnRate!=0?(byte)1:(byte)0;
         // CBaddy constructor initializes source fieldF4 to128 for these supported families.
         public ushort ReticleHeight => Native is GodotManipulationDebris
@@ -51,7 +51,7 @@ public sealed class GodotPlayerMeleeDirectory : IDisposable
     public IPlayerMeleeTarget? BaddyHead => bodies.Count==0?null:bodies[0];
     public Body RegisterBody(GodotScriptActor actor)
     {
-        if(actor is not (GodotThugActor or GodotHostageActor or GodotBlackCatActor or GodotManipulationDebris))throw new NotSupportedException("Native melee directory requires a proven source baddy body adapter.");
+        if(actor is not (GodotThugActor or GodotHostageActor or GodotBlackCatActor or GodotManipulationDebris or IGodotSourceBaddyBody))throw new NotSupportedException("Native melee directory requires a proven source baddy body adapter.");
         uint validation=Register(actor);
         var body=new Body(this,actor,validation);registeredBodies.Add(actor,body);bodies.Insert(0,body);
         return body;
@@ -124,6 +124,9 @@ public sealed class GodotPlayerMeleeDirectory : IDisposable
             throw new ArgumentException("Source target handle requires a registered live native actor.",nameof(identity));
         return new(new Handle(new(actor),validation),validation);
     }
+    /// <summary>Raw pointer half of a handle, as passed unvalidated to CAIProc_LookAt.</summary>
+    public GodotScriptActor HandlePointer(object target)=>target is Handle stored && stored.Native.TryGetTarget(out GodotScriptActor? actor) && GodotObject.IsInstanceValid(actor)
+        ? actor : throw new InvalidOperationException("The source pointer of this target handle no longer names a live native actor.");
     public GodotScriptActor? Recover(ref PlayerKickHandle handle)
     {
         if(handle.Target is Handle stored && stored.Validation==handle.Validation && stored.Native.TryGetTarget(out GodotScriptActor? actor) &&

@@ -6,30 +6,34 @@ namespace OpenSpidey.Core.Modules;
 /// <summary>Eight source user-function slots and a genuine module-clear owner, with native pointers replaced by typed arguments/results.</summary>
 public sealed class SourceModule<TArguments, TResult>
 {
-    private readonly Func<TArguments, TResult>?[] functions = new Func<TArguments, TResult>?[8];
-    private readonly Action?[] parameterlessFunctions = new Action?[8];
+    private readonly Delegate?[] functions = new Delegate?[8];
     private Action? clear;
     public string Name { get; }
     public uint Checksum { get; }
     internal SourceModule(string name, uint checksum) { Name = name; Checksum = checksum; }
     public void SetClear(Action action) => clear = action ?? throw new ArgumentNullException(nameof(action));
     public void SetUserFunction(uint slot, Func<TArguments, TResult> function)
+        => SetFunction(slot, function);
+    /// <summary>Boss modules retain distinct typed contracts for factory, target and behavior-query slots.</summary>
+    public void SetTypedUserFunction<TCallArguments, TCallResult>(uint slot, Func<TCallArguments, TCallResult> function)
+        => SetFunction(slot, function);
+    public void SetUserAction<TCallArguments>(uint slot, Action<TCallArguments> function)
+        => SetFunction(slot, function);
+    private void SetFunction(uint slot, Delegate function)
     {
         if (slot >= functions.Length) throw new ArgumentOutOfRangeException(nameof(slot));
         functions[slot] = function ?? throw new ArgumentNullException(nameof(function));
-        parameterlessFunctions[slot] = null;
     }
     /// <summary>Actual Reloc_CallUserFunction slots invoked with null argument/result pointers, such as l2a1lsc0/1.</summary>
     public void SetParameterlessUserFunction(uint slot, Action function)
+        => SetFunction(slot, function);
+    internal TFunction RequireFunction<TFunction>(uint slot) where TFunction : Delegate
     {
-        if (slot >= parameterlessFunctions.Length) throw new ArgumentOutOfRangeException(nameof(slot));
-        parameterlessFunctions[slot] = function ?? throw new ArgumentNullException(nameof(function));
-        functions[slot] = null;
+        if (slot >= functions.Length) throw new ArgumentOutOfRangeException(nameof(slot));
+        Delegate function = functions[slot] ?? throw new InvalidOperationException($"Source module {Name} user function {slot} is not installed.");
+        return function as TFunction ?? throw new InvalidOperationException(
+            $"Source module {Name} user function {slot} requires {function.GetType()}, but was called as {typeof(TFunction)}.");
     }
-    internal Func<TArguments, TResult>? Function(uint slot) => slot < functions.Length ? functions[slot] :
-        throw new ArgumentOutOfRangeException(nameof(slot));
-    internal Action? ParameterlessFunction(uint slot) => slot < parameterlessFunctions.Length ? parameterlessFunctions[slot] :
-        throw new ArgumentOutOfRangeException(nameof(slot));
     internal void Clear() => (clear ?? throw new InvalidOperationException($"Source module {Name} has no genuine clear owner."))();
 }
 
@@ -89,20 +93,20 @@ public sealed class SourceModuleRegistry<TArguments, TResult>
         if (loaded.Count != 0) throw new InvalidOperationException("Reloc_UnloadAll retained a source code module.");
     }
     public TResult CallUserFunction(string name, uint slot, TArguments arguments)
-    {
-        if (slot >= 8) throw new ArgumentOutOfRangeException(nameof(slot));
-        uint checksum = Checksum(name);
-        foreach (SourceModule<TArguments, TResult> module in loaded)
-            if (module.Checksum == checksum && module.Function(slot) is { } function) return function(arguments);
-        throw new InvalidOperationException($"Source module {name} user function {slot} is not loaded.");
-    }
+        => CallTypedUserFunction<TArguments, TResult>(name, slot, arguments);
+    public TCallResult CallTypedUserFunction<TCallArguments, TCallResult>(string name, uint slot, TCallArguments arguments)
+        => RequireFunction<Func<TCallArguments, TCallResult>>(name, slot)(arguments);
+    public void CallUserAction<TCallArguments>(string name, uint slot, TCallArguments arguments)
+        => RequireFunction<Action<TCallArguments>>(name, slot)(arguments);
     public void CallParameterlessUserFunction(string name, uint slot)
+        => RequireFunction<Action>(name, slot)();
+    private TFunction RequireFunction<TFunction>(string name, uint slot) where TFunction : Delegate
     {
         if (slot >= 8) throw new ArgumentOutOfRangeException(nameof(slot));
         uint checksum = Checksum(name);
         foreach (SourceModule<TArguments, TResult> module in loaded)
-            if (module.Checksum == checksum && module.ParameterlessFunction(slot) is { } function) { function(); return; }
-        throw new InvalidOperationException($"Source module {name} parameterless user function {slot} is not loaded.");
+            if (module.Checksum == checksum) return module.RequireFunction<TFunction>(slot);
+        throw new InvalidOperationException($"Source module {name} user function {slot} is not loaded.");
     }
     private static uint Checksum(string name) => SourceAssetChecksum.Compute(Encoding.Latin1.GetBytes(SourceName(name)));
     private static string SourceName(string name)

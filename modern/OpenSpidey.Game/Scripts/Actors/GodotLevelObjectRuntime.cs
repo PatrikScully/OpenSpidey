@@ -42,7 +42,7 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
             SceneOwnership = combat.SceneOwnership, Sounds = sounds, Listener = () => new(camera.SourcePosition >> 12),
             Countdown = countdown, TriggerData = triggerData, Clock = clock, Visibility = visibility
         });
-        try { runtime.BindPlayer(combat, camera); return runtime; }
+        try { runtime.BindPlayer(combat, camera); runtime.PrepareEnvironment(); return runtime; }
         catch { runtime.Free(); throw; }
     }
 
@@ -89,9 +89,12 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
         if (!ReferenceEquals(combat.SceneOwnership, context.SceneOwnership) || !ReferenceEquals(combat.World, worldQuery) ||
             !ReferenceEquals(camera.Target, context.Registry.Player))
             throw new ArgumentException("Level objects require the actual registry player and canonical scene body owners.");
-        combat.Session.RegisterSwitchEnvironment(EnsureEnvironment());
         this.combat = combat; this.camera = camera;
+        if (environment is not null) combat.Session.RegisterSwitchEnvironment(environment);
     }
+
+    /// <summary>Prepare the actual ENV only after its source library command has loaded the world.</summary>
+    public void PrepareEnvironment() => _ = EnsureEnvironment();
 
     private GodotPlayerCombatRuntime RequireCombat()
     {
@@ -118,6 +121,7 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
         prepared.ItemClaimed += context.Visibility.TransferFlagsToClaimedItem;
         AddChild(prepared);
         environment = prepared;
+        combat?.Session.RegisterSwitchEnvironment(prepared);
         return prepared;
     }
 
@@ -158,13 +162,18 @@ public partial class GodotLevelObjectRuntime : Node3D, IManipulationDebrisHost
                     case GodotThugActor thug: thug.ReceiveMessage(10, null, position); break;
                     case GodotHostageActor hostage: hostage.ReceiveMessage(10, null, position); break;
                     case GodotBlackCatActor cat: cat.ReceiveMessage(10, null, position); break;
+                    case IGodotSourceBaddyBody baddy: baddy.ReceiveMessage(10, null, position); break;
                     default: throw new NotSupportedException($"Original message10 with its position vector is not ported for {target.GetType().Name}.");
                 }
             },
             CreateBigExplosion = position => Explosions.Emit(position, registry.RandomSource),
             HitPlayer = hit => RequirePlayer().Combat.Hit(hit),
             HitBaddy = (target, hit) => ownership.Actors.ApplyHit(target, hit),
-            ReactSymbioteToExplosion = _ => throw new NotSupportedException("The source324 explosion reaction needs its original actor adapter.")
+            ReactSymbioteToExplosion = target =>
+            {
+                if (target is GodotSimbyActor simby) OpenSpidey.Core.Actors.Simby.SimbyReactions.ExplosionReaction(simby.State);
+                else throw new NotSupportedException($"The source324 explosion reaction is not ported for {target.GetType().Name}.");
+            }
         });
         AddChild(Effects);
         Effects.Smoke.SourceBitCreated += bit => ownership.Particles.Attach(SourceParticleList.Flat, bit);

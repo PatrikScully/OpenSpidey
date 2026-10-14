@@ -62,6 +62,7 @@ public sealed class GodotVisibilityBoxHost : IVisibilityBoxHost
             GodotThugActor thug => thug.ItemFlags,
             GodotHostageActor hostage => hostage.ItemFlags,
             GodotBlackCatActor cat => cat.ItemFlags,
+            IGodotSourceBaddyBody baddy => baddy.ItemFlags,
             IGodotSourceActorVisibility source => source.SourceVisibilityFlags,
             _ => throw Unported()
         };
@@ -73,6 +74,7 @@ public sealed class GodotVisibilityBoxHost : IVisibilityBoxHost
                 case GodotThugActor thug: thug.ItemFlags = flags; break;
                 case GodotHostageActor hostage: hostage.ItemFlags = flags; hostage.Variables.ItemFlags = flags; break;
                 case GodotBlackCatActor cat: cat.ItemFlags = flags; break;
+                case IGodotSourceBaddyBody baddy: baddy.ItemFlags = flags; break;
                 case IGodotSourceActorVisibility source: source.SetSourceVisibilityFlags(flags); return;
                 default: throw Unported();
             }
@@ -83,6 +85,7 @@ public sealed class GodotVisibilityBoxHost : IVisibilityBoxHost
             GodotThugActor thug => thug.Model,
             GodotHostageActor hostage => hostage.Model,
             GodotBlackCatActor cat => cat.Model,
+            IGodotSourceBaddyBody baddy => baddy.Model,
             _ => throw Unported()
         };
         private NotSupportedException Unported() => new($"Source actor{actor.SourceActorType} has no canonical model-bank/visibility adapter.");

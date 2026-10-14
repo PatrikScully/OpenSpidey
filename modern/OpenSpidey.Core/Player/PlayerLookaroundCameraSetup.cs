@@ -9,6 +9,7 @@ public readonly record struct PlayerLookaroundCameraSetupResult(bool SelectTarge
 public interface IPlayerLookaroundCameraSetupHost
 {
     short EffectiveHeading { get; }
+    void SetCinematicScreen(int value);
     void SetTargetVisible(bool visible);
     void DeleteTransitionPath(FixedQuaternion[] path);
     void SetDesiredCameraRotation(FixedQuaternion rotation);
@@ -25,10 +26,7 @@ public static class PlayerLookaroundCameraSetup
         PlayerLookaroundState angles = state.Angles;
         if (!angles.Active) return default;
         host.SetTargetVisible(false);
-        // On the terminal exit tick the original returns before GetEffectiveHeading.
-        bool finishesExit = angles.EntranceTicks <= elapsedTicks && angles.ExitTicks != 0 && angles.ExitTicks <= elapsedTicks;
-        short heading = finishesExit ? angles.PreviousHeading : host.EffectiveHeading;
-        if (!PlayerLookaroundAngles.Advance(angles, heading, ceiling, elapsedTicks))
+        if (!PlayerLookaroundAngles.Advance(angles, () => host.EffectiveHeading, ceiling, elapsedTicks, host.SetCinematicScreen))
         {
             if (state.Path is { } dead) { host.DeleteTransitionPath(dead); state.Path = null; }
             return default;
@@ -87,6 +85,7 @@ public static class PlayerLookaroundCameraSetup
     {
         if (!state.Angles.Active) return;
         state.Angles.ClearAnglesOnExit();
+        host.SetCinematicScreen(0);
         if (state.Path is { } dead) { host.DeleteTransitionPath(dead); state.Path = null; }
         host.PopCameraMode(); host.PutCameraBehind(0); state.ReticleType = 0; host.SetTargetVisible(false);
     }

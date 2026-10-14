@@ -34,6 +34,7 @@ internal static class PlayerLandingRecoveryImportChecks
         PlayerAxes axes = controller.MovementInput.Axes;
         short sourceCameraHeading = camera.SourceHeading;
         short cameraAngle = camera.ScriptRig.Heading;
+        short viewHeading = camera.LookaroundMode.ViewHeading;
         int cameraPublishedHeading = camera.HeadingTransition.PublishedHeading;
         var cameraTransition = (camera.HeadingTransition.Heading, camera.HeadingTransition.Target,
             camera.HeadingTransition.RemainingTicks, camera.HeadingTransition.Rate);
@@ -82,7 +83,9 @@ internal static class PlayerLandingRecoveryImportChecks
             // No held object is needed: CheckForwards chooses these original clips from the current animation.
             controller.SetForcedAirControl(127, 0, controller.SpeedRamp);
             short effective = controller.Orientation.GetEffectiveHeading(controller.OnWall);
-            camera.SetCameraAngle(unchecked((short)((effective - controller.MovementInput.Heading) & 4095)), 0);
+            short viewAngle = unchecked((short)((effective - controller.MovementInput.Heading) & 4095));
+            // The player reads field23A, which the source rebuilds from SetCamAngle only on the next camera AI update.
+            camera.SetCameraAngle(viewAngle, 0); camera.LookaroundMode.ViewHeading = viewAngle;
             foreach (var clips in new[] { (Idle: (ushort)200, Moving: (ushort)197), (Idle: (ushort)194, Moving: (ushort)191) })
             {
                 SetAction(1, clips.Idle); combat.FieldAD7 = 173; combat.FieldEA6 = 91;
@@ -108,6 +111,7 @@ internal static class PlayerLandingRecoveryImportChecks
             player.Model.ApplySourceJointPose(sourcePoseEnabled); player.ActorState.ItemFlags = itemFlags;
             melee.State.AnimationFinished = animationFinished;
             camera.SetCameraAngle(cameraAngle, 0);
+            camera.LookaroundMode.ViewHeading = viewHeading;
             (camera.HeadingTransition.Heading, camera.HeadingTransition.Target,
                 camera.HeadingTransition.RemainingTicks, camera.HeadingTransition.Rate) = cameraTransition;
             camera.HeadingTransition.PublishedHeading = cameraPublishedHeading;

@@ -3,6 +3,7 @@ using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Game.Actors;
+using OpenSpidey.Game.Effects;
 
 namespace OpenSpidey.Game.World;
 
@@ -46,6 +47,7 @@ public sealed class GodotMissionActorDeath : IMissionActorDeathHost
             case GodotThugActor thug: thug.State.BodyFlags |= 0x40; break;
             case GodotHostageActor hostage: hostage.BodyFlags |= 0x40; break;
             case GodotBlackCatActor cat: cat.State.BodyFlags |= 0x40; break;
+            case IGodotSourceBaddyBody baddy: baddy.MarkSourceBodyDead(); break;
             case GodotManipulationDebris debris: debris.State.BodyFlags |= 0x40; break;
             case GodotSwitchActor control: control.State.BodyFlags |= 0x40; break;
             case GodotEnvironmentChunkControl chunk: chunk.BodyFlags |= 0x40; break;
@@ -67,8 +69,13 @@ public sealed class GodotMissionActorDeath : IMissionActorDeathHost
         environment.WriteChunkFlags(item, (ushort)(item.ItemFlags | 1));
         environment.SynchronizeSourceItemFlags(item);
     }
-    public void KillSpecialDisplay(ushort node) =>
-        throw new NotSupportedException($"Source409 SpecialDisplay9 node{node} requires its actual CBit owner.");
+    public void KillSpecialDisplay(ushort node)
+    {
+        // SendKillFromNode type409: walk SpecialDisplayList for mType==9 and field_6A==node, then Die.
+        GodotElectroLines lines = registry.ElectroLines ??
+            throw new NotSupportedException($"Source409 SpecialDisplay9 node{node} requires its actual CBit owner.");
+        lines.KillOwner(node);
+    }
     private GodotScriptActor RequireBody(object identity) => identity is GodotScriptActor actor && registry.Owns(actor)
         ? actor : throw new NotSupportedException("Source mission body death requires the actual allocated canonical actor owner.");
     private static ushort BodyFlags(GodotScriptActor actor) => actor switch
@@ -76,6 +83,7 @@ public sealed class GodotMissionActorDeath : IMissionActorDeathHost
         GodotThugActor thug => unchecked((ushort)thug.State.BodyFlags),
         GodotHostageActor hostage => unchecked((ushort)hostage.BodyFlags),
         GodotBlackCatActor cat => unchecked((ushort)cat.State.BodyFlags),
+        IGodotSourceBaddyBody baddy => baddy.BodyFlags,
         GodotManipulationDebris debris => debris.BodyFlags,
         GodotManipulationActor manipulation => manipulation.State.BodyFlags,
         GodotPlatformActor platform => platform.BodyFlags,

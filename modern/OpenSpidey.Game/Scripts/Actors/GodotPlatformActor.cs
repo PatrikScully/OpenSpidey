@@ -145,6 +145,8 @@ public partial class GodotPlatformActor : GodotScriptActor, IActorScriptHost, IP
         if (GodotActorLinkEventCommands.TryExecute(registry, opcode, operands, ReadVariable)) return true;
         if (GodotActorDirectEventCommands.TryExecute(registry, opcode, operands, ReadVariable)) return true;
         if (GodotActorVisualEffectCommands.TryExecute(registry, opcode, operands, SourcePosition)) return true;
+        if (GodotActorSpeechCommands.TryExecute(registry, opcode, operands, ScriptState, environment, SourcePosition)) return true;
+        if (opcode == 0x42B9 && GodotActorPlayerScriptCommands.TryExecute(registry, opcode, operands)) return true;
         if (GodotActorSparkCommands.TryExecute(registry, opcode, operands, SourcePosition, Motion.Angles)) return true;
         if (GodotActorCameraShakeCommands.TryExecute(registry, opcode, operands, ReadVariable, SourcePosition)) return true;
         switch (opcode)
@@ -164,9 +166,6 @@ public partial class GodotPlatformActor : GodotScriptActor, IActorScriptHost, IP
             case 0x4205: Retire(); return true;
             case 0x4203: Variables.ItemFlags &= unchecked((ushort)~1); return true;
             case 0x4204: Variables.ItemFlags |= 1; return true;
-            case 0x42A3:
-                registry.PlayScriptVoice(operands);
-                return true;
             case 0x4220: Motion.MoveTo(ReadPosition(operands)); return true;
             case 0x4221:
                 ushort nodeId = operands.ReadWord();

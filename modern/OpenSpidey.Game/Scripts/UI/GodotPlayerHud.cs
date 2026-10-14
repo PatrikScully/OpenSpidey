@@ -23,9 +23,12 @@ public partial class GodotPlayerHud : Node2D
     private GodotPlayerPowerUpResources? powerUps;
     public uint LastHealthPickupClock { get; set; }
     public int ScreenOffsetY { get; set; }
+    public Func<int>? SourceScreenOffsetY { get; set; }
     public bool Enabled { get; set; } = true;
     public MissionCountdown? Countdown { get; set; }
     public GodotMissionTimerPresenter? Timer { get; set; }
+    /// <summary>Panel_DisplayHealthBar, called last by Panel_Display under the same gate.</summary>
+    public Action<CanvasItem, HudViewportTransform, int>? DrawBossPanel { get; set; }
     internal IReadOnlyDictionary<uint, ImageTexture> Textures => textures;
     internal IReadOnlyList<SpriteAnimationFrame> SpFrames => spFrames;
     internal GodotBitmapText Text => text;
@@ -84,6 +87,7 @@ public partial class GodotPlayerHud : Node2D
     public override void _Draw()
     {
         if (disposed) return;
+        if (SourceScreenOffsetY is { } readOffset) ScreenOffsetY = readOffset();
         Countdown?.Update(clock(), player.Combat.State.FieldE18 != 0 || player.Combat.State.SynthesizedInputActive);
         Vector2 size = GetViewport().GetVisibleRect().Size;
         if (size.X <= 0 || size.Y <= 0) return;
@@ -111,6 +115,7 @@ public partial class GodotPlayerHud : Node2D
                     text.DrawOn(this, viewport);
                     break;
             }
+        DrawBossPanel?.Invoke(this, viewport, ScreenOffsetY);
     }
 
     private static Rect2 Rectangle(ScreenRectangle rectangle) => new(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height);
