@@ -5,6 +5,8 @@ public sealed class LizManAttackOwnership
 {
     public object? GlobalLizMan { get; set; }
     public byte AttackFlag { get; set; }
+    /// <summary>0x682C48: the LizMan that owns ShootPlayer (state 7).</summary>
+    public object? Shooter { get; set; }
 }
 
 /// <summary>CLizMan::ClearAttackFlags, inlined into FlyAcrossRoom and the SetAttackFlags prologue.</summary>

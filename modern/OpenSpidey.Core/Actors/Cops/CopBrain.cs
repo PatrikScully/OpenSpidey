@@ -17,7 +17,7 @@ public interface ICopHost : IActorMotionHost, IActorAnimationCycleHost, IActorHe
     int AnimationFrame { get; }
     byte AnimationFinished { get; set; }
     /// <summary>CItem 0x4.</summary>
-    ushort ItemFlags { get; }
+    ushort ItemFlags { get; set; }
     bool HasMessages { get; }
     /// <summary>CBaddy 0x2F0, reset by GetNextWaypoint.</summary>
     uint RouteFlags { get; set; }
@@ -51,12 +51,79 @@ public interface ICopHost : IActorMotionHost, IActorAnimationCycleHost, IActorHe
     void MakeSpriteRing(FixedVector3 offset);
     /// <summary>Mem_RecoverPointer on the 0x34C handle.</summary>
     ActorBodyMotion? RecoverAcknowledgeTarget();
+    /// <summary>CCop::DrawLaserSiteThingie (0x42BB50). Returns 0 when the shot misses or is not ready.</summary>
+    int DrawLaserSite(bool checkPlayer);
+    /// <summary>Deletes the 0x380 CGPolyLine handle.</summary>
+    void ClearLaser();
+    void ApplyPlayerHit(byte flags, short damage);
+    void SendSelfMessage(int code);
+    /// <summary>Attaches CAIProc_MonitorAttack for the melee swing.</summary>
+    void StartAttackMonitor(int startFrame, int attackMask, int frameCount, uint completionMask);
+    /// <summary>CPlayer::NotifyKill (0x4BBC60) on the player singleton.</summary>
+    void NotifyKill(int actorType);
+    /// <summary>Pulses the trigger links of node 0xDE; the 0x211 latch and 0xFFFF check stay with the caller.</summary>
+    void SendDeathPulse();
+    /// <summary>CSuper::KillShadow (0x460570) deletes the 0xCC shadow after the caller clears body bit 8.</summary>
+    void KillShadow();
+    /// <summary>Removes the item once CBaddy::Die has set body bit 0x40 and item bit 1.</summary>
+    void MarkDead();
+    /// <summary>CBaddy::StruckGameObject (0x404AE0) from 0x2FC to the current position.</summary>
+    IThugInjuryBody? StruckGameObject(int first, int second);
+    /// <summary>CBaddy_ElasticCollision (0x404700).</summary>
+    void ElasticCollision(IThugInjuryBody target, FixedVector3 velocity, int duration);
+    /// <summary>SFX_Play (0x471C50).</summary>
+    void PlayGlobalSound(ushort sound, int volume, int pan);
+    /// <summary>CSuper::ApplyPose with the police (0x549264) or SWAT (0x549344) fall pose.</summary>
+    void ApplyFallPose(bool police);
+    /// <summary>CSuper 0x188 joints present; <see cref="JointOnePitch"/> is joint word 6.</summary>
+    bool HasJoints { get; }
+    short JointOnePitch { get; set; }
+    /// <summary>CCop 0x384 mpThrowPoints[index], the eight whip throw points the player stores before state 16.</summary>
+    FixedVector3 GetThrowPoint(int index);
+    /// <summary>CBaddy_GetClosest (0x403AD0, CCop vtable slot 13) with radius 0.</summary>
+    CopState? FindClosest(int actorType);
+    /// <summary>A CMessage from this cop to <paramref name="target"/>.</summary>
+    void SendMessage(CopState target, int code);
+    /// <summary>CBaddy::PathCheck (0x403310) with a hit-point output.</summary>
+    int PathCheckWithHit(FixedVector3 from, FixedVector3 to, int clearance, bool globalCollisionFlag, out FixedVector3 hit);
+    /// <summary>The player's current clip (CItem 0x12A).</summary>
+    int PlayerAnimationId { get; }
+    /// <summary>Mem_RecoverPointer on the 0x104 trap-web handle.</summary>
+    IThugTrapWeb? RecoverTrapWeb();
+    /// <summary>CPlayer 0x528.</summary>
+    int PlayerWebComboValue { get; }
+    /// <summary>Writes CPlayer 0x534 (duration) and 0x52C (amount).</summary>
+    void SetPlayerWebCombo(int duration, int amount);
+    /// <summary>CPlayer 0xE1C; 0x8000000 while the player holds the grab.</summary>
+    int PlayerActionState { get; }
+    /// <summary>The player's yaw (CBody 0x16).</summary>
+    short PlayerYaw { get; }
+    /// <summary>CPlayer_GrabUpdate (0x4BB810) on this cop's position and yaw.</summary>
+    bool GrabUpdate(ref FixedVector3 position, ref short yaw);
 }
 
 /// <summary>Recovered CCop::AI (0x42FA10) and the leaf states reached by an idle, patrolling or confused cop.</summary>
-public sealed class CopBrain(CopState state, ActorProcedureState actor, ActorProcedureList procedures,
-    CopCombatCoordinator combat, ICopHost host, Func<int, int> random)
+public sealed partial class CopBrain
 {
+    private readonly CopState state;
+    private readonly ActorProcedureState actor;
+    private readonly ActorProcedureList procedures;
+    private readonly CopCombatCoordinator combat;
+    private readonly ICopHost host;
+    private readonly Func<int, int> random;
+
+    public CopBrain(CopState state, ActorProcedureState actor, ActorProcedureList procedures,
+        CopCombatCoordinator combat, ICopHost host, Func<int, int> random)
+    {
+        this.state = state ?? throw new ArgumentNullException(nameof(state));
+        this.actor = actor ?? throw new ArgumentNullException(nameof(actor));
+        this.procedures = procedures ?? throw new ArgumentNullException(nameof(procedures));
+        this.combat = combat ?? throw new ArgumentNullException(nameof(combat));
+        this.host = host ?? throw new ArgumentNullException(nameof(host));
+        this.random = random ?? throw new ArgumentNullException(nameof(random));
+        combat.Register(state, this);
+    }
+
     private readonly ThugStateFlags flags = CopState.CreateStateFlags();
     private int elapsedTicks;
 
@@ -246,9 +313,6 @@ public sealed class CopBrain(CopState state, ActorProcedureState actor, ActorPro
         state.Substate = 0;
     }
 
-    private static NotSupportedException Unported(string name, uint address) =>
-        new($"CCop::{name} (0x{address:X6}) is not ported.");
-
     private void Dispatch()
     {
         switch (state.State)
@@ -263,19 +327,28 @@ public sealed class CopBrain(CopState state, ActorProcedureState actor, ActorPro
             case 3:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
-                throw Unported("Caution", 0x429F00);
+                Caution();
+                host.SetHeight(false, 100, 600);
+                break;
             case 4:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
-                throw Unported("ChasePlayer", 0x42A060);
+                CopChaseBehavior.ChasePlayer(state, actor, procedures, combat, host, random, elapsedTicks,
+                    DistanceToPlayer, DetermineFightState, RunAppropriateAnim, mode => state.SetAnimMode(mode, true, RunAnimation));
+                host.SetHeight(false, 100, 600);
+                break;
             case 5:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
-                throw Unported("AttackPlayer", 0x42AEA0);
+                CopAttackBehavior.AttackPlayer(state, actor, procedures, host, DistanceToPlayer, elapsedTicks);
+                host.SetHeight(false, 100, 600);
+                break;
             case 9:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
-                throw Unported("ShootPlayer", 0x42BFC0);
+                CopRangedBehavior.ShootPlayer(state, actor, procedures, host, random, elapsedTicks,
+                    mode => state.SetAnimMode(mode, true, RunAnimation), PlayerIsVisible, DistanceToPlayer);
+                break;
             case 10:
                 actor.BehaviorFlags |= 0x20;
                 if (state.Substate == 0) { host.RunAnimation(12); state.Substate++; }
@@ -292,15 +365,19 @@ public sealed class CopBrain(CopState state, ActorProcedureState actor, ActorPro
             case 14:
             case 15:
                 actor.BehaviorFlags |= 0x20;
-                throw Unported("GetYankedBySpidey", 0x42D2B0);
-            case 16: throw Unported("GetWhippedLikeTheWhoreYouAre", 0x42D060);
+                GetYankedBySpidey();
+                state.AlertTicks = 300;
+                break;
+            case 16: GetWhipped(); break;
             case 17:
                 actor.BehaviorFlags |= 0x20;
-                throw Unported("FlyAcrossRoom", 0x42CA70);
+                FlyAcrossRoom();
+                break;
             case 18:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
-                throw Unported("WebThrow", 0x42C750);
+                GetTrapped();
+                break;
             case 19:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
@@ -316,16 +393,20 @@ public sealed class CopBrain(CopState state, ActorProcedureState actor, ActorPro
             case 20:
                 actor.BehaviorFlags |= 0x20;
                 state.AlertTicks = 300;
-                if ((actor.BehaviorFlags & 0x40) != 0) throw Unported("GettingGrabbed", 0x42E1D0);
+                if ((actor.BehaviorFlags & 0x40) != 0)
+                {
+                    GettingGrabbed();
+                    break;
+                }
                 host.PlayPositionSound(0x802D, actor.Body.Position, 0);
                 SetState(13);
                 break;
             case 21: Acknowledge(); break;
-            case 22: throw Unported("Fall", 0x42DD50);
+            case 22: Fall(); break;
             case 23: LookForPlayer(); break;
             case 25: LookConfused(); break;
-            case 26: throw Unported("Die", 0x42D9E0);
-            case 27: throw Unported("Die", 0x42D9E0);
+            case 26: Die(false); break;
+            case 27: Die(true); break;
             default: throw new InvalidOperationException("Unknown state!");
         }
     }
@@ -624,6 +705,39 @@ public sealed class CopBrain(CopState state, ActorProcedureState actor, ActorPro
                 break;
             default: throw new InvalidOperationException("Unknown substate!");
         }
+    }
+
+    /// <summary>0x429F00.</summary>
+    private void Caution()
+    {
+        if (state.Substate != 0) throw new InvalidOperationException("Unknown substate!");
+        state.TurnRate = 0;
+        host.Neutralize();
+        host.PlayPositionSound(unchecked((ushort)((random(3) + 14) | 0x8000)), actor.Body.Position, 0);
+        if (ThugPerception.SourceAbs(unchecked(host.Player.Position.Y - state.GroundReferenceY - 0x4000)) < 409600 &&
+            PlayerIsVisible())
+        {
+            if (!ShouldShootPlayer())
+            {
+                SetState(host.Player.UnavailableFlag != 0 ? 1 : 4);
+            }
+        }
+        else if (!DetermineFightState())
+            SetState(2);
+    }
+
+    /// <summary>Inlined shoot claim from CCop::Caution (0x429F00).</summary>
+    private bool ShouldShootPlayer()
+    {
+        if (host.Player.UnavailableFlag != 0 || combat.HasFightOwner || DistanceToPlayer(2) >= 2000 ||
+            host.Player.HoldsObject ||
+            (DistanceToPlayer(2) <= 650 &&
+             ThugPerception.SourceAbs(unchecked(host.Player.Position.Y - state.GroundReferenceY - 0x4000)) <= 409600))
+            return false;
+        host.Neutralize();
+        combat.FightOwner = state;
+        SetState(9);
+        return true;
     }
 
     /// <summary>0x42EBD0.</summary>

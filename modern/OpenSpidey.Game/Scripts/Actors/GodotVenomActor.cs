@@ -1,7 +1,9 @@
+using System.Buffers.Binary;
 using Godot;
 using OpenSpidey.Assets.Animation;
 using OpenSpidey.Assets.Scripting;
 using OpenSpidey.Core.Actors;
+using OpenSpidey.Core.Actors.Cinematics;
 using OpenSpidey.Core.Actors.Procedures;
 using OpenSpidey.Core.Actors.Scripting;
 using OpenSpidey.Core.Actors.Thugs;
@@ -11,6 +13,7 @@ using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Game.Import;
 using OpenSpidey.Game.World;
+using OpenSpidey.Game.Player;
 
 namespace OpenSpidey.Game.Actors;
 
@@ -20,6 +23,7 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
     private GodotActorRegistry registry = null!;
     private GodotVenomConfiguration configuration = null!;
     private VenomBrain brain = null!;
+    private CinematicActorScriptRuntime synthesizeScript = null!;
     private bool begun;
     private bool destroyed;
     public VenomState State { get; private set; } = null!;
@@ -44,6 +48,12 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
     public int AnimationFrame => Model.Playback.Frame;
     public bool AnimationFinished => Model.Playback.Finished != 0;
     public int ElapsedTicks => FrameTiming.ElapsedTicks;
+    public int TriggerNodeCount => registry.Triggers.Nodes.Count;
+    public TriggerNode TriggerNode(int node) => registry.Triggers.Nodes[node];
+    public ushort TriggerNodeTypeCode(int node) => registry.Triggers.Nodes[node].TypeCode;
+    public short TriggerNodeSubtype(int node) =>
+        BinaryPrimitives.ReadInt16LittleEndian(registry.Triggers.Nodes[node].Data.Span[2..]);
+    public IEnumerable<VenomControlSwitch> EnumerateControlSwitches() => configuration.EnumerateControlSwitches();
     public int LevelId => registry.Environment.LevelId;
     public int DifficultyLevel => configuration.DifficultyLevel();
     public FixedVector3 BodyPosition => Body.Position;
@@ -53,6 +63,8 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
     public ushort BodyFlags => unchecked((ushort)State.BodyFlags);
     public uint BehaviorFlags => State.Field218;
     public short Health => State.Health;
+    public int SurfaceClearance => State.SurfaceClearance;
+    public bool FastForwardRequested => configuration.FastForwardRequested();
 
     public static GodotVenomActor Create(TriggerNode node, GodotActorRegistry registry, GodotVenomConfiguration configuration)
     {
@@ -86,7 +98,9 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
             actor.Route = new(registry.Triggers, node.Id, actor.ParseWaypoint);
             actor.Runtime = new(new ActorScriptCursor(definition.BehaviorData,
                 checked(node.SourceOffset + definition.ObjectDataOffset + 18)), actor);
-            actor.brain = new(actor.State, actor);
+            actor.synthesizeScript = new(new ActorScriptCursor(definition.BehaviorData,
+                checked(node.SourceOffset + definition.ObjectDataOffset + 18)), actor, CinematicActorScriptProfile.Venom);
+            actor.brain = new(actor.State, actor, actor.synthesizeScript);
             actor.AddChild(new GodotNativeDestructionObserver { Name = "VenomDestructor", Destroyed = actor.DestroySourceOwnedState });
             registry.ActorRemoved += actor.OnSourceRemoved;
             VenomBrain.Construct(actor.State, actor, () => { }, configuration.CreateHealthBar);
@@ -99,7 +113,7 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
 
     internal override void Begin()
     {
-        Runtime.Start(registry.Environment);
+        // CVenom::CVenom (0x4E9600) squirts pos/angles only; it never calls CBaddy::ParseScript (see venom.cpp vs CScriptOnlyBaddy).
         begun = true;
         BuildSourceTransform();
     }
@@ -150,14 +164,78 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
         World.GetGroundHeight(position, above, below, out support);
     public void SetHeight(bool initial, int above, int below) => Height.SetHeight(initial, above, below, ElapsedTicks);
     public void RunAnimation(int animation) => Model.RunClip(animation);
+    public void CycleAnimation(int animation) => Model.CycleClip(animation, 1);
+    public FixedVector3 TriggerPosition(int node) => World.WaypointPosition(node);
+    public IReadOnlyList<ushort> TriggerLinks(int node) => (uint)node < registry.Triggers.Nodes.Count
+        ? MissionRuntime.ReadLinks(registry.Triggers.Nodes[node])
+        : throw new InvalidDataException("Venom link lookup references a missing source node.");
+    public int GroundHeight(FixedVector3 position, int above, int below, int flags)
+    {
+        if (flags != 0) throw new NotSupportedException("Venom source ground queries use flags0.");
+        return World.GroundHeight(position, above, below);
+    }
+    public void PlayVoice(short bank, short track, short priority) => registry.VoicePlayback(bank, track, priority);
+    public bool ConsumeAnimationSignal(CinematicActorSignalSource source)
+    {
+        if (source != CinematicActorSignalSource.InputFlags) throw new NotSupportedException("Venom waits on source inputflags1 at CBody44.");
+        if ((ScriptState.PendingSignals & 1) == 0) return false;
+        ScriptState.PendingSignals &= 0xFFFE; return true;
+    }
+    public int Random(int bound) => registry.RandomSource(bound);
+    public void PlayPositionalSound(int sound) =>
+        registry.Sounds?.PlayAt(unchecked((uint)sound), BodyPosition, registry.SoundListener());
     public void Neutralize() => Actor.Neutralize(Procedures);
     public void ProcessMessages() => Messages.Cleanup(all: true);
     public void PlaySounds() { }
-    public void PulseWaterModel(bool enabled) =>
-        throw new NotSupportedException("CVenom::PulseL6A4Node / AdjustWaterModel (0x4F0F00) is not ported yet.");
+    public int TimerRelated => configuration.TimerRelated();
+    /// <summary>Venom-only 0x6B4E58; a BSS global that survives level changes.</summary>
+    private static int lastFootstepSound;
+    public int LastFootstepSound { get => lastFootstepSound; set => lastFootstepSound = value; }
+    public void PlayPositionSpeech(int bank, int track, FixedVector3 position) =>
+        registry.PositionVoicePlayback(bank, track, position, 0);
+    public bool LineOfSight(FixedVector3 from, FixedVector3 to)
+    {
+        FixedVector3 hit = default;
+        return World.LineOfSight(from, to, 0, ref hit);
+    }
+    public int SwitchState(object? control) => (int)RequireSwitch(control).State.Mode;
+    public void FlickSwitch(object? control) => RequireSwitch(control).Flick();
+    public void SetPlayerFocusLockTarget()
+    {
+        if (registry.Player?.Controller.CameraFacing is not GodotPlayerCameraFacing facing)
+            throw new InvalidOperationException("CPlayer::SetFocusLockTarget needs the live player camera facing.");
+        facing.SetFocusLockTarget(this);
+    }
+    public void CreateCompass(FixedVector3 position) => registry.RequireControlServices().CreateCompass(position);
+    public void SendPulseToNode(int node) => registry.ReceivePulse(checked((ushort)node));
+    public void AdjustWaterModel(int waterLevel)
+    {
+        // At level 0 the original writes the captured base Y back unchanged.
+        if (waterLevel != 0)
+            throw new NotSupportedException("CVenom::AdjustWaterModel (0x4F0FB0) needs the l6a4 object-region water body (model 0x26D2DBB7).");
+    }
+    private bool deathPulseSent;
+    public void Die()
+    {
+        if (State.IsDead) return;
+        if (!deathPulseSent && Definition.NodeId != ushort.MaxValue)
+        {
+            deathPulseSent = true;
+            SendDeathPulse();
+        }
+        State.BodyFlags |= 0x40;
+        ItemFlags |= 1;
+        Lifecycle.Kill();
+    }
+    private static GodotSwitchActor RequireSwitch(object? control) =>
+        control as GodotSwitchActor ?? throw new InvalidDataException("Venom switch slot does not hold a source CSwitch.");
 
-    public bool Hit(ActorHit hit) =>
-        throw new NotSupportedException("CVenom::Hit (0x4EB7F0) is not ported yet.");
+    public bool Hit(ActorHit hit)
+    {
+        bool accepted = VenomFight.Hit(State, this, this, hit);
+        SyncScriptStorage();
+        return accepted;
+    }
 
     private void SyncScriptStorage()
     {
@@ -190,6 +268,7 @@ public partial class GodotVenomActor : GodotScriptActor, IVenomHost, IGodotSourc
     {
         if (destroyed) return;
         destroyed = true; registry.ActorRemoved -= OnSourceRemoved;
+        synthesizeScript.ClearCommands();
         Messages.Cleanup(all: true);
     }
 }

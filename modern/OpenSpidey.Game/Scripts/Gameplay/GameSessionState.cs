@@ -39,6 +39,7 @@ public partial class GameSessionState : Node, IMissionGameLevelHost, IMissionEnd
     public CameraNormalProjectionCache CameraProjectionCache { get; } = new();
     public int ForceEarlyLevelExit { get; set; }
     public PlayerWaterEffectState WaterEffect { get; } = new();
+    public CampaignSceneWaterState SceneWater { get; } = new();
     public SparkSettings Sparks { get; } = new();
     public SourceMusicState Music { get; } = new();
     public ScorpionApproachState ScorpionApproach { get; } = new();
@@ -48,6 +49,8 @@ public partial class GameSessionState : Node, IMissionGameLevelHost, IMissionEnd
     /// <summary>Separate source JoelJewCheatCode flag selecting the first alternate autoexec node.</summary>
     public bool AlternativeAutoexec { get; set; }
     public int EndTrainingFlag { get; set; }
+    /// <summary>Shell-owned gTrainingSeconds/score, retained across training levels.</summary>
+    public TrainingResults TrainingResults { get; } = new();
     public SourceWaterPostState WaterPost { get; }
     public int FrontPauseState { get; set; }
     public MissionCountdown Countdown { get; } = new();

@@ -24,6 +24,9 @@ public sealed class FrontendResources : IDisposable
     public OriginalBitmapFont NormalFont { get; }
     public OriginalBitmapFont SmallFont { get; }
     public OriginalBitmapFont BigFont { get; }
+    /// <summary>gAnimTable[15]: nine menubox border frames from data/shell.psx.</summary>
+    public IReadOnlyList<SpriteAnimationFrame> MenuBoxFrames { get; }
+    public IReadOnlyList<OriginalMenuBoxSlice> MenuBoxSlices => Data.MenuBoxSlices;
 
     private FrontendResources(string directory)
     {
@@ -34,10 +37,15 @@ public sealed class FrontendResources : IDisposable
         NormalFont = Font("sp_fnt00.fnt");
         SmallFont = Font("sp_fnt02.fnt");
         BigFont = Font("font_big.fnt");
+        SpriteAnimation? menuBox = null;
         foreach (string path in ShellPsx)
         {
             byte[] bytes = Archive.Read(path);
-            foreach (SpriteAnimation animation in SpriteAnimationReader.Read(bytes)) animations.TryAdd(animation.Name, animation);
+            foreach (SpriteAnimation animation in SpriteAnimationReader.Read(bytes))
+            {
+                animations.TryAdd(animation.Name, animation);
+                if (animation.Name.Equals("menubox", StringComparison.OrdinalIgnoreCase)) menuBox = animation;
+            }
             foreach (DecodedTexture texture in PsxTextureReader.Read(bytes))
             {
                 if (textures.ContainsKey(texture.Checksum)) continue;
@@ -45,6 +53,21 @@ public sealed class FrontendResources : IDisposable
                 textures.Add(texture.Checksum, ImageTexture.CreateFromImage(image));
             }
         }
+        if (menuBox is null)
+        {
+            byte[] bits = Archive.Read("data/bits.psx");
+            foreach (DecodedTexture texture in PsxTextureReader.Read(bits))
+            {
+                if (textures.ContainsKey(texture.Checksum)) continue;
+                using Image image = Image.CreateFromData(texture.Width, texture.Height, false, Image.Format.Rgba8, texture.RgbaPixels);
+                textures.Add(texture.Checksum, ImageTexture.CreateFromImage(image));
+            }
+            foreach (SpriteAnimation animation in SpriteAnimationReader.Read(bits))
+                if (animation.Name.Equals("menubox", StringComparison.OrdinalIgnoreCase)) menuBox = animation;
+        }
+        if (menuBox is null || menuBox.Frames.Count < 9)
+            throw new InvalidDataException("data/bits.psx must expose nine menubox border frames.");
+        MenuBoxFrames = menuBox.Frames;
     }
 
     public static FrontendResources Load()

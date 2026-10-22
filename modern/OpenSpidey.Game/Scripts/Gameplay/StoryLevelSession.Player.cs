@@ -2,6 +2,7 @@ using Godot;
 using OpenSpidey.Assets.Models;
 using OpenSpidey.Assets.Textures;
 using OpenSpidey.Core.Actors;
+using OpenSpidey.Core.Gameplay;
 using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Core.Player;
@@ -76,6 +77,13 @@ public partial class StoryLevelSession
         enemies.Rhino.SourceClock = () => SourceClock;
         enemies.Rhino.TryPlayPositionSpeech = (bank, slot, _, priority) =>
             speech.PlayAtPosition(bank, slot, priority, () => SourceClock);
+        enemies.Rhino.StopSpeech = attachment =>
+        {
+            if (attachment.CanStop(SourceClock, speech.Controller.Current)) speech.Controller.Stop();
+        };
+        enemies.Simby.TryPlayPositionSpeech = (bank, slot, _, priority) =>
+            speech.PlayAtPosition(bank, slot, priority, () => SourceClock);
+        enemies.Simby.SourceClock = () => SourceClock;
         objects!.BindPlayer(combat, camera);
         web = GodotPlayerWebRuntime.Create(archive!, libraries.Repository, player, combat, camera,
             () => SourceClock, random.Next,
@@ -145,8 +153,17 @@ public partial class StoryLevelSession
             PlayerSynthesizedInput = () => player.Combat.State.SynthesizedInputActive,
             Random = random.Next, PlaySound = (sound, volume, pitch) => player.Combat.PlaySound(sound, volume, pitch),
             CallModule = codeModules.Modules.CallParameterlessUserFunction,
-            BeginModulePresentation = ScorpionApproach.BeginPresentationFrame,
-            DrawModulePresentation = ScorpionApproach.DrawOn
+            BeginModulePresentation = () =>
+            {
+                ScorpionApproach.BeginPresentationFrame();
+                SubwayLevel.BeginPresentationFrame();
+            },
+            DrawModulePresentation = (canvas, viewport) =>
+            {
+                ScorpionApproach.DrawOn(canvas, viewport);
+                Training.DrawOn(canvas, viewport);
+                SubwayLevel.DrawOn(canvas, viewport);
+            }
         });
         hud.AddChild(hud.Timer);
         hud.DrawBossPanel = ScorpionEncounter.DrawHealthBars;
@@ -162,7 +179,7 @@ public partial class StoryLevelSession
         transitions = new(application, lifecycle, new()
         {
             Archive = archive!, Player = () => Player, KillAllSceneObjects = sceneObjects.KillAllSceneObjects,
-            CompleteLevel = completion.CompleteAsync
+            CompleteLevel = completion.CompleteAsync, MenuScenePath = OpenSpidey.Game.Frontend.ShellSession.ScenePath
         });
         playerCommands.Bind(CameraCommandHandler.CreateHandlers(camera.ScriptRig, () => new(player.Controller.OnWall,
                 player.Controller.OnCeiling, false, (uint)player.Controller.Action),
@@ -181,7 +198,8 @@ public partial class StoryLevelSession
                 () => Player is { } live && GodotObject.IsInstanceValid(live)))
             .Append(new PlayerSenseBuzzCommandHandler(() => web.AdditionalBodies!.State))
             .Append(new PlayerScriptDeathCommandHandler(() => new GodotPlayerScriptDeath(
-                Player ?? throw new InvalidOperationException("Source152 has no actual current player."), Registry),
+                Player ?? throw new InvalidOperationException("Source152 has no actual current player."), Registry,
+                () => codeModules.Modules.CallParameterlessUserFunction(TrainingMonitor.ModuleName, 1)),
                 () => Player is { } live && GodotObject.IsInstanceValid(live)))
             .Concat(new ushort[] { 215, 216 }.Select(opcode => new FightMusicFadeCommandHandler(opcode,
                 () => (Player ?? throw new InvalidOperationException("Fight-music fade requires the actual current player.")).Combat.State)))

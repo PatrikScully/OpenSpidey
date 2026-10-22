@@ -640,6 +640,8 @@ public partial class LevelSession : Node3D
                 enemyRuntime!.Thugs, enemyRuntime.BlackCat);
             if (verifyFirstRoof) await TorchImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
                 enemyRuntime!.Thugs, enemyRuntime.BlackCat, player);
+            if (verifyFirstRoof) await SpCloneImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
+                enemyRuntime!.Thugs, enemyRuntime.BlackCat, player);
             if (verifyFirstRoof) await LizManImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,
                 enemyRuntime!.Thugs, enemyRuntime.BlackCat);
             if (verifyFirstRoof) await SimbyImportChecks.VerifyAsync(this, archive!, libraries.Repository, originalExecutable,

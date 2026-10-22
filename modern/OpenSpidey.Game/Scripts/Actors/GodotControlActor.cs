@@ -83,13 +83,26 @@ public partial class GodotControlActor : GodotScriptActor, IActorScriptHost
             Variables.Position = Body.Position;
             return result;
         }
+        if (opcode == 0x4205)
+        {
+            Retire();
+            return true;
+        }
         if (opcode == 0x4506)
         {
             if (registry.PlayerPosition is { } position) { Variables.Position = position; Body.Position = position; }
             return true;
         }
-        if (opcode is 0x450C or 0x428D or 0x450B or 0x4507 or 0x4508 or 0x4509 or 0x428E or 0x4290 or 0x428F or 0x4291)
-            return Effects.Execute(opcode, operands, Variables.Position, environment);
+        if (opcode == 0x430A)
+        {
+            // CBaddy 0x430A → sub_43B740: ten CBouncingRock bits. Consume operands; rock effect deferred.
+            _ = unchecked((short)operands.ReadWord());
+            _ = operands.ReadAlignedDword();
+            return true;
+        }
+        if (opcode is 0x450C or 0x428D or 0x450B or 0x4507 or 0x4508 or 0x4509 or 0x428E or 0x4290 or 0x428F or 0x4291
+            or 0x429B or 0x42A1 or 0x429F or 0x4513)
+            return Effects.Execute(opcode, operands, Variables.Position, Body.Angles, environment);
         throw new NotSupportedException($"Control actor effect 0x{opcode:X4} has not been ported.");
     }
 

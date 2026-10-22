@@ -8,6 +8,12 @@ using OpenSpidey.Core.Actors.Rhino;
 using OpenSpidey.Core.Actors.Simby;
 using OpenSpidey.Core.Actors.Venom;
 using OpenSpidey.Core.Actors.Torch;
+using OpenSpidey.Core.Actors.DocOck;
+using OpenSpidey.Core.Actors.SpClone;
+using OpenSpidey.Core.Actors.Mysterio;
+using OpenSpidey.Core.Actors.Carnage;
+using OpenSpidey.Core.Actors.SuperOck;
+using OpenSpidey.Core.Actors.Turret;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Core.Modules;
 
@@ -28,6 +34,12 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
     private readonly bool venomConfigured;
     private readonly bool copConfigured;
     private readonly bool chopperConfigured;
+    private readonly bool turretConfigured;
+    private readonly bool docOckConfigured;
+    private readonly bool spCloneConfigured;
+    private readonly bool mysterioConfigured;
+    private readonly bool carnageConfigured;
+    private readonly bool superOckConfigured;
     private bool factoriesRegistered;
     public SourceModuleRegistry<GodotActorModuleArguments, GodotScriptActor> Modules { get; } = new();
     public GodotActorCodeModules(GodotActorRegistry registry, GodotThugConfiguration thugs, GodotBlackCatConfiguration blackCat,
@@ -35,7 +47,10 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
         GodotTorchConfiguration? torch = null, GodotLizManConfiguration? lizMan = null,
         GodotSimbyConfiguration? simby = null, GodotRhinoConfiguration? rhino = null,
         GodotVenomConfiguration? venom = null,
-        GodotCopConfiguration? cops = null, GodotChopperConfiguration? choppers = null)
+        GodotCopConfiguration? cops = null, GodotChopperConfiguration? choppers = null,
+        GodotTurretConfiguration? turret = null, GodotDocOckConfiguration? docOck = null,
+        GodotSpCloneConfiguration? spClone = null, GodotMysterioConfiguration? mysterio = null,
+        GodotCarnageConfiguration? carnage = null, GodotSuperOckConfiguration? superOck = null)
     {
         this.registry = registry ?? throw new ArgumentNullException(nameof(registry));
         ArgumentNullException.ThrowIfNull(thugs); ArgumentNullException.ThrowIfNull(blackCat);
@@ -48,6 +63,12 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
         venomConfigured = venom is not null;
         copConfigured = cops is not null;
         chopperConfigured = choppers is not null;
+        turretConfigured = turret is not null;
+        docOckConfigured = docOck is not null;
+        spCloneConfigured = spClone is not null;
+        mysterioConfigured = mysterio is not null;
+        carnageConfigured = carnage is not null;
+        superOckConfigured = superOck is not null;
         Modules.Register("thug", module =>
         {
             module.SetClear(() => ClearSourceBaddies(304, 312));
@@ -132,8 +153,11 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
                     ValidateArguments(arguments);
                     return GodotSimbyActor.Create(arguments.Node, registry, simby);
                 });
-                module.SetUserFunction(1, _ => throw new NotSupportedException(
-                    "Simby module slot1 CSimbyDroplet (trigger type411, 0x4A25E0) FlatBit adapter is not ported."));
+                module.SetUserFunction(1, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotSimbyDropletActor.Create(arguments.Node, registry, simby);
+                });
                 module.SetUserFunction(2, _ => throw new NotSupportedException(
                     "Simby module slot2 CFlamingImpactWeb (0x4A24F0) needs the shared flaming-impact web effect owner."));
                 module.SetUserFunction(3, _ => throw new NotSupportedException(
@@ -219,6 +243,82 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
             });
         }
 
+        if (turret is not null)
+        {
+            Modules.Register(TurretState.ModuleName, module =>
+            {
+                module.SetClear(() => ClearSourceBaddies(TurretState.Type));
+                module.SetUserFunction(0, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotTurretActor.Create(arguments.Node, registry, turret);
+                });
+            });
+        }
+
+        if (docOck is not null)
+        {
+            Modules.Register(DocOckState.ModuleName, module =>
+            {
+                module.SetClear(() => ClearSourceBaddies(DocOckState.Type));
+                module.SetUserFunction(0, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotDocOckActor.Create(arguments.Node, registry, docOck);
+                });
+            });
+        }
+        if (spClone is not null)
+        {
+            Modules.Register(SpCloneState.ModuleName, module =>
+            {
+                module.SetClear(() => ClearSourceBaddies(SpCloneState.Type));
+                module.SetUserFunction(0, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotSpCloneActor.Create(arguments.Node, registry, spClone);
+                });
+            });
+        }
+        if (mysterio is not null)
+        {
+            Modules.Register(MysterioState.ModuleName, module =>
+            {
+                module.SetClear(() => ClearSourceBaddies(MysterioState.Type));
+                module.SetUserFunction(0, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotMysterioActor.Create(arguments.Node, registry, mysterio);
+                });
+            });
+        }
+        if (carnage is not null)
+        {
+            Modules.Register(CarnageState.ModuleName, module =>
+            {
+                module.SetClear(() => ClearSourceBaddies(CarnageState.Type));
+                module.SetUserFunction(0, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotCarnageActor.Create(arguments.Node, registry, carnage);
+                });
+            });
+        }
+        if (superOck is not null)
+        {
+            Modules.Register(SuperOckState.ModuleName, module =>
+            {
+                module.SetClear(() => ClearSourceBaddies(SuperOckState.Type));
+                module.SetUserFunction(0, arguments =>
+                {
+                    ValidateArguments(arguments);
+                    return GodotSuperOckActor.Create(arguments.Node, registry, superOck);
+                });
+                // SuperDocOck_DisplayProgressBars (0x4D0E70): HUD draw deferred; call must exist for L8A6.
+                module.SetParameterlessUserFunction(1, () => { });
+            });
+        }
+
     }
     public void RegisterFactories()
     {
@@ -253,6 +353,18 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
         if (copConfigured)
             foreach (short type in new short[] { 306, 320 })
                 registry.RegisterFactory(type, (node, owner) => Modules.CallUserFunction(CopState.ModuleName, 0, new(node, owner)));
+        if (turretConfigured)
+            registry.RegisterFactory(TurretState.Type, (node, owner) => Modules.CallUserFunction(TurretState.ModuleName, 0, new(node, owner)));
+        if (docOckConfigured)
+            registry.RegisterFactory(DocOckState.Type, (node, owner) => Modules.CallUserFunction(DocOckState.ModuleName, 0, new(node, owner)));
+        if (spCloneConfigured)
+            registry.RegisterFactory(SpCloneState.Type, (node, owner) => Modules.CallUserFunction(SpCloneState.ModuleName, 0, new(node, owner)));
+        if (mysterioConfigured)
+            registry.RegisterFactory(MysterioState.Type, (node, owner) => Modules.CallUserFunction(MysterioState.ModuleName, 0, new(node, owner)));
+        if (carnageConfigured)
+            registry.RegisterFactory(CarnageState.Type, (node, owner) => Modules.CallUserFunction(CarnageState.ModuleName, 0, new(node, owner)));
+        if (superOckConfigured)
+            registry.RegisterFactory(SuperOckState.Type, (node, owner) => Modules.CallUserFunction(SuperOckState.ModuleName, 0, new(node, owner)));
         if (chopperConfigured)
         {
             registry.RegisterFactory(ChopperState.ChopperType, (node, owner) => Modules.CallUserFunction(ChopperState.ModuleName, 0, new(node, owner)));
@@ -265,7 +377,7 @@ public sealed class GodotActorCodeModules : IMissionModuleLoader
     public void LoadCodeModule(string name) => Modules.Load(name);
     public void UnloadAllCodeModules()
     {
-        ClearSourceBaddies(313, 317, 307, 304, 305, 306, 320, 312, 315, 318, 322, 323);
+        ClearSourceBaddies(313, 317, 307, 304, 305, 306, 320, 312, 315, 318, 322, 323, 325, 308, 327, 311, 314, 309);
         Modules.UnloadAll();
     }
     private void ValidateArguments(GodotActorModuleArguments arguments)

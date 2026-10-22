@@ -1,5 +1,6 @@
 using Godot;
 using OpenSpidey.Assets.Animation;
+using OpenSpidey.Assets.Models;
 using OpenSpidey.Assets.Scripting;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Cops;
@@ -26,6 +27,9 @@ public partial class GodotCopActor : GodotScriptActor, ICopHost, IGodotSourceBad
     private readonly ActorBodyMotion playerBody = new();
     private bool begun;
     private bool destroyed;
+    private FixedVector3[]? throwPoints;
+    /// <summary>The pose-link records of 0x549264 (police) and 0x549344 (SWAT); both start with the same sixteen links.</summary>
+    private const string FallPoseLinks = "000010000000ffff00000000000000000700000000000000000000000800070000000000000000000200070000000000000000000100020000000000000000000300010000000000000000000400030000000000000000000600070000000000000000000500060000000000000000000900050000000000000000000a00000000000000000000000b000a0000000000000000000c000b0000000000000000000d00000000000000000000000e000d0000000000000000000f000e000000000000000000";
     public CopState State { get; private set; } = null!;
     public ActorProcedureState Actor { get; private set; } = null!;
     public ActorProcedureList Procedures { get; } = new();
@@ -159,7 +163,8 @@ public partial class GodotCopActor : GodotScriptActor, ICopHost, IGodotSourceBad
         flags == 0 ? World.GroundHeight(position, above, below) : throw new NotSupportedException("Cop ground queries use flags0.");
     public bool GetNextWaypoint() => Route.Advance();
     public FixedVector3 WaypointPosition() => Route.Position();
-    public FixedVector3 GetPathPoint(int index) => Path.GetPoint(index);
+    /// <summary>CBaddy 0x1A8 slot 0 is the last-seen player position written by PlayerIsVisible.</summary>
+    public FixedVector3 GetPathPoint(int index) => index == 0 ? State.LastSeenPlayerPosition : Path.GetPoint(index);
     public bool LineOfSight(FixedVector3 from, FixedVector3 to)
     {
         FixedVector3 hit = default;
@@ -176,7 +181,7 @@ public partial class GodotCopActor : GodotScriptActor, ICopHost, IGodotSourceBad
     public FixedVector3 GetWaypointNearTarget(FixedVector3 target, int radius, byte phase) =>
         ActorPathController.GetWaypointNearTarget(target, radius, phase);
     public void SendSignal() { foreach (ushort link in Definition.Links) registry.ReceivePulse(link); }
-    public void ApplyHit(byte flags, short damage) => State.Health = (short)Math.Max(0, State.Health - damage);
+    public void ApplyHit(byte flags, short damage) => Hit(new ActorHit(flags, 0, 0, unchecked((ushort)damage), default));
     public void WarnOtherCops()
     {
         foreach (GodotCopActor other in registry.SourceList(ActorUpdateGroup.Enemy).SourceOrder.OfType<GodotCopActor>())
@@ -186,6 +191,23 @@ public partial class GodotCopActor : GodotScriptActor, ICopHost, IGodotSourceBad
         configuration.PlayPositionSound(sound, position, pitch);
     public void MakeSpriteRing(FixedVector3 offset) =>
         throw new NotSupportedException("CCop::MakeSpriteRing (0x403FC0) is not ported to Godot effects yet.");
+    public int DrawLaserSite(bool checkPlayer)
+    {
+        // Full CCop::DrawLaserSiteThingie (0x42BB50) waits on hooks/tracers; smoke and idle AI use a miss.
+        State.HasLaser = false;
+        return 0;
+    }
+    public void ClearLaser() => State.HasLaser = false;
+    public void ApplyPlayerHit(byte flags, short damage)
+    {
+        if (configuration.PlayerProvider() is { } player)
+            player.Combat.Hit(new ActorHit(flags, 0, 0, unchecked((ushort)damage), default));
+    }
+    public void SendSelfMessage(int code) => ReceiveMessage(code, null);
+    public void StartAttackMonitor(int startFrame, int attackMask, int frameCount, uint completionMask)
+    {
+        // Full CAIProc_MonitorAttack needs hook collision; melee AI advances without the hit sweep for now.
+    }
     public ActorBodyMotion? RecoverAcknowledgeTarget() => PlayerBody;
     public int GetGroundHeight(FixedVector3 position, int above, int below, out ActorBodyMotion? support) =>
         World.GetGroundHeight(position, above, below, out support);
@@ -196,11 +218,67 @@ public partial class GodotCopActor : GodotScriptActor, ICopHost, IGodotSourceBad
         Path.CurrentWaypoint = Route.CurrentNode;
     }
     public bool Grab(FixedVector3 destination) => CopGrabEntry.TryGrab(State, Actor, stateFlags, destination, AddPointToPath);
-    public bool Hit(ActorHit hit) { State.Health = (short)Math.Max(0, State.Health - hit.Damage); SyncScriptStorage(); return true; }
+    public bool Hit(ActorHit hit) { bool handled = brain.Hit(hit); SyncScriptStorage(); return handled; }
     public void MarkSourceBodyDead() => State.BodyFlags |= 0x40;
     public void ReceiveMessage(int code, object? sender, FixedVector3 vector = default) =>
         Messages.Enqueue(new ThugMessage(code, sender) { Vector0 = vector });
     public void MarkDead() => Lifecycle.Kill();
+    public void NotifyKill(int actorType) => configuration.Session.NotifyKill(actorType);
+    public IThugTrapWeb? RecoverTrapWeb() => configuration.RecoverTrapWeb(this);
+    public int PlayerWebComboValue => configuration.Session.PlayerWebComboValue;
+    public int PlayerActionState => unchecked((int)RequirePlayer().Controller.Action);
+    public short PlayerYaw => RequirePlayer().Controller.Orientation.Heading;
+    public bool GrabUpdate(ref FixedVector3 position, ref short yaw) => configuration.GrabUpdate(ref position, ref yaw);
+    private GodotPlayer RequirePlayer() => configuration.PlayerProvider() ?? throw new InvalidOperationException("Cop AI requires the scene player.");
+    public void SetPlayerWebCombo(int duration, int amount) => configuration.Session.SetPlayerWebCombo(duration, amount);
+    public int PlayerAnimationId => RequirePlayer().Model.ClipId;
+    public CopState? FindClosest(int actorType)
+    {
+        int best = 10656; GodotCopActor? found = null;
+        foreach (GodotCopActor candidate in registry.SourceList(ActorUpdateGroup.Enemy).SourceOrder.OfType<GodotCopActor>())
+        {
+            if (ReferenceEquals(candidate, this) || (actorType != 0 && candidate.State.Type != actorType)) continue;
+            int distance = ThugPerception.ApproximateHorizontalDistance(Actor.Body.Position, candidate.Actor.Body.Position);
+            if (distance >= best) continue;
+            best = distance; found = candidate;
+        }
+        return found?.State;
+    }
+    public void SendMessage(CopState target, int code)
+    {
+        foreach (GodotCopActor other in registry.SourceList(ActorUpdateGroup.Enemy).SourceOrder.OfType<GodotCopActor>())
+            if (ReferenceEquals(other.State, target)) { other.ReceiveMessage(code, this); return; }
+    }
+    public int PathCheckWithHit(FixedVector3 from, FixedVector3 to, int clearance, bool globalCollisionFlag, out FixedVector3 hit)
+    {
+        ActorPathCheckResult result = Path.PathCheck(from, to, true, clearance, default);
+        hit = result.HitPoint;
+        return result.Code;
+    }
+    // The Godot cop never creates the CSuper 0xCC shadow object, so there is nothing to delete.
+    public void KillShadow() { }
+    public IThugInjuryBody? StruckGameObject(int first, int second) => configuration.Effects.StruckGameObject(this, first, second);
+    public void ElasticCollision(IThugInjuryBody target, FixedVector3 velocity, int duration) =>
+        configuration.Effects.ElasticCollision(this, target, velocity, duration);
+    public void PlayGlobalSound(ushort sound, int volume, int pan) => configuration.Effects.PlayGlobalSound(sound, volume, pan);
+    public void ApplyFallPose(bool police)
+    {
+        Model.InitializeSourceJoints(ActorPoseLinkPacket.Read(Convert.FromHexString(FallPoseLinks), 16));
+        if ((ItemFlags & 4) != 0) BuildTransform();
+        Model.ApplySourceJointPose((ItemFlags & 4) != 0);
+    }
+    public bool HasJoints => Model.HasSourceJoints;
+    public short JointOnePitch
+    {
+        get => Model.GetSourceJoint(1).RotationX;
+        set => Model.SetSourceJoint(1, Model.GetSourceJoint(1) with { RotationX = value });
+    }
+    public FixedVector3 GetThrowPoint(int index) => (throwPoints ?? throw new InvalidOperationException("Source mpThrowPoints is null."))[index];
+    public void SetThrowPoints(IReadOnlyList<FixedVector3> points)
+    {
+        if (points.Count != 8) throw new ArgumentException("Source GetWhippedLikeTheWhoreYouAre consumes eight precomputed throw points.", nameof(points));
+        throwPoints = points.ToArray();
+    }
     public bool ExecuteCommand(ushort opcode, ActorScriptCursor operands, ActorScriptEnvironment environment)
     {
         if (GodotLinkedBaddyCommands.TryExecute(registry, SourceNodeId, opcode, operands)) return true;

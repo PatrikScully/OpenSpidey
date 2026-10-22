@@ -1,6 +1,7 @@
 using OpenSpidey.Assets.Executables;
 using OpenSpidey.Assets.Models;
 using OpenSpidey.Core.Actors.Rhino;
+using OpenSpidey.Core.Audio;
 using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Cameras;
 using OpenSpidey.Core.Rendering;
@@ -31,6 +32,18 @@ public sealed class GodotRhinoConfiguration
     public Func<uint> SourceClock { get; set; } = () => 0;
     public Func<int, int, FixedVector3, int, bool> TryPlayPositionSpeech { get; set; } =
         (_, _, _, _) => throw new InvalidOperationException("CRhino::PlayXAPlease needs the session speech host.");
+    /// <summary>CBody::StopMyXA (0x460400) against the session's current XA.</summary>
+    public Action<ActorSpeechAttachment> StopSpeech { get; set; } =
+        _ => throw new InvalidOperationException("CRhino::DieRhino StopMyXA needs the session speech host.");
+    /// <summary>CPlayer, CCamera, web contacts and controller feedback, available once the player is bound.</summary>
+    public Func<GodotEnemyPlayerBinding> PlayerBinding { get; init; } =
+        () => throw new InvalidOperationException("CRhino::AI needs the bound CPlayer/CCamera.");
+    /// <summary>Trig_SendSignal (0x4DFFE0) over this Rhino's authored links.</summary>
+    public Action<GodotRhinoActor> SendSignal { get; init; } =
+        _ => throw new InvalidOperationException("CRhino::DetermineFightState signals need the scene actor directory.");
+    /// <summary>CBaddy::CreateCombatImpactEffect rings for CAIProc_MonitorAttack contacts.</summary>
+    public Action<FixedVector3> CreateCombatImpact { get; init; } =
+        _ => throw new InvalidOperationException("CRhino MonitorAttack impacts need the scene combat-ring owner.");
 }
 
 /// <summary>Original rhino.psx model and M3d_RhinoLight at 0x552080.</summary>

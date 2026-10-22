@@ -129,9 +129,10 @@ public static class SimbyReactions
         state.AttackMask = 0;
     }
 
+    /// <summary>CSimby::SetAlertModeTimer raises field_348 only.</summary>
     public static void SetAlertModeTimer(SimbyState state, int timer)
     {
         ArgumentNullException.ThrowIfNull(state);
-        state.AlertNoiseTimer = timer;
+        if (state.AlertModeTimer < timer) state.AlertModeTimer = timer;
     }
 }

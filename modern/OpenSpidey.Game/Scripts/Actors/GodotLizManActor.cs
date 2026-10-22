@@ -12,11 +12,12 @@ using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Missions;
 using OpenSpidey.Game.Import;
 using OpenSpidey.Game.World;
+using OpenSpidey.Game.Player;
 
 namespace OpenSpidey.Game.Actors;
 
 /// <summary>Original source317 LizMan CBaddy: construction, init/guard AI leaves and module lifetime.</summary>
-public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSourceBaddyBody, IActorScriptHost, IActorHeightHost
+public partial class GodotLizManActor : GodotScriptActor, ILizManFollowWaypointsHost, ILizManMessageHost, IGodotSourceBaddyBody, IActorScriptHost, IActorHeightHost
 {
     private GodotActorRegistry registry = null!;
     private GodotLizManConfiguration configuration = null!;
@@ -25,12 +26,13 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
     private bool destroyed;
     public LizManState State { get; private set; } = null!;
     public LizManStateFlags StateFlags { get; } = new();
-    public LizManAttackOwnership AttackOwnership { get; } = new();
+    public LizManAttackOwnership AttackOwnership => configuration.AttackOwnership;
     public ActorProcedureState Actor { get; private set; } = null!;
     public ActorProcedureList Procedures { get; } = new();
     public ActorBodyMotion Body => Actor.Body;
     public ActorHeightController Height { get; private set; } = null!;
     public ActorWaypointRoute Route { get; private set; } = null!;
+    public ActorPathController Path { get; private set; } = null!;
     public ImportedAnimatedModel Model { get; private set; } = null!;
     public GodotSourceVertexLighting Lighting { get; private set; } = null!;
     public GodotActorWorldQuery World { get; private set; } = null!;
@@ -49,6 +51,9 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
     public FixedVector3 PlayerPosition => registry.PlayerPosition ?? default;
     public bool HasMessages => Messages.Head is not null;
     public bool HasLinkedClimbNode => (State.Field2F0 & 0x20) != 0;
+    public object AttackIdentity => this;
+    public uint RouteFlags { get => State.Field2F0; set { State.Field2F0 = value; Route.Flags = value; } }
+    public int ShadowGroundY { get => State.ShadowGroundY; set => State.ShadowGroundY = value; }
     public ushort MinorRadius => State.MinorRadius;
     public ushort BodyFlags => unchecked((ushort)State.BodyFlags);
     public uint BehaviorFlags => State.BehaviorFlags;
@@ -83,6 +88,7 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
             actor.Lighting = new(actor.Model, configuration.Light(), configuration.LightingState);
             actor.World = new(actor, registry.Triggers);
             actor.Height = new(actor.Actor, actor) { Clearance = actor.State.SurfaceClearance, QueryInterval = actor.State.Field212 };
+            actor.Path = new(actor.Actor, actor.World) { Radius = actor.State.MinorRadius, Clearance = actor.State.SurfaceClearance };
             actor.Route = new(registry.Triggers, node.Id, actor.ParseWaypoint);
             actor.Runtime = new(new ActorScriptCursor(definition.BehaviorData,
                 checked(node.SourceOffset + definition.ObjectDataOffset + 18)), actor);
@@ -110,6 +116,7 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
         State.BodyFlags = FrameTiming.Prepare(configuration.Clock(), unchecked((ushort)State.BodyFlags), ItemFlags,
             new(Model.Playback.Frame, Model.Playback.ClipId, Model.Playback.Direction));
         if ((ItemFlags & 2) != 0) FrameTiming.RecordAnimationElapsed(Model.AdvanceSourceTicks(FrameTiming.ElapsedTicks));
+        Procedures.Execute(FrameTiming.ElapsedTicks);
         brain.Advance();
         Variables.Position = Body.Position;
         Variables.CollisionRadius = State.MinorRadius;
@@ -137,7 +144,13 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
         Transform = transform;
     }
 
-    public bool TryAdvanceWaypoint() => Route.Advance();
+    public bool TryAdvanceWaypoint()
+    {
+        if (!Route.Advance()) return false;
+        State.Field1F4 = Route.CurrentNode;
+        RouteFlags = Route.Flags;
+        return true;
+    }
     public int GroundHeight(FixedVector3 position, int above, int below, int flags)
     {
         if (flags != 0) throw new NotSupportedException("LizMan source ground queries use flags0.");
@@ -148,11 +161,17 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
     public void SetHeight(bool initial, int above, int below) => Height.SetHeight(initial, above, below, ElapsedTicks);
     public void RunAnimation(int animation) => Model.RunClip(animation);
     public void Neutralize() => Actor.Neutralize(Procedures);
-    public void ProcessMessages() => Messages.Cleanup(all: true);
+    public void ProcessMessages() => LizManMessages.Process(State, Messages, this);
     public void UpdateFootstepBits() { }
     public void PlaySounds() { }
-    public void LookAtPlayer(int holdTicks, int rate) =>
-        throw new NotSupportedException("CLizMan::Guard CAIProc_LookAt (0x4500E0 case0) is not ported yet.");
+    private readonly ActorBodyMotion playerBody = new();
+    public ActorBodyMotion? RecoverPlayerBody()
+    {
+        if (registry.Player is not { } player || !GodotObject.IsInstanceValid(player)) return null;
+        playerBody.Position = player.Controller.Position;
+        return playerBody;
+    }
+    public void SetAnimationFrame(int frame) => Model.SetSourceAnimationFrame(frame);
     public int ScanNearbyNodesForJumpTarget()
     {
         var candidates = new List<LizManJumpCandidate>();
@@ -167,22 +186,88 @@ public partial class GodotLizManActor : GodotScriptActor, ILizManHost, IGodotSou
         }
         return LizManJumpScan.Select(Body.Position, PlayerPosition, candidates, IsJumpSlotOccupied);
     }
+    /// <summary>Every type317 in BaddyList, this one included, blocks a node near its body or its jump landing (array+564).</summary>
     private bool IsJumpSlotOccupied(FixedVector3 position)
     {
         foreach (object identity in registry.SourceList(ActorUpdateGroup.Enemy).SourceOrder)
         {
-            if (identity is not GodotLizManActor other || !registry.Owns(other) || ReferenceEquals(other, this)) continue;
-            if (ThugPerception.ApproximateHorizontalDistance(position, other.Body.Position) < 0x100) return true;
-            if (other.State.JumpPositions is { Length: > 0 } arr)
-            {
-                FixedVector3 mid = arr[Math.Min(arr.Length - 1, arr.Length / 2)];
-                if (ThugPerception.ApproximateHorizontalDistance(position, mid) < 0x100) return true;
-            }
+            if (identity is not GodotLizManActor other || !registry.Owns(other)) continue;
+            if (unchecked((uint)ThugPerception.ApproximateHorizontalDistance(position, other.Body.Position)) < 0x100) return true;
+            if (other.State.JumpPositions is { } landing &&
+                unchecked((uint)ThugPerception.ApproximateHorizontalDistance(position, landing[47])) < 0x100) return true;
         }
         return false;
     }
     public FixedVector3 TriggerPosition(int node) => World.WaypointPosition(node);
-    public void PlayPositionalSound(int id) { }
+    public FixedVector3 WaypointPosition(int node) => World.WaypointPosition(node);
+    public FixedVector3 PathPointPosition(int index) => Path.GetPoint(index);
+    // CBody::KillShadow clears CBody flag 8; the source shadow bit itself is not modelled here.
+    public void KillShadow() => State.BodyFlags &= ~8u;
+    public bool DetermineFightState() => LizManPerception.DetermineFightState(State, AttackOwnership, this);
+    private GodotPlayer RequirePlayer() =>
+        registry.Player ?? throw new InvalidOperationException("CLizMan fight probes require MechList.");
+    public short PlayerHealth => RequirePlayer().Combat.State.Health;
+    public byte PlayerUnavailable => unchecked((byte)RequirePlayer().ActorState.InvisibilityFlag);
+    public bool PlayerIsDead => (RequirePlayer().ActorState.BodyFlags & 0x40) != 0;
+    public bool LineOfSight(FixedVector3 from, FixedVector3 to)
+    {
+        FixedVector3 hit = default;
+        return World.LineOfSight(from, to, 0, ref hit);
+    }
+    public int PathCheck(FixedVector3 from, FixedVector3 to)
+    {
+        SyncPath();
+        return Path.PathCheck(from, to, false, 55).Code;
+    }
+    public bool AddPointToPath(FixedVector3 point, int distanceLimit)
+    {
+        SyncPath();
+        bool added = Path.AddPointToPath(point, distanceLimit);
+        State.Field1F0 = Path.PathCount;
+        State.CombatFlags = Actor.BehaviorFlags;
+        return added;
+    }
+    private void SyncPath()
+    {
+        Actor.BehaviorFlags = State.CombatFlags;
+        Path.PathCount = State.Field1F0;
+        Path.CurrentWaypoint = State.Field1F4;
+        Path.StoredBodyY = State.Field29C;
+        Path.Radius = State.MinorRadius;
+        Path.Clearance = State.SurfaceClearance;
+    }
+    public void SendSignal() { foreach (ushort link in Definition.Links) registry.ReceivePulse(link); }
+    public IEnumerable<LizManWarnCandidate> OtherLizMen()
+    {
+        foreach (object identity in registry.SourceList(ActorUpdateGroup.Enemy).SourceOrder)
+            if (identity is GodotLizManActor other && !ReferenceEquals(other, this) && registry.Owns(other))
+                yield return new(other, other.Body.Position, other.State.Field374);
+    }
+    public void SendMessage(object target, int code) =>
+        (target as GodotLizManActor ?? throw new InvalidDataException("CLizMan warning target is not a source317 baddy."))
+            .ReceiveMessage(code, this);
+    public FixedVector3? RecoverSenderPosition(object? handle) =>
+        handle is GodotLizManActor sender && registry.Owns(sender) && !sender.destroyed ? sender.Body.Position : null;
+    public ActorPathCheckResult PathCheckWithHit(FixedVector3 from, FixedVector3 to)
+    {
+        SyncPath();
+        return Path.PathCheck(from, to, true, 55, to);
+    }
+    public void EnsureMatrixFacing() => Body.MovementFlags |= 1;
+    public void ClearClimbFacing()
+    {
+        Body.Angles = Body.Angles with { X = 0, Z = 0 };
+        Body.MovementFlags &= ~1u;
+    }
+    public bool WaypointHasLinks(int node) => node > 0 && (uint)node < registry.Triggers.Nodes.Count &&
+        MissionRuntime.ReadLinks(registry.Triggers.Nodes[node]).Count > 0;
+    public void RunTimer(ref int ticks)
+    {
+        if (ticks <= ElapsedTicks) ticks = 0;
+        else ticks -= ElapsedTicks;
+    }
+    public void PlayPositionalSound(int id) =>
+        registry.Sounds?.PlayAt(unchecked((uint)id), Body.Position, registry.SoundListener());
     public int Random(int bound) => configuration.Random(bound);
     public bool Hit(ActorHit hit) =>
         throw new NotSupportedException("CLizMan::Hit (0x44BA00) is not ported yet.");

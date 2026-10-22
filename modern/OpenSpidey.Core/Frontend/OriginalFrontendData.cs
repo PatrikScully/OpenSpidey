@@ -20,6 +20,7 @@ public sealed class OriginalFrontendData
     public required byte[] CardIcon { get; init; }
     public required OriginalLevelCatalog Levels { get; init; }
     public required IReadOnlyDictionary<uint, string> Text { get; init; }
+    public required IReadOnlyList<OriginalMenuBoxSlice> MenuBoxSlices { get; init; }
 
     /// <summary>Localized char* slots used by the shell, front-end pause menu and slot list.</summary>
     public static readonly uint[] TextSlots =
@@ -54,6 +55,16 @@ public sealed class OriginalFrontendData
             menu[index] = new(BinaryPrimitives.ReadInt32LittleEndian(record), BinaryPrimitives.ReadInt32LittleEndian(record[4..]),
                 String(data, BinaryPrimitives.ReadUInt32LittleEndian(record[8..])), BinaryPrimitives.ReadInt32LittleEndian(record[12..]));
         }
+        var menuBoxSlices = new OriginalMenuBoxSlice[13];
+        for (int index = 0; index < menuBoxSlices.Length; index++)
+        {
+            ReadOnlySpan<byte> record = data.Slice(0x5512F0u + (uint)index * 16, 16).Span;
+            menuBoxSlices[index] = new(
+                BinaryPrimitives.ReadInt32LittleEndian(record),
+                BinaryPrimitives.ReadInt32LittleEndian(record[4..]),
+                BinaryPrimitives.ReadInt32LittleEndian(record[8..]),
+                BinaryPrimitives.ReadInt32LittleEndian(record[12..]));
+        }
         return new()
         {
             DefaultSave = new(data.Slice(0x550E10, OriginalSaveGame.Size).Span),
@@ -61,7 +72,8 @@ public sealed class OriginalFrontendData
             Challenges = challenges, Cheats = cheats, MainMenu = menu,
             CardClut = data.Slice(0x53BC7C, 32).ToArray(), CardIcon = data.Slice(0x53BC9C, 128).ToArray(),
             Levels = OriginalLevelCatalog.Read(image),
-            Text = TextSlots.ToDictionary(slot => slot, slot => String(data, data.ReadPointer(slot)))
+            Text = TextSlots.ToDictionary(slot => slot, slot => String(data, data.ReadPointer(slot))),
+            MenuBoxSlices = menuBoxSlices
         };
     }
 

@@ -24,18 +24,19 @@ public sealed partial class GodotEnvironmentVisibility
         for (int index = 0; index < items.Length; index++)
         {
             int offset = 12 + index * 36;
-            if (BinaryPrimitives.ReadUInt16LittleEndian(bytes[(offset + 22)..]) != index)
-                throw new InvalidDataException("Chunk source CItem model does not match its actual same-index ENV owner.");
+            int modelIndex = live.Scene.Instances[index].ModelIndex;
+            if (BinaryPrimitives.ReadUInt16LittleEndian(bytes[(offset + 22)..]) != modelIndex)
+                throw new InvalidDataException("Chunk source CItem model does not match its actual ENV owner.");
             GodotEnvironmentVisibilityItem item = items[index];
             item.StoredPosition = new(BinaryPrimitives.ReadInt32LittleEndian(bytes[(offset + 4)..]),
                 BinaryPrimitives.ReadInt32LittleEndian(bytes[(offset + 8)..]), BinaryPrimitives.ReadInt32LittleEndian(bytes[(offset + 12)..]));
             item.StoredAngles = new(BinaryPrimitives.ReadInt16LittleEndian(bytes[(offset + 16)..]),
                 BinaryPrimitives.ReadInt16LittleEndian(bytes[(offset + 18)..]), BinaryPrimitives.ReadInt16LittleEndian(bytes[(offset + 20)..]));
-            item.ChunkModel = new(models[index]);
+            item.ChunkModel = new(models[modelIndex]);
             GodotSwitchEnvironmentItem? claimed = claimedItem(live, index);
             if (claimed is not null) item.StoredFlags = claimed.State.ItemFlags;
-            if ((models[index].Model.Flags & 0x10) != 0) item.StoredFlags |= 0x20;
-            if ((models[index].Model.Flags & 0x20) != 0) item.StoredFlags |= 0x1000;
+            if ((models[modelIndex].Model.Flags & 0x10) != 0) item.StoredFlags |= 0x20;
+            if ((models[modelIndex].Model.Flags & 0x20) != 0) item.StoredFlags |= 0x1000;
             if (claimed is not null)
             { claimed.State.ItemFlags = item.StoredFlags; claimed.InstallSharedChunkModel(item.ChunkModel); }
         }
@@ -47,7 +48,7 @@ public sealed partial class GodotEnvironmentVisibility
     public ushort SourceModelFlags(ImportedLevelSource source, int index)
     {
         GodotEnvironmentVisibilityItem item = RequireItem(source, index);
-        return claimedItem(source, index)?.SourceModelFlags ?? item.ChunkModel?.Flags ?? source.Scene.Models[index].Flags;
+        return claimedItem(source, index)?.SourceModelFlags ?? item.ChunkModel?.Flags ?? source.Scene.Models[item.ModelIndex].Flags;
     }
     public void SynchronizeSourceItem(GodotEnvironmentVisibilityItem item)
     {

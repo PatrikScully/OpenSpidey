@@ -455,6 +455,7 @@ CAIProc_MoveTo::CAIProc_MoveTo(CBaddy* pBaddy, SMoveToInfo* pMove, int a4)
 	this->AttachProc(MOVE_TO, pBaddy, a4);
 
 	this->field_30 = pMove->field_0;
+	this->field_30.vy = pBaddy->mPos.vy;
 	this->field_2C = 0;
 
 	this->field_20 = (this->field_30 - pBaddy->mPos) >> 12;

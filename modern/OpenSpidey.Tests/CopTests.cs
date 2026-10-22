@@ -3,6 +3,7 @@ using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Cops;
 using OpenSpidey.Core.Actors.Procedures;
 using OpenSpidey.Core.Actors.Thugs;
+using OpenSpidey.Core.Combat;
 using OpenSpidey.Core.Mathematics;
 
 internal static class CopTests
@@ -22,7 +23,7 @@ internal static class CopTests
             else frames += Ai(assert, index, test, expected, ref stopped);
             index++;
         }
-        assert(index == 793 && frames > 2000 && stopped > 50,
+        assert(index == 2709 && frames > 6000 && stopped > 50,
             $"Actual PC CCop fixture keeps constructor, parameter, mode and AI cases ({index} cases, {frames} frames, {stopped} stops).");
     }
 
@@ -97,9 +98,12 @@ internal static class CopTests
         state.PathPointIndex = I("pathIndex"); state.ActorPhase = (byte)I("phase"); state.ShadowScale = I("shadow");
         state.Health = (short)I("health"); state.AttackOwnershipFlags = (byte)I("ownership"); state.AttackSlotMask = (byte)I("slotMask");
         state.LastSeenPlayerPosition = new(I("seenX"), I("seenY"), I("seenZ")); state.ActionFlags = (uint)I("actionFlags");
-        state.SetParamByIndexForTest(I("vertical"), I("far"), I("cone"), I("near"), state.Field370, state.Field374, state.Damage, I("claim"));
+        state.SetParamByIndexForTest(I("vertical"), I("far"), I("cone"), I("near"), 0, 0, 0, I("claim"));
         state.DistanceSampleClock = I("distanceClock"); state.CachedPlayerDistance = I("distance");
         state.SurfaceClearance = (short)I("clearance");
+        state.WorkCounter = I("workCounter"); state.AttackSlotCursor = (byte)I("slotCursor"); state.AimPlayerY = I("aimY");
+        state.LandingY = I("landingY"); state.SlidePitchRate = I("slidePitch"); state.SlideYawRate = I("slideYaw");
+        state.DeathSoundTicks = I("deathSound"); state.YankOscillationTicks = I("yankOsc"); state.WorkDelayCounter = I("workDelay"); state.DeathPulseSent = I("pulseSent") != 0;
         state.SetAnimMode(I("mode"), false, _ => { });
         if (I("mode") == 0) (state.AnimationWord294, state.AnimationWord298) = (0x02010E0D, 3);
         ActorBodyMotion body = new()
@@ -112,19 +116,29 @@ internal static class CopTests
         ActorProcedureList procedures = new();
         ThugCombatCoordinator shared = new() { OccupiedSlots = (uint)I("sharedSlots") };
         CopCombatCoordinator combat = new(shared);
-        CopState other = new(0, 0, 0, 0);
+        CopState other = new(0, 0, 0, 0) { State = I("otherState"), MinorRadius = 0 };
         combat.PrimaryAttacker = I("copGlobal") switch { 1 => state, 2 => other, _ => null };
         combat.FightOwner = I("copList") switch { 1 => state, 2 => other, _ => null };
         Host host = new(state, actor, procedures)
         {
             AnimationId = I("anim"), AnimationFrame = I("frame"), AnimationFinished = (byte)I("finished"), ItemFlags = (ushort)I("itemFlags"),
             HasMessages = I("messages") != 0, RouteFlags = (uint)I("route"), Seed = (uint)I("seed"),
-            PlayerSurfaceClearance = (short)I("playerClearance"),
+            PlayerSurfaceClearance = (short)I("playerClearance"), HasWeb = I("web") != 0, PlayerWebComboValue = I("playerCombo"),
+            PlayerAnimationId = I("playerAnim"), PlayerActionState = I("playerGrabMode"), PlayerYaw = (short)I("playerYaw"), HasJoints = I("joints") != 0, JointOnePitch = (short)I("jointPitch"),
             Player = new(new(I("playerX"), I("playerY"), I("playerZ")), (short)I("playerHealth"), (uint)I("playerFlags"),
                 I("unavailable"), I("held") != 0)
         };
         host.PlayerBody = new ActorBodyMotion { Position = host.Player.Position };
         CopBrain brain = new(state, actor, procedures, combat, host, host.Random);
+        int[]? hitInput = test.TryGetProperty("hit", out JsonElement hitJson) ? Words(hitJson) : null;
+        if (hitInput is not null)
+        {
+            host.ClosestType = hitInput[8];
+            host.Closest = new CopState(0, 0, 0, 0) { AlertTicks = hitInput[9] };
+            host.PlayerAnimationId = hitInput[10];
+            host.PathHit = new(hitInput[11], hitInput[12], hitInput[13]);
+        }
+        _ = new CopBrain(other, new ActorProcedureState(new ActorBodyMotion()), new ActorProcedureList(), combat, host, host.Random);
         JsonElement[] frameInputs = test.GetProperty("frames").EnumerateArray().ToArray();
         int frame = 0;
         foreach (JsonElement result in expected.EnumerateArray())
@@ -136,22 +150,35 @@ internal static class CopTests
             if (F("finished") >= 0) host.AnimationFinished = (byte)F("finished");
             (host.Los, host.Path, host.Add, host.Next, host.RouteAfter, host.Ground, host.Recover) =
                 (F("los"), F("path"), F("add"), F("next") != 0, (uint)F("routeAfter"), F("ground"), F("recover") != 0);
-            (host.LosCalls, host.PathCalls, host.AddCalls) = (0, 0, 0);
+            (host.LosCalls, host.PathCalls, host.AddCalls, host.LaserCalls) = (0, 0, 0, 0);
+            host.Laser = F("laser");
+            (host.PathCode, host.Struck, host.Strands, host.Grab) = (F("pathCode"), F("struck"), F("strands"), F("grab"));
             List<long[]> reference = result.GetProperty("e").EnumerateArray().Select(Longs).ToList();
-            long[]? stop = reference.LastOrDefault(e => e[0] is 98 or 99);
+            long[]? stop = reference.LastOrDefault(e => e[0] is 97 or 98 or 99);
             Exception? thrown = null;
-            try { brain.Advance(F("ticks")); }
+            bool hitResult = false;
+            try
+            {
+                if (hitInput is null) brain.Advance(F("ticks"));
+                else hitResult = brain.Hit(new ActorHit((byte)hitInput[0], 0, hitInput[1], unchecked((ushort)hitInput[2]),
+                    new(hitInput[3], hitInput[4], hitInput[5]), (short)hitInput[6], (ushort)hitInput[7]));
+            }
             catch (Exception exception) when (exception is NotSupportedException or InvalidOperationException) { thrown = exception; }
             string where = $"Actual PC CCop::AI case {index} frame {frame}";
             if (stop is not null)
             {
                 stopped++;
-                bool matches = thrown is not null && (stop[0] == 99 ? thrown is InvalidOperationException
-                    : thrown is NotSupportedException && thrown.Message.Contains($"0x{stop[1]:X6}"));
+                // 97: the original faulted at stop[1]; the port throws there instead of reading through a null pointer.
+                bool matches = thrown is not null && stop[0] switch
+                {
+                    99 => thrown is InvalidOperationException,
+                    97 => thrown is InvalidOperationException && thrown.Message.Contains($"0x{stop[1]:X6}"),
+                    _ => thrown is NotSupportedException && thrown.Message.Contains($"0x{stop[1]:X6}")
+                };
                 long[] snapshot = Snapshot(state, actor, procedures, combat, host, shared);
                 long[] expectedSnapshot = stop[2..];
                 List<long> events = host.Flat();
-                List<long> expectedEvents = reference.TakeWhile(e => e[0] is not (98 or 99)).SelectMany(e => e).ToList();
+                List<long> expectedEvents = reference.TakeWhile(e => e[0] is not (97 or 98 or 99)).SelectMany(e => e).ToList();
                 assert(matches && snapshot.SequenceEqual(expectedSnapshot) && events.SequenceEqual(expectedEvents),
                     $"{where} stop: thrown={thrown?.Message}; actual=[{string.Join(',', snapshot)}] expected=[{string.Join(',', expectedSnapshot)}]; events=[{string.Join(',', events)}] expected=[{string.Join(',', expectedEvents)}].");
                 return frame + 1;
@@ -160,7 +187,8 @@ internal static class CopTests
             long[] wanted = Longs(result.GetProperty("s"));
             List<long> actualEvents = host.Flat();
             List<long> wantedEvents = reference.SelectMany(e => e).ToList();
-            assert(thrown is null && actual.SequenceEqual(wanted) && actualEvents.SequenceEqual(wantedEvents),
+            bool resultMatches = hitInput is null || result.GetProperty("r").GetInt32() == (hitResult ? 1 : 0);
+            assert(thrown is null && resultMatches && actual.SequenceEqual(wanted) && actualEvents.SequenceEqual(wantedEvents),
                 $"{where}: thrown={thrown?.Message}; actual=[{string.Join(',', actual)}] expected=[{string.Join(',', wanted)}]; events=[{string.Join(',', actualEvents)}] expected=[{string.Join(',', wantedEvents)}].");
             frame++;
         }
@@ -181,12 +209,16 @@ internal static class CopTests
         v.AddRange([(ushort)host.AnimationId, (short)host.AnimationFrame, host.AnimationFinished, b.MovementFlags,
             s.LastSeenPlayerPosition.X, s.LastSeenPlayerPosition.Y, s.LastSeenPlayerPosition.Z, (ushort)s.MinorRadius, s.ActionFlags,
             s.AttackOwnershipFlags, s.AttackSlotMask, Role(combat.PrimaryAttacker), Role(combat.FightOwner), (byte)shared.OccupiedSlots,
-            host.Node, procedures.Count]);
+            host.Node, host.ItemFlags, s.TintColor, s.Transparency, s.DeathPulseSent ? 1 : 0, s.LandingY,
+            s.PreviousPosition.X, s.PreviousPosition.Y, s.PreviousPosition.Z, s.DeathSoundTicks, host.JointOnePitch, s.YankOscillationTicks, s.WorkDelayCounter, host.ComboAmount, host.ComboDuration, s.WorkCounter, s.AttackSlotCursor, s.AimPlayerY, host.LaserActive ? 1 : 0, procedures.Count]);
         foreach (IActorProcedure procedure in procedures.SourceOrder)
             v.AddRange([procedure.SourceType, procedure.Flags, procedure switch
             {
                 ActorMoveToProcedure move => move.CompletionMask,
                 ActorLookAtProcedure look => look.CompletionMask,
+                CopStateSwitchMessageProcedure => 0,
+                ActorFallProcedure fall => fall.CompletionMask,
+                ActorYawRotationProcedure => 0,
                 _ => -1
             }]);
         return v.ToArray();
@@ -200,7 +232,10 @@ internal static class CopTests
         private readonly FixedVector3[] path = Enumerable.Range(0, 6).Select(i => new FixedVector3(100000 + i * 12288, -200000, 300000 + i * 8192)).ToArray();
         public List<long[]> Events => events;
         public uint Seed { get; set; }
-        public int Los, Path, Add, Ground, LosCalls, PathCalls, AddCalls;
+        public int Los, Path, Add, Ground, Laser, LosCalls, PathCalls, AddCalls, LaserCalls, PathCode = 1, Struck;
+        public bool HasJoints { get; set; }
+        public short JointOnePitch { get; set; }
+        public bool LaserActive;
         public bool Next, Recover;
         public uint RouteAfter;
         public int Node { get; private set; } = 7;
@@ -238,7 +273,7 @@ internal static class CopTests
             return Next;
         }
         public FixedVector3 WaypointPosition() { Event(16, Node); return new(100000 + Node * 40960, -200000, 300000 - Node * 20480); }
-        public FixedVector3 GetPathPoint(int index) => path[index];
+        public FixedVector3 GetPathPoint(int index) => index == 0 ? state.LastSeenPlayerPosition : path[index];
         public bool LineOfSight(FixedVector3 a, FixedVector3 b)
         {
             int result = (Los >> LosCalls++) & 1;
@@ -247,7 +282,7 @@ internal static class CopTests
         }
         public int PathCheck(FixedVector3 a, FixedVector3 b, int clearance, bool flag)
         {
-            int result = (Path >> PathCalls++) & 1;
+            int result = ((Path >> PathCalls++) & 1) != 0 ? PathCode : 0;
             Event(12, a.X, a.Y, a.Z, b.X, b.Y, b.Z, 0, clearance, flag ? 1 : 0, result);
             return result;
         }
@@ -268,6 +303,69 @@ internal static class CopTests
         public void WarnOtherCops() => Event(20);
         public void PlayPositionSound(ushort sound, FixedVector3 p, int pitch) => Event(11, sound, p.X, p.Y, p.Z, pitch);
         public void MakeSpriteRing(FixedVector3 o) => Event(22, o.X, o.Y, o.Z);
+        public int DrawLaserSite(bool checkPlayer)
+        {
+            int result = (Laser >> LaserCalls++) & 1;
+            Event(24, checkPlayer ? 1 : 0);
+            if (result != 0) LaserActive = true;
+            return result;
+        }
+        public void ClearLaser()
+        {
+            if (!LaserActive) return;
+            Event(25);
+            LaserActive = false;
+        }
+        public void ApplyPlayerHit(byte flags, short damage) => Event(26, flags, damage);
+        public void SendSelfMessage(int code) => Event(28, code);
+        public void StartAttackMonitor(int startFrame, int attackMask, int frameCount, uint completionMask) =>
+            Event(29, startFrame, attackMask, frameCount, completionMask);
+        public void NotifyKill(int actorType) => Event(40, actorType & 0xFFFF);
+        public IThugInjuryBody? StruckGameObject(int first, int second)
+        {
+            Event(41, first, second, Struck);
+            return Struck == 0 ? null : new Body(Struck);
+        }
+        public void ElasticCollision(IThugInjuryBody target, FixedVector3 v, int duration) => Event(42, target.Type, v.X, v.Y, v.Z, duration);
+        public void PlayGlobalSound(ushort sound, int volume, int pan) => Event(43, sound, volume, pan);
+        public void KillShadow() => Event(44);
+        public void SendDeathPulse() => Event(45);
+        public void ApplyFallPose(bool police) => Event(46, police ? 1 : 2);
+        public void MarkDead() { }
+        public bool HasWeb;
+        public int Grab;
+        public int PlayerActionState { get; set; }
+        public short PlayerYaw { get; set; }
+        public bool GrabUpdate(ref FixedVector3 position, ref short yaw)
+        {
+            Event(49, position.X, position.Y, position.Z, yaw, Grab);
+            if (Grab != 0) { position = new(position.X + 3, position.Y, position.Z - 3); yaw = (short)(yaw + 5); }
+            return Grab != 0;
+        }
+        public int Strands, ComboAmount, ComboDuration;
+        public int PlayerWebComboValue { get; set; }
+        public IThugTrapWeb? RecoverTrapWeb() => HasWeb ? new Web(this) : null;
+        public void SetPlayerWebCombo(int duration, int amount) => (ComboDuration, ComboAmount) = (duration, amount);
+        private sealed class Web(Host host) : IThugTrapWeb
+        {
+            public int StrandCount => host.Strands;
+            public void Burst() => host.Event(48);
+        }
+        public int ClosestType;
+        public CopState? Closest;
+        public FixedVector3 PathHit;
+        public int PlayerAnimationId { get; set; }
+        public CopState? FindClosest(int actorType) { Event(47, actorType); return actorType == ClosestType ? Closest : null; }
+        public void SendMessage(CopState target, int code) => Event(28, code);
+        public int PathCheckWithHit(FixedVector3 a, FixedVector3 b, int clearance, bool flag, out FixedVector3 hit)
+        {
+            int result = ((Path >> PathCalls++) & 1) != 0 ? PathCode : 0;
+            Event(12, a.X, a.Y, a.Z, b.X, b.Y, b.Z, 1, clearance, flag ? 1 : 0, result);
+            hit = PathHit;
+            return result;
+        }
+        public FixedVector3 GetThrowPoint(int index) => new(100000 + index * 20480, -200000 + index * 4096, 300000 - index * 12288);
+        private sealed record Body(int Type) : IThugInjuryBody;
         public ActorBodyMotion? RecoverAcknowledgeTarget() { Event(23, Recover ? 1 : 0); return Recover ? PlayerBody : null; }
     }
 

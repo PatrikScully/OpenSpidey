@@ -35,7 +35,7 @@ internal static class ClaimedEnvironmentChunkImportChecks
             bool rejected = false;
             try
             {
-                GodotSwitchEnvironmentItem unsupported = GodotSwitchEnvironmentItem.Create(bank, textures, triggerIndex, default);
+                GodotSwitchEnvironmentItem unsupported = GodotSwitchEnvironmentItem.Create(bank, textures, triggerIndex, triggerIndex, default);
                 unsupported.Free();
             }
             catch (NotSupportedException) { rejected = true; }

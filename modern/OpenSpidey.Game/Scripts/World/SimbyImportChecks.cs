@@ -5,8 +5,11 @@ using OpenSpidey.Assets.Scripting;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Simby;
 using OpenSpidey.Core.Combat;
+using OpenSpidey.Core.Effects;
+using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Core.Rendering;
 using OpenSpidey.Game.Actors;
+using OpenSpidey.Game.Effects;
 using OpenSpidey.Game.Player;
 
 namespace OpenSpidey.Game.World;
@@ -28,13 +31,19 @@ internal static class SimbyImportChecks
         var resources = new GodotSimbyResources(repository, originalImage);
         var vertexWibbler = new GodotSimbyVertexWibbler(repository);
         fixture.AddChild(vertexWibbler);
+        var droplets = GodotSimbyDroplets.Create(archive.Read("data/symbits.psx"));
+        fixture.AddChild(droplets);
+        var particles = new SourceParticleScheduler();
+        droplets.SourceBitCreated += bit => particles.Attach(SourceParticleList.Flat, bit);
+        int fixtureGroundY = 0;
         var configuration = new GodotSimbyConfiguration
         {
             ModelFactory = resources.CreateSimbyModel, PunchObModelFactory = resources.CreatePunchObModel,
             PosePacket = resources.ReadPosePacket, LightingState = new SourceVertexLightingState(),
             Clock = () => clock, AttackClock = () => attackClock, Random = bound => bound == 0 ? 0 : bound / 3,
             World = world, BossGlobal = boss, IsSourceCulled = _ => false, IsPunchObCulled = _ => false,
-            EnsureVertexWibbler = () => { vertexWibbler.Ensure(0x801, bound => bound == 0 ? 0 : bound / 3); wibblers++; }
+            EnsureVertexWibbler = () => { vertexWibbler.Ensure(0x801, bound => bound == 0 ? 0 : bound / 3); wibblers++; },
+            Droplets = droplets, SymBaseMesh = resources.CreateSymBaseMesh, GroundY = _ => fixtureGroundY, IgnoreSphereRadius = () => false
         };
         TriggerFile triggers = TriggerFile.Read(archive.Read("data/l8a1_t.trg"));
         try
@@ -71,22 +80,87 @@ internal static class SimbyImportChecks
             clock += 2; punch.Advance();
             Assert(punch.SourceUpdates == 1 && punch.SourceScale == 4096,
                 "CPunchOb::AI advances one frame without entering the trap-web scale stage.");
-            bool dropletMissing = false;
-            try { modules.Modules.CallUserFunction(SimbyState.ModuleName, 1, new(simbyNode!, registry)); }
-            catch (NotSupportedException) { dropletMissing = true; }
-            Assert(dropletMissing, "Slot1 CSimbyDroplet stays NotSupported until FlatBit adapter exists.");
+            TriggerFile l7Triggers = TriggerFile.Read(archive.Read("data/l7a2_t.trg"));
+            TriggerNode? dropletNode = l7Triggers.Nodes.FirstOrDefault(node =>
+                node.TypeCode is 1 or 7 && TriggerActorDefinition.Read(node).ActorType == SimbyState.DropletTriggerType);
+            Assert(dropletNode is not null, "L7A2 keeps at least one authored type411 CSimbyDroplet factory record.");
+            var dropletRegistry = new GodotActorRegistry
+            {
+                Name = "SimbyDropletRegistry702", Triggers = l7Triggers, Environment = new(LevelId: 0x702),
+                ReceivePulse = _ => { }, Player = player
+            };
+            fixture.AddChild(dropletRegistry);
+            dropletRegistry.SetPhysicsProcess(false);
+            var dropletModules = new GodotActorCodeModules(dropletRegistry, thugs, blackCat, simby: configuration);
+            dropletModules.RegisterFactories();
+            dropletModules.LoadCodeModule(SimbyState.ModuleName);
+            var droplet = (GodotSimbyDropletActor)dropletModules.Modules.CallUserFunction(SimbyState.ModuleName, 1, new(dropletNode!, dropletRegistry));
+            dropletRegistry.Adopt(droplet);
+            Assert(droplets.Count == 1 && particles.Count == 1 && droplet.SourceActorType == SimbyState.DropletTriggerType,
+                "Module slot1 builds CSimbyDroplet on FlatBitList with gAnimTable24 frame1.");
+            for (int tick = 0; tick < 120; tick++)
+            {
+                particles.Move(clock);
+                dropletRegistry.SourceList(ActorUpdateGroup.Background).Update();
+                clock += 2;
+            }
+            particles.RemoveDead();
+            Assert(!droplet.State.Alive && droplets.Count == 0 && dropletRegistry.LiveCount == 0,
+                "CSimbyDroplet Move for 120 ticks reaches ground or age60, pulses links and dies.");
+            dropletModules.UnloadAllCodeModules();
+            dropletRegistry.Free();
             modules.Modules.Unload(SimbyState.ModuleName);
             Assert(!GodotObject.IsInstanceValid(simby) && GodotObject.IsInstanceValid(punch) && registry.BaddyConstructionState.Count == 1 &&
                 world.Count == 0 && modules.Modules.SourceOrder.Count == 0,
                 "Simby_RelocatableModuleClear deletes active type324 only and clears the shared count.");
             modules.UnloadAllCodeModules();
             registry.Free();
+            VerifyBits();
             await owner.ToSignal(owner.GetTree(), SceneTree.SignalName.PhysicsFrame);
-            GD.Print($"Passed {assertions} native simby checks: L8A1 source324/412 construction, CSimby Initialize frame, PunchOb AI frame, droplet gap and module clear.");
+            GD.Print($"Passed {assertions} native simby checks: L8A1 source324/412 construction, CSimby Initialize frame, PunchOb AI frame, L7A2 CSimbyDroplet flat bit, module clear and SplattyDeath Quad/BulletList bits.");
         }
         finally
         {
             fixture.Free();
+        }
+
+        void VerifyBits()
+        {
+            var simbyBits = GodotSimbyBits.Create(archive.Read("data/bits.psx"), archive.Read("data/symbits.psx"));
+            fixture.AddChild(simbyBits);
+            var bullets = new SourceActorList();
+            var bitWorld = new GodotActorWorldQuery(fixture, triggers);
+            var quads = new SourceParticleScheduler();
+            int glows = 0;
+            bool playerPresent = false;
+            simbyBits.Services = new()
+            {
+                Player = () => playerPresent ? player : null, Random = bound => bound == 0 ? 0 : bound / 3,
+                CameraPosition = () => (player.Controller.Position >> 12) + new FixedVector3(0, -300, -600),
+                GroundWorld = () => bitWorld, IgnoreSphereRadius = () => false, PlaySound = (_, _) => { },
+                CreateGlowFlash = parameters => { glows++; return new GlowFlashState(parameters, bound => bound == 0 ? 0 : bound / 3); },
+                Bullets = () => bullets, BlobMesh = () => GodotSimbyBits.BuildBlobMesh(repository)
+            };
+            simbyBits.SourceBitCreated += bit => quads.Attach(SourceParticleList.Quad, bit);
+            simbyBits.SpawnShot(player.Controller.Position + new FixedVector3(0, -100 << 12, 0), bitWorld);
+            quads.RemoveDead();
+            Assert(simbyBits.Count == 0 && quads.Count == 0,
+                "CSimbyShot without dword_6A9038 dies in its constructor and leaves the Quad list unmoved.");
+            FixedVector3 above = player.Controller.Position + new FixedVector3(0, -400 << 12, 0);
+            simbyBits.SplattyDeath(above, part => above + new FixedVector3(part << 12, 0, 0));
+            Assert(glows == 1 && bullets.Count == 13 && simbyBits.BlobCount == 13 && simbyBits.Count == 30 && quads.Count == 30,
+                "Simby_SplattyDeath emits one glow, thirteen symblob BulletList bodies and thirty CSimbyDrop Quad bits.");
+            for (int tick = 0; tick < 160; tick++)
+            {
+                quads.Move(clock);
+                quads.RemoveDead();
+                bullets.Update();
+                simbyBits.Rebuild();
+                clock += 2;
+            }
+            Assert(simbyBits.BlobCount == 0 && bullets.Count == 0 && simbyBits.Count == 0 && quads.Count == 0,
+                "Blobs die after twenty-one AI frames; drops land or age out into splats that fade to black on the real L8A1 ground.");
+            simbyBits.Free();
         }
 
         (GodotActorRegistry, GodotActorCodeModules) Scene(int levelId)

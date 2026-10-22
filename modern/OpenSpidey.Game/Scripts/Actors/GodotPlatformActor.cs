@@ -28,8 +28,14 @@ public partial class GodotPlatformActor : GodotScriptActor, IActorScriptHost, IP
     private bool resourcesDisposed;
     private ushort bodyFlags = 0x216;
     private bool trodden;
+    private bool contactVolumeArmed;
+    private FixedVector3 contactHalfExtents;
+    private short playerContactHealthDelta;
     public PlatformMotion Motion { get; } = new();
     public int UpdatesSinceTrodden { get; private set; }
+    internal short PlayerContactHealthDelta => playerContactHealthDelta;
+    internal bool ContactVolumeArmed => contactVolumeArmed;
+    internal FixedVector3 ContactHalfExtents => contactHalfExtents;
     public uint? ModelChecksum { get; private set; }
     public int ModelIndex { get; private set; } = -1;
     public bool GravityEnabled { get; private set; }
@@ -149,6 +155,7 @@ public partial class GodotPlatformActor : GodotScriptActor, IActorScriptHost, IP
         if (opcode == 0x42B9 && GodotActorPlayerScriptCommands.TryExecute(registry, opcode, operands)) return true;
         if (GodotActorSparkCommands.TryExecute(registry, opcode, operands, SourcePosition, Motion.Angles)) return true;
         if (GodotActorCameraShakeCommands.TryExecute(registry, opcode, operands, ReadVariable, SourcePosition)) return true;
+        if (GodotActorScreenFlashCommands.TryExecute(registry, opcode, operands)) return true;
         switch (opcode)
         {
             case 0x42B5:
@@ -162,6 +169,11 @@ public partial class GodotPlatformActor : GodotScriptActor, IActorScriptHost, IP
             case 0x428E: case 0x4290:
                 // These inherited commands read a raw word, without variable redirection.
                 Sounds.Play(ActorScriptSoundCode.Global(operands.ReadWord(), opcode == 0x428E));
+                return true;
+            case 0x428F: case 0x4291:
+                ushort positional = operands.ReadWord();
+                uint positionalCode = unchecked((uint)(ushort)positional) | (opcode == 0x428F ? 0x8000u : 0);
+                Sounds.PlayAt(positionalCode, Motion.Position, registry.SoundListener());
                 return true;
             case 0x4205: Retire(); return true;
             case 0x4203: Variables.ItemFlags &= unchecked((ushort)~1); return true;
@@ -180,6 +192,18 @@ public partial class GodotPlatformActor : GodotScriptActor, IActorScriptHost, IP
                 if (trodden) return true;
                 operands.Seek(operands.Position - 2);
                 return false;
+            case 0x4302:
+            {
+                short x = unchecked((short)operands.ReadWord());
+                short y = unchecked((short)operands.ReadWord());
+                short z = unchecked((short)operands.ReadWord());
+                contactHalfExtents = new FixedVector3((x << 12) >> 1, (y << 12) >> 1, (z << 12) >> 1);
+                contactVolumeArmed = true;
+                return true;
+            }
+            case 0x4303:
+                playerContactHealthDelta = unchecked((short)operands.ReadWord());
+                return true;
             case 0x4301:
                 registry.Player?.Controller.ReleaseSupport(GetInstanceId());
                 Variables.ItemFlags |= 1;

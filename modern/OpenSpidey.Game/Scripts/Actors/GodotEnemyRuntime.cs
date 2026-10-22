@@ -5,7 +5,9 @@ using OpenSpidey.Assets.Textures;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Cops;
 using OpenSpidey.Core.Actors.Simby;
+using OpenSpidey.Core.Actors.DocOck;
 using OpenSpidey.Core.Actors.Rhino;
+using OpenSpidey.Core.Actors.Venom;
 using OpenSpidey.Core.Actors.Thugs;
 using OpenSpidey.Core.Audio;
 using OpenSpidey.Core.Effects;
@@ -43,6 +45,7 @@ public class GodotEnemyPreparationContext
     public required Func<int> AttackClock { get; init; }
     public required Func<int> TotalTime { get; init; }
     public required Action<uint> TriggerCommandPoint { get; init; }
+    public Func<bool>? WhatIf { get; init; }
     public IGodotHostageSceneCamera? HostageCamera { get; init; }
     public bool UnloadCodeModulesOnDestroy { get; init; } = true;
 }
@@ -78,6 +81,8 @@ public partial class GodotEnemyRuntime : Node3D
     private bool disposed;
     public GodotThugVisualEffects Visuals { get; private set; } = null!;
     public GodotExplosionFragments Fragments { get; private set; } = null!;
+    public GodotSimbyDroplets SimbyDroplets { get; private set; } = null!;
+    public GodotSimbyBits SimbyBits { get; private set; } = null!;
     public GodotGrenadeEnvironment Environment => environment ?? throw new InvalidOperationException("Source grenade environment requires post-census player binding.");
     public GodotGrenadeSceneServices Grenades => grenades ?? throw new InvalidOperationException("Source grenades require post-census player binding.");
     public GodotActorSessionServices Session { get; private set; } = null!;
@@ -93,6 +98,12 @@ public partial class GodotEnemyRuntime : Node3D
     public GodotVenomConfiguration Venom { get; private set; } = null!;
     public GodotCopConfiguration Cop { get; private set; } = null!;
     public GodotChopperConfiguration Chopper { get; private set; } = null!;
+    public GodotTurretConfiguration Turret { get; private set; } = null!;
+    public GodotDocOckConfiguration DocOck { get; private set; } = null!;
+    public GodotSpCloneConfiguration SpClone { get; private set; } = null!;
+    public GodotMysterioConfiguration Mysterio { get; private set; } = null!;
+    public GodotCarnageConfiguration Carnage { get; private set; } = null!;
+    public GodotSuperOckConfiguration SuperOck { get; private set; } = null!;
     public CopCombatCoordinator CopCombat { get; private set; } = null!;
     public GodotSimbyVertexWibbler SimbyVertexWibbler { get; private set; } = null!;
     public GodotBossGlobalOwner BossGlobal { get; private set; } = null!;
@@ -143,6 +154,23 @@ public partial class GodotEnemyRuntime : Node3D
             runtime.AddChild(runtime.Fragments);
             runtime.Fragments.SourceBitCreated += runtime.AttachFlatBit;
             runtime.Fragments.SourceBitRemoved += runtime.DetachBit;
+            runtime.SimbyDroplets = GodotSimbyDroplets.Create(context.Archive.Read("data/symbits.psx"));
+            runtime.AddChild(runtime.SimbyDroplets);
+            runtime.SimbyDroplets.SourceBitCreated += runtime.AttachFlatBit;
+            runtime.SimbyBits = GodotSimbyBits.Create(context.Archive.Read("data/bits.psx"), context.Archive.Read("data/symbits.psx"));
+            runtime.SimbyBits.Services = new()
+            {
+                Player = () => registry.Player, Random = registry.RandomSource,
+                CameraPosition = () => runtime.RequirePlayerBinding().Camera.SourcePosition >> 12,
+                GroundWorld = () => ownership.World,
+                IgnoreSphereRadius = () => runtime.RequirePlayerBinding().Combat.Session.IgnoreSphereRadius,
+                PlaySound = (sound, position) => runtime.NativeServices.PlayPositionSound(sound, position, 0),
+                CreateGlowFlash = parameters => runtime.Visuals.Glows.Emit(parameters, registry.RandomSource),
+                Bullets = () => registry.SourceList(ActorUpdateGroup.Bullet),
+                BlobMesh = () => GodotSimbyBits.BuildBlobMesh(context.Repository)
+            };
+            runtime.AddChild(runtime.SimbyBits);
+            runtime.SimbyBits.SourceBitCreated += runtime.AttachQuadBit;
             var commands = new GodotThugScriptCommands(registry);
             runtime.Session = new(ownership.Actors, new()
             {
@@ -235,7 +263,11 @@ public partial class GodotEnemyRuntime : Node3D
                 World = new(), BossGlobal = runtime.BossGlobal,
                 IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
                 IsPunchObCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
-                EnsureVertexWibbler = () => runtime.SimbyVertexWibbler.Ensure(registry.Environment.LevelId, registry.RandomSource)
+                EnsureVertexWibbler = () => runtime.SimbyVertexWibbler.Ensure(registry.Environment.LevelId, registry.RandomSource),
+                Droplets = runtime.SimbyDroplets, SymBaseMesh = simby.CreateSymBaseMesh, Bits = runtime.SimbyBits,
+                GroundY = position => GodotBouncingRocks.GetGroundY(ownership.World, position),
+                IgnoreSphereRadius = () => runtime.RequirePlayerBinding().Combat.Session.IgnoreSphereRadius,
+                Effects = runtime.NativeServices
             };
             var rhino = new GodotRhinoResources(context.Repository, context.OriginalExecutable);
             var rhinoHealthBars = new BossHealthBars<RhinoState, object>(body => body.Health);
@@ -245,14 +277,20 @@ public partial class GodotEnemyRuntime : Node3D
                 Clock = context.Clock, AttackClock = context.AttackClock, Random = registry.RandomSource,
                 SpeechTable = rhino.ReadSpeechTable(), WallChunks = rhino.ReadWallChunks(), SourceClock = context.Clock,
                 IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
-                CreateHealthBar = state => CreateRhinoHealthBar(context, rhinoHealthBars, state)
+                CreateHealthBar = state => CreateRhinoHealthBar(context, rhinoHealthBars, state),
+                PlayerBinding = runtime.RequirePlayerBinding, SendSignal = actor => ownership.Actors.SendSignal(actor),
+                CreateCombatImpact = position => runtime.Visuals.CombatRings.Emit(RhinoState.Type, position, context.Clock(), registry.RandomSource)
             };
             var venom = new GodotVenomResources(context.Repository, context.OriginalExecutable);
             runtime.Venom = new()
             {
                 ModelFactory = venom.CreateModel, Light = venom.ReadLight, LightingState = context.LightingState,
-                DifficultyLevel = () => registry.Difficulty,
-                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags)
+                DifficultyLevel = () => registry.Difficulty, TimerRelated = context.TotalTime,
+                FastForwardRequested = () => registry.Environment.FastForwardDeath,
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
+                RecoverWeb = (actor, tug) => runtime.RequirePlayerBinding().Web.Contacts.RecoverContact(actor, tug),
+                EnumerateControlSwitches = () => ownership.Directory.SourceControls
+                    .Select(control => new VenomControlSwitch(control, control.SourcePosition)).ToArray()
             };
             var copResources = new GodotCopResources(context.Archive, context.Repository);
             runtime.CopCombat = new(runtime.Encounter);
@@ -263,17 +301,98 @@ public partial class GodotEnemyRuntime : Node3D
                 SourceConstructionOrdinal = registry.BaddyConstruction.RequireCurrentOrdinal,
                 IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
                 Session = runtime.Session,
-                PlayPositionSound = (sound, position, pitch) => runtime.NativeServices.PlayPositionSound(sound, position, pitch)
+                PlayPositionSound = (sound, position, pitch) => runtime.NativeServices.PlayPositionSound(sound, position, pitch),
+                Effects = runtime.NativeServices,
+                RecoverTrapWeb = actor => runtime.RequirePlayerBinding().Web.Contacts.RecoverContact(actor, false),
+                GrabUpdate = runtime.GrabUpdate
             };
             var chopperResources = new GodotChopperResources(context.Archive, context.Repository);
+            var chopperMissileResources = new GodotChopperMissileResources();
+            GodotChopperMissileSmoke? chopperMissileSmoke = null;
             runtime.Chopper = new()
             {
                 ModelFactory = chopperResources.CreateModel, PlayerProvider = () => registry.Player, Timer = context.Clock,
                 SourceConstructionOrdinal = registry.BaddyConstruction.RequireCurrentOrdinal,
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
+                Missiles = new()
+                {
+                    Timer = context.Clock,
+                    CreateMesh = () => chopperMissileResources.CreateMesh(context.Registry.ObjectLibrary.Invoke()),
+                    EmitSmoke = position =>
+                    {
+                        chopperMissileSmoke ??= GodotChopperMissileSmoke.Create(context.Archive.Read("data/bits.psx"));
+                        runtime.AddChild(chopperMissileSmoke);
+                        return chopperMissileSmoke.Emit(position);
+                    },
+                    RebuildSmoke = () => chopperMissileSmoke?.Rebuild(),
+                    PlayLaunchSound = (sound, position) => context.Sounds.Controller.PlayAt(sound, position, runtime.Listener()),
+                    ModifySound = (handle, position) => context.Sounds.Controller.UpdatePosition(handle, position, runtime.Listener()),
+                    ApplyExplosionEffects = position =>
+                    {
+                        if (registry.Player is { } player)
+                        {
+                            uint distance = ActorLifecycle.Distance(player.Controller.Position, position);
+                            if (distance < 0x19A)
+                            {
+                                int damage = distance < 0x118 ? 100 :
+                                    100 - (95 * (int)distance - 26600) / 130;
+                                player.Combat.Hit(new(6, 0, 24, unchecked((ushort)Math.Clamp(damage, 0, 100)), default));
+                            }
+                        }
+                        runtime.Visuals.Explosions.Emit(position, registry.RandomSource);
+                    }
+                }
+            };
+            var turretResources = new GodotTurretResources(context.Repository, context.OriginalExecutable);
+            runtime.Turret = new()
+            {
+                ModelFactory = turretResources.CreateModel, Light = turretResources.ReadLight,
+                LightingState = context.LightingState, Clock = context.Clock,
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags)
+            };
+            var docOckResources = new GodotDocOckResources(context.Repository, context.OriginalExecutable);
+            var docOckHealthBars = new BossHealthBars<DocOckState, object>(body => body.Health);
+            runtime.DocOck = new()
+            {
+                ModelFactory = docOckResources.CreateModel, Light = docOckResources.ReadLight,
+                LightingState = context.LightingState, Clock = context.Clock,
+                WhatIf = context.WhatIf ?? (() => false),
+                CreateHealthBar = state => CreateDocOckHealthBar(context, docOckHealthBars, state),
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags)
+            };
+            var spCloneResources = new GodotSpCloneResources(context.Repository, context.OriginalExecutable);
+            runtime.SpClone = new()
+            {
+                ModelFactory = spCloneResources.CreateModel, Light = spCloneResources.ReadLight, PoseLinks = spCloneResources.ReadPoseLinks,
+                ShadowTexture = context.Repository.RequireLoaded("shell_dc").Textures.Single(texture => texture.Checksum == 0x9F6CA828),
+                LightingState = context.LightingState, Clock = context.Clock, FastForwardRequested = () => registry.Environment.FastForwardDeath,
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags),
+                SourceShadowCreated = runtime.AttachQuadBit, SourceShadowRemoved = runtime.DetachBit
+            };
+            var mysterioResources = new GodotMysterioResources(context.Repository, context.OriginalExecutable);
+            runtime.Mysterio = new()
+            {
+                ModelFactory = mysterioResources.CreateModel, Light = mysterioResources.ReadLight,
+                LightingState = context.LightingState, Clock = context.Clock,
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags)
+            };
+            var carnageResources = new GodotCarnageResources(context.Repository, context.OriginalExecutable);
+            runtime.Carnage = new()
+            {
+                ModelFactory = carnageResources.CreateModel, Light = carnageResources.ReadLight,
+                LightingState = context.LightingState, Clock = context.Clock,
+                IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags)
+            };
+            var superOckResources = new GodotSuperOckResources(context.Repository, context.OriginalExecutable);
+            runtime.SuperOck = new()
+            {
+                ModelFactory = superOckResources.CreateModel, Light = superOckResources.ReadLight,
+                LightingState = context.LightingState, Clock = context.Clock,
                 IsSourceCulled = actor => runtime.Visibility.IsCulled(actor, actor.Model, actor.ItemFlags)
             };
             runtime.Modules = new(registry, runtime.Thugs, runtime.BlackCat, runtime.Hostages, runtime.IdleNpcs, runtime.Torch,
-                runtime.LizMan, runtime.Simby, runtime.Rhino, runtime.Venom, runtime.Cop, runtime.Chopper);
+                runtime.LizMan, runtime.Simby, runtime.Rhino, runtime.Venom, runtime.Cop, runtime.Chopper, runtime.Turret,
+                runtime.DocOck, runtime.SpClone, runtime.Mysterio, runtime.Carnage, runtime.SuperOck);
             runtime.Modules.RegisterFactories();
             return runtime;
         }
@@ -341,11 +460,42 @@ public partial class GodotEnemyRuntime : Node3D
                 case GodotSimbyActor simby: simby.SynchronizeSourceLighting(); break;
                 case GodotRhinoActor rhino: rhino.SynchronizeSourceLighting(); break;
                 case GodotVenomActor venom: venom.SynchronizeSourceLighting(); break;
+                case GodotDocOckActor docOck: docOck.Lighting.Synchronize(docOck.SourceTransformBasis, docOck.ItemFlags); break;
+                case GodotSpCloneActor spClone: spClone.SynchronizeSourceLighting(); break;
+                case GodotMysterioActor mysterio: mysterio.Lighting.Synchronize(mysterio.SourceTransformBasis, mysterio.ItemFlags); break;
+                case GodotCarnageActor carnage: carnage.Lighting.Synchronize(carnage.SourceTransformBasis, carnage.ItemFlags); break;
+                case GodotSuperOckActor superOck: superOck.Lighting.Synchronize(superOck.SourceTransformBasis, superOck.ItemFlags); break;
             }
         }
     }
 
     private SoundListener Listener() => new(RequirePlayerBinding().Camera.SourcePosition >> 12);
+    private static void CreateDocOckHealthBar(GodotEnemyPreparationContext context, BossHealthBars<DocOckState, object> bars, DocOckState state)
+    {
+        foreach (PsxAssetLibrary bank in context.Repository.Loaded.Values)
+        {
+            string path = bank.AssetPath.Replace('\\', '/');
+            int slash = path.LastIndexOf('/');
+            string file = slash < 0 ? path : path[(slash + 1)..];
+            if (!file.EndsWith("_G.psx", StringComparison.OrdinalIgnoreCase)) continue;
+            string stem = file[..^4];
+            byte[] manifest;
+            try { manifest = context.Archive.Read($"data/{stem.ToLowerInvariant()}.tex"); }
+            catch (Exception) { continue; }
+            try
+            {
+                bars.Create(state, DocOckState.Type, name =>
+                {
+                    uint checksum = NamedTextureTable.FindFirstSourceName(manifest, name);
+                    return bank.Textures.First(texture => texture.Checksum == checksum);
+                });
+                return;
+            }
+            catch (KeyNotFoundException) { }
+        }
+        throw new NotSupportedException(
+            "Panel_CreateHealthBar type308 requires a loaded mission G bank with dococ/boss/docOc_wounded.");
+    }
     private static void CreateRhinoHealthBar(GodotEnemyPreparationContext context, BossHealthBars<RhinoState, object> bars, RhinoState state)
     {
         foreach (PsxAssetLibrary bank in context.Repository.Loaded.Values)
@@ -407,6 +557,8 @@ public partial class GodotEnemyRuntime : Node3D
         if (Fragments is not null)
         {
             Fragments.SourceBitCreated -= AttachFlatBit; Fragments.SourceBitRemoved -= DetachBit;
+        if (SimbyDroplets is not null) SimbyDroplets.SourceBitCreated -= AttachFlatBit;
+        if (SimbyBits is not null) SimbyBits.SourceBitCreated -= AttachQuadBit;
         }
         foreach (object identity in ownedBits) SceneOwnership.Particles.Detach(identity);
         ownedBits.Clear();

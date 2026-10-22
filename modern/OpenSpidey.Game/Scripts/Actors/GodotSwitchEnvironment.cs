@@ -19,6 +19,7 @@ public partial class GodotSwitchEnvironment : Node3D
     private IReadOnlyList<DecodedTexture> textures = [];
     private readonly Dictionary<int, GodotSwitchEnvironmentItem> claimed = [];
     private FixedVector3[] sourcePositions = [];
+    private Dictionary<int, int> modelToInstance = [];
     private readonly Dictionary<uint, int[]> buckets = [];
     public IReadOnlyCollection<GodotSwitchEnvironmentItem> Items => claimed.Values;
     public event Action<GodotSwitchEnvironmentItem>? ItemClaimed;
@@ -29,22 +30,27 @@ public partial class GodotSwitchEnvironment : Node3D
         if (!world.Sources.Any(source => source.AssetPath.Equals(environmentLibrary.AssetPath, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException("Switch environment library is not owned by this imported level.");
         PsxScene scene = environmentLibrary.Scene;
-        if (scene.Models.Count != scene.Instances.Count || scene.Instances.Where((instance, index) => instance.ModelIndex != index).Any())
-            throw new NotSupportedException("Original ENV checksum lookup requires one same-index source instance per model.");
         ReadOnlySpan<byte> raw = environmentBytes.Span;
         if (raw.Length < 12 || BinaryPrimitives.ReadUInt32LittleEndian(raw[8..]) != scene.Instances.Count ||
             raw.Length < checked(12 + scene.Instances.Count * 36))
             throw new InvalidDataException("Switch ENV raw instance table does not match its decoded original library.");
         var sourcePositions = new FixedVector3[scene.Instances.Count];
+        var modelToInstance = new Dictionary<int, int>();
         for (int index = 0; index < sourcePositions.Length; index++)
         {
             int offset = 12 + index * 36;
-            if (BinaryPrimitives.ReadUInt16LittleEndian(raw[(offset + 22)..]) != scene.Instances[index].ModelIndex)
+            int modelIndex = scene.Instances[index].ModelIndex;
+            if ((uint)modelIndex >= scene.Models.Count)
+                throw new InvalidDataException("Switch ENV instance references a missing model.");
+            if (BinaryPrimitives.ReadUInt16LittleEndian(raw[(offset + 22)..]) != modelIndex)
                 throw new InvalidDataException("Switch ENV raw model owner differs from its decoded instance.");
+            if (!modelToInstance.TryAdd(modelIndex, index))
+                throw new InvalidDataException("Original ENV checksum lookup requires one instance per claimed model.");
             sourcePositions[index] = new(BinaryPrimitives.ReadInt32LittleEndian(raw[(offset + 4)..]),
                 BinaryPrimitives.ReadInt32LittleEndian(raw[(offset + 8)..]), BinaryPrimitives.ReadInt32LittleEndian(raw[(offset + 12)..]));
         }
         var result = new GodotSwitchEnvironment { Name = "SourceSwitchEnvironment", world = world, library = environmentLibrary, textures = textures, sourcePositions = sourcePositions };
+        result.modelToInstance = modelToInstance;
         foreach (var bucket in scene.Models.Select((model, index) => (model.Checksum, index)).GroupBy(value =>
             value.Checksum is { } checksum ? checksum % 256 : throw new InvalidDataException("ENV model checksum table is missing.")))
         {
@@ -57,19 +63,20 @@ public partial class GodotSwitchEnvironment : Node3D
     public SwitchEnvironmentItem? Resolve(uint checksum)
     {
         if (!buckets.TryGetValue(checksum % 256, out int[]? indices)) return null;
-        foreach (int index in indices)
+        foreach (int modelIndex in indices)
         {
-            if (library.Scene.Models[index].Checksum != checksum) continue;
-            if (claimed.TryGetValue(index, out GodotSwitchEnvironmentItem? existing)) return existing.State;
-            GodotSwitchEnvironmentItem item = GodotSwitchEnvironmentItem.Create(library, textures, index, sourcePositions[index]);
+            if (library.Scene.Models[modelIndex].Checksum != checksum) continue;
+            if (!modelToInstance.TryGetValue(modelIndex, out int instanceIndex)) return null;
+            if (claimed.TryGetValue(instanceIndex, out GodotSwitchEnvironmentItem? existing)) return existing.State;
+            GodotSwitchEnvironmentItem item = GodotSwitchEnvironmentItem.Create(library, textures, instanceIndex, modelIndex, sourcePositions[instanceIndex]);
             try
             {
-                world.ClaimObjectModel(library.AssetPath, index);
-                AddChild(item); claimed.Add(index, item);
+                world.ClaimObjectModel(library.AssetPath, modelIndex);
+                AddChild(item); claimed.Add(instanceIndex, item);
                 ItemClaimed?.Invoke(item);
                 return item.State;
             }
-            catch { claimed.Remove(index); item.Free(); throw; }
+            catch { claimed.Remove(instanceIndex); item.Free(); throw; }
         }
         return null;
     }
@@ -110,7 +117,7 @@ public partial class GodotSwitchEnvironmentItem : Node3D
     private (bool Enabled, uint Rgb)? lastTint;
     public SwitchEnvironmentItem State { get; private set; } = null!;
     public int SourceInstanceIndex { get; private set; }
-    public int ModelIndex => SourceInstanceIndex;
+    public int ModelIndex { get; private set; }
     public ushort SourceModelFlags => sharedModel?.Flags ?? model.Flags;
     public ActorAngles SourceAngles => State.Angles;
     public EnvironmentChunkModelState? SharedSourceModel => sharedModel;
@@ -118,10 +125,16 @@ public partial class GodotSwitchEnvironmentItem : Node3D
     public string SourceAsset => library.AssetPath;
     public IReadOnlyList<ImportedCollisionBody> Colliders => bodies.Select(value => value.Body).ToArray();
     public MeshInstance3D Mesh => mesh;
-    internal static GodotSwitchEnvironmentItem Create(PsxAssetLibrary library, IReadOnlyList<DecodedTexture> textures, int index, FixedVector3 sourcePosition)
+    internal static GodotSwitchEnvironmentItem Create(PsxAssetLibrary library, IReadOnlyList<DecodedTexture> textures, int instanceIndex, int modelIndex, FixedVector3 sourcePosition)
     {
-        PsxInstance instance = library.Scene.Instances[index];
-        var item = new GodotSwitchEnvironmentItem { Name = $"SwitchENV{index}", library = library, model = library.Scene.Models[index], SourceInstanceIndex = index };
+        PsxInstance instance = library.Scene.Instances[instanceIndex];
+        if (instance.ModelIndex != modelIndex)
+            throw new InvalidDataException("Switch ENV item model does not match its source instance owner.");
+        var item = new GodotSwitchEnvironmentItem
+        {
+            Name = $"SwitchENV{instanceIndex}", library = library, model = library.Scene.Models[modelIndex],
+            SourceInstanceIndex = instanceIndex, ModelIndex = modelIndex
+        };
         try
         {
             item.State = new(item, item.model.Checksum!.Value, sourcePosition)

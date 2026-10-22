@@ -1,5 +1,6 @@
 using Godot;
 using OpenSpidey.Assets.Animation;
+using OpenSpidey.Assets.Models;
 using OpenSpidey.Assets.Scripting;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Choppers;
@@ -34,6 +35,12 @@ public partial class GodotChopperActor : GodotScriptActor, IMissionChopper, IGod
     public int Velocity348 { get; set; }
     public int MinimumHeight350 { get; set; }
     public int TargetAngle358 { get; set; }
+    /// <summary>CChopper::field_380; written by SetFlag when selector is zero.</summary>
+    public bool Flag380 { get; private set; } = true;
+    /// <summary>CChopper::field_3B4; cycles 2..9 for M3dUtils_GetHookPosition missile launches.</summary>
+    public int MissileLaunchIndex { get; private set; } = 2;
+    private FixedVector3 sourceTransformTranslation;
+    private FixedJointTransform sourceTransformBasis;
 
     public static GodotChopperActor Create(TriggerNode node, GodotActorRegistry registry, GodotChopperConfiguration configuration)
     {
@@ -82,15 +89,30 @@ public partial class GodotChopperActor : GodotScriptActor, IMissionChopper, IGod
         Transform3D transform = PsxCoordinates.CharacterTransform(FixedJointTransform.FromJoint(new(Body.Angles.X, Body.Angles.Y, Body.Angles.Z, 0, 0, 0)));
         transform.Origin = PsxCoordinates.FixedWorldPosition(Body.Position);
         Transform = transform;
+        sourceTransformTranslation = Body.Position >> 12;
+        sourceTransformBasis = FixedJointTransform.FromJoint(new(Body.Angles.X, Body.Angles.Y, Body.Angles.Z, 0, 0, 0));
     }
-    public void FireMissileAtWaypoint(uint waypoint) =>
-        throw new NotSupportedException("CChopper::FireMissileAtWaypoint (0x425B20) is not ported to Godot combat yet.");
+    public void FireMissileAtWaypoint(uint waypoint)
+    {
+        FixedVector3 spawn = GetHookPosition(MissileLaunchIndex);
+        MissileLaunchIndex = ChopperMissileConstruction.AdvanceMissileLaunchIndex(MissileLaunchIndex);
+        GodotChopperMissileActor.Spawn(this, waypoint, spawn, registry, configuration.Missiles);
+    }
+    public FixedVector3 GetHookPosition(int index)
+    {
+        ActorHook hook = OriginalChopperModelPackets.Hooks.Hooks[index];
+        int parts = Model.SourcePartCount;
+        if (hook.PartIndex >= parts) throw new InvalidDataException($"Chopper hook {index} references missing part {hook.PartIndex}.");
+        var pose = new FixedJointTransform[parts];
+        for (int part = 0; part < parts; part++) pose[part] = Model.GetSourcePartPose(part);
+        return ActorHookPosition.Evaluate(Body.Position, sourceTransformTranslation, sourceTransformBasis, pose, hook);
+    }
     public void FireMachineGunAtWaypoint(uint waypoint, uint count) =>
         throw new NotSupportedException("CChopper::FireMachineGunAtWaypoint is not ported to Godot combat yet.");
     public void SetFlag(ushort flag, short value)
     {
-        if (flag == 0) throw new InvalidOperationException("CChopper::SetFlag (0x425990) rejects a zero flag selector.");
-        // Story commands only need the call to succeed until flight AI is ported.
+        if (flag != 0) throw new InvalidOperationException("CChopper::SetFlag (0x425990) only accepts flag selector 0.");
+        Flag380 = value != 0;
     }
     public void ReceiveMessage(int code, object? sender, FixedVector3 vector = default) { }
     public bool Hit(ActorHit hit) { Health = (short)Math.Max(0, Health - hit.Damage); SyncScriptStorage(); return true; }

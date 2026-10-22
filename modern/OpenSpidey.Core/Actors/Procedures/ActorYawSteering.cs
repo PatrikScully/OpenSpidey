@@ -20,7 +20,7 @@ public static class ActorYawSteering
         short yaw = unchecked((short)(previousYaw + step));
         body.Angles = body.Angles with { Y = yaw };
         residual = unchecked(residual - step);
-        if (step != 0 && (unchecked(yaw - targetYaw) > 0) != (unchecked(previousYaw - targetYaw) > 0))
+        if (step != 0 && (unchecked(yaw - targetYaw) > 0) == (unchecked(previousYaw - targetYaw) > 0))
             return residual;
 
         body.Angles = body.Angles with { Y = unchecked((short)targetYaw) };

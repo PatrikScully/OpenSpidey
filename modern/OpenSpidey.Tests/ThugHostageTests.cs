@@ -151,8 +151,11 @@ internal static class ThugHostageTests
                 actor.BehaviorFlags &= ~0x40000004u;
                 state.State = 10;
                 callbacks.Events.Clear();
+                int targetYaw = FixedAim.Calculate(body.Position, hostage.Body.Position).Yaw;
+                int Residual(int yaw) { int delta = (targetYaw - yaw) & 0xFFF; return Math.Abs(delta > 2048 ? delta - 4096 : delta); }
+                int residualBefore = Residual(body.Angles.Y);
                 procedures.Execute(2);
-                assert(body.Angles.Y == FixedAim.Calculate(body.Position, hostage.Body.Position).Yaw && body.Angles.Y != 0 &&
+                assert(Residual(body.Angles.Y) < residualBefore &&
                     callbacks.Events.SequenceEqual(new[] { 23, 17 }),
                     "Hostage LookAt retains its original target after handle replacement, and the real state monitor sends message17 before retirement.");
             }

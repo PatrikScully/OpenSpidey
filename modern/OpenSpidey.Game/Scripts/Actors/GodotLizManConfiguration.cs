@@ -17,6 +17,8 @@ public sealed class GodotLizManConfiguration
     public required Func<int> TotalTime { get; init; }
     public required Func<int, int> Random { get; init; }
     public required Func<GodotLizManActor, bool> IsSourceCulled { get; init; }
+    /// <summary>Session-wide gGlobalLizMan / gLizManAttackFlag / 0x682C48 owners.</summary>
+    public LizManAttackOwnership AttackOwnership { get; } = new();
 }
 
 /// <summary>Original lizman.psx / lizman2.psx models and M3d_DefaultLight.</summary>

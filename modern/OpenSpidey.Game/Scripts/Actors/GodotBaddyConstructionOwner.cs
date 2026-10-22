@@ -14,7 +14,7 @@ public sealed class GodotBaddyConstructionOwner : IDisposable
     public int OwnedCount => leases.Count;
 
     public static bool IsSupportedBaddyType(short sourceType) =>
-        sourceType is 203 or 402 or 304 or 312 or 305 or 315 or 319 or 310 or 316 or 303 or 326 or 719 or 328 or 317 or 324 or 412 or 307 or 313 or 306 or 320 or 318 or 322 or 323;
+        sourceType is 203 or 402 or 304 or 312 or 305 or 315 or 319 or 310 or 316 or 303 or 326 or 719 or 328 or 317 or 324 or 412 or 307 or 313 or 306 or 320 or 318 or 322 or 323 or 325 or 308 or 327 or 311 or 314 or 309;
 
     public GodotBaddyConstructionOwner(GodotActorRegistry registry, BaddyConstructionCount state)
     {
@@ -92,6 +92,12 @@ public sealed class GodotBaddyConstructionOwner : IDisposable
         412 => actor is GodotPunchObActor,
         307 => actor is GodotRhinoActor,
         313 => actor is GodotVenomActor,
+        325 => actor is GodotTurretActor,
+        308 => actor is GodotDocOckActor,
+        327 => actor is GodotSpCloneActor,
+        311 => actor is GodotMysterioActor,
+        314 => actor is GodotCarnageActor,
+        309 => actor is GodotSuperOckActor,
         _ => false
     };
     /// <summary>CSubmariner's constructor stores the CLizard type326 for trigger type719.</summary>

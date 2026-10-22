@@ -50,11 +50,11 @@ internal static class ActorProcedureListTests
         assert(list.Count == 0, "Actor destruction removes protected and ordinary procedures alike.");
 
         var traveler = new ActorProcedureState(new ActorBodyMotion());
-        var move = new ActorMoveToProcedure(traveler, new(409600, 0, 0), 48, 70, 500, 1);
+        var move = new ActorMoveToProcedure(traveler, new(409600, 0, 0), 48, 70, 1024, 1);
         var route = new ActorProcedureList();
         route.AttachMove(move);
         route.Execute(2);
-        assert(traveler.Body.Angles.Y == 3072 && move.Started && traveler.Body.Position.X > 0,
+        assert(traveler.Body.Angles.Y == -280 && move.Started && traveler.Body.Position.X > 0,
             "Facing executes before movement and supplies the alignment signal within the same update.");
         int updates = 1;
         while ((traveler.CompletionFlags & 1) == 0 && updates++ < 100) route.Execute(2);

@@ -16,6 +16,8 @@ public sealed class ActorScriptState
     public int WaitFrames { get; set; }
     public bool SkipDuringDeath { get; set; }
     public bool DeathPulseSent { get; internal set; }
+    /// <summary>CScriptOnlyBaddy 0x32E, radius for SimbyPokeRadius (0x4513).</summary>
+    public short SimbyPokeRadius { get; set; }
 
     public bool TryMarkDeathPulseSent()
     {

@@ -47,6 +47,18 @@ internal static class ActorPlayerScriptCommandTests
         assert(!ActorPlayerScriptCommands.TryExecute(0x470C, unrelated, null!) &&
             !ActorCinematicScreenCommand.TryExecute(0x42BA, unrelated, null!) && unrelated.Position == 0,
             "Unrelated commands do not resolve player/cinematic globals or consume data.");
+        var flagBytes = new byte[2];
+        BinaryPrimitives.WriteUInt16LittleEndian(flagBytes, 7);
+        var flagCursor = new ActorScriptCursor(flagBytes);
+        var flagHost = new Host([0x42BA, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], flagCursor);
+        assert(ActorPlayerScriptCommands.TryExecute(0x42BA, flagCursor, flagHost) && flagCursor.Position == 2 &&
+            flagHost.SnapshotField8EB() == 1,
+            "CBaddy 0x42BA stores (operand != 0) on MechList player +0x8EB.");
+        BinaryPrimitives.WriteUInt16LittleEndian(flagBytes, 0);
+        flagCursor = new ActorScriptCursor(flagBytes);
+        flagHost = new Host([0x42BA, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], flagCursor);
+        assert(ActorPlayerScriptCommands.TryExecute(0x42BA, flagCursor, flagHost) && flagHost.SnapshotField8EB() == 0,
+            "CBaddy 0x42BA clears MechList player +0x8EB when the operand is zero.");
         var timer = new ActorScriptCursor(new byte[2]);
         try { ActorPlayerScriptCommands.TryExecute(0x470D, timer, new FailedHost()); throw new Exception("Required timer failure was swallowed."); }
         catch (InvalidOperationException) { assert(timer.Position == 2, "Original470D advances its cursor before the required player call."); }
@@ -90,6 +102,7 @@ internal static class ActorPlayerScriptCommandTests
     {
         public void SetIgnoreInputTimer(ushort frames) => throw new InvalidOperationException("The genuine player timer service failed.");
         public int SwitchToSynthesizedInput(ReadOnlyMemory<byte> source, int sourceOffset) => throw new InvalidOperationException("The genuine player VM service failed.");
+        public void SetMechListField8EB(bool enabled) => throw new InvalidOperationException("The genuine player MechList flag service failed.");
     }
     private sealed class Host : IActorPlayerScriptHost, IActorCinematicScreenHost, IPlayerSynthesizedInputHost
     {
@@ -137,6 +150,11 @@ internal static class ActorPlayerScriptCommandTests
             suppression.Set(frames, (int)input[10], combat.LookaroundActive);
             cursor.Seek(cursor.Position + (int)input[3]);
         }
+        public void SetMechListField8EB(bool enabled)
+        {
+            EntryCursor = cursor.Position;
+            combat.Field8EB = enabled ? (byte)1 : (byte)0;
+        }
         public int SwitchToSynthesizedInput(ReadOnlyMemory<byte> source, int sourceOffset)
         {
             EntryCursor = cursor.Position;
@@ -163,6 +181,7 @@ internal static class ActorPlayerScriptCommandTests
         public void RunAnimation(ushort clip, int from, int to)
         { Calls.Add("animation"); animation = clip; firstFrame = from; lastFrame = to; }
         public void ClearInputAliases() { }
+        public byte SnapshotField8EB() => combat.Field8EB;
         public long[] Snapshot() => [combat.Velocity.X, combat.Velocity.Y, combat.Velocity.Z,
             combat.SynthesizedInputActive ? 1 : 0, decoding ? 1 : 0, combat.FieldAE5, skip.Allowed, checkpoint, elapsed,
             trails[0] ? 1 : 0, trails[1] ? 1 : 0, fade[0], fade[1], dome is not null ? 1 : 0, validation,

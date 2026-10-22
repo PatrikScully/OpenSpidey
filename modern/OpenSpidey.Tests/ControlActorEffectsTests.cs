@@ -29,7 +29,7 @@ internal static class ControlActorEffectsTests
             BinaryPrimitives.WriteUInt16LittleEndian(words.AsSpan(2), test.GetProperty("period").GetUInt16());
             var operands = new ActorScriptCursor(words);
             bool result = true;
-            if (mode == 0) result = effects.Execute(test.GetProperty("opcode").GetUInt16(), operands, position,
+            if (mode == 0) result = effects.Execute(test.GetProperty("opcode").GetUInt16(), operands, position, default,
                 new(FastForwardDeath: test.GetProperty("fast").GetInt32() != 0));
             else if (mode == 1) effects.Advance(test.GetProperty("clock").GetUInt32(), position);
             else effects.Destroy();

@@ -9,6 +9,7 @@ using OpenSpidey.Core.Mathematics;
 using OpenSpidey.Game.Audio;
 using OpenSpidey.Game.Effects;
 using OpenSpidey.Game.Player;
+using OpenSpidey.Game.World;
 
 namespace OpenSpidey.Game.Actors;
 
@@ -84,6 +85,14 @@ public sealed class GodotThugNativeServices : IGodotThugNativeEffects
         if (target is not ActorCollisionBody body) throw new NotSupportedException("Elastic collision requires the source collision body's live snapshot and identity.");
         ActorRecoilCollision.ElasticCollision(Snapshot(actor),body,velocity,duration,new RecoilHost(this,actor));
     }
+    public IThugInjuryBody? StruckGameObject(GodotCopActor actor,int first,int second) =>
+        ActorRecoilCollision.StruckGameObject(actor,actor.State.PreviousPosition,actor.Actor.Body.Position,first != 0,second != 0,new WorldRecoilHost(this,actor.World));
+    public void ElasticCollision(GodotCopActor actor,IThugInjuryBody target,FixedVector3 velocity,int duration)
+    {
+        if (target is not ActorCollisionBody body) throw new NotSupportedException("Elastic collision requires the source collision body's live snapshot and identity.");
+        ActorRecoilCollision.ElasticCollision(new(actor,actor.State.Type,actor.Actor.Body.Position,unchecked((ushort)actor.State.MinorRadius),
+            unchecked((ushort)actor.State.BodyFlags),actor.State.Health),body,velocity,duration,new WorldRecoilHost(this,actor.World));
+    }
     public void CheckFallBack(GodotThugActor actor) => ThugFallBackBehavior.Check(actor.Actor,actor.Procedures,new FallBackHost(actor));
     public void ApplyHitToBody(IThugInjuryBody body, ActorHit hit)
     {
@@ -137,6 +146,16 @@ public sealed class GodotThugNativeServices : IGodotThugNativeEffects
         public bool LineOfSightCheck { get => actor.World.LineOfSightCheck; set => actor.World.LineOfSightCheck = value; }
         public ActorCollisionBody? TraceEnvironmental(FixedVector3 start,FixedVector3 end) =>
             actor.World.TraceEnvironmental(start,end) is { } hit ? services.interactions.DescribeEnvironmentalContact(hit) : null;
+        public void ApplyElasticHit(ActorCollisionBody target,ActorElasticHit hit) => services.ApplyHitToBody(target,hit.ToActorHit());
+    }
+    private sealed class WorldRecoilHost(GodotThugNativeServices services,GodotActorWorldQuery world) : IActorRecoilCollisionHost
+    {
+        public IReadOnlyList<ActorCollisionBody> SourcePlayerBodies => services.sourcePlayer() is { } player && Alive(player) ? [PlayerSnapshot(player)] : [];
+        public IReadOnlyList<ActorCollisionBody> SourceBaddyBodies => services.sourceBaddyBodies();
+        public bool IgnoreSphereRadius => services.IgnoreSphereRadius;
+        public bool LineOfSightCheck { get => world.LineOfSightCheck; set => world.LineOfSightCheck = value; }
+        public ActorCollisionBody? TraceEnvironmental(FixedVector3 start,FixedVector3 end) =>
+            world.TraceEnvironmental(start,end) is { } hit ? services.interactions.DescribeEnvironmentalContact(hit) : null;
         public void ApplyElasticHit(ActorCollisionBody target,ActorElasticHit hit) => services.ApplyHitToBody(target,hit.ToActorHit());
     }
     private sealed class FallBackHost(GodotThugActor actor) : IThugFallBackHost

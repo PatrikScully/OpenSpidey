@@ -106,7 +106,7 @@ def bootstrap(godot_only):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("bootstrap", "build", "test", "run", "play", "play-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke", "smoke", "editor", "media", "voices", "cinema", "cinema-smoke"))
+    parser.add_argument("command", choices=("bootstrap", "build", "test", "run", "game", "workbench", "play", "play-smoke", "shell-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke", "smoke", "editor", "media", "voices", "cinema", "cinema-smoke"))
     parser.add_argument("--assets", type=Path, help="Original game folder (never copied into the repository)")
     parser.add_argument("--scene", default="data/L1A1_G.psx")
     parser.add_argument("--animation", type=int, default=0, help="Original clip ID for an animated model")
@@ -123,16 +123,18 @@ def main():
     parser.add_argument("--cinema", type=int, default=11, help="Original Cinema_Run ID (11 opens the first level)")
     parser.add_argument("--finish-cinema", action="store_true", help="Verify natural movie completion instead of a permitted skip")
     args = parser.parse_args()
-    if args.capture and (args.command not in ("play-smoke", "cinema-smoke") or not args.rendered):
-        parser.error("--capture requires play-smoke or cinema-smoke with --rendered")
+    if args.capture and (args.command not in ("play-smoke", "cinema-smoke", "shell-smoke") or not args.rendered):
+        parser.error("--capture requires play-smoke, cinema-smoke or shell-smoke with --rendered")
     if args.capture_dir and (args.command != "smoke" or not args.rendered or not args.physics_checks or not args.assets):
         parser.error("--capture-dir requires smoke --rendered --physics-checks --assets")
-    if args.rendered and args.command not in ("smoke", "play-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke", "cinema-smoke"):
+    if args.rendered and args.command not in ("smoke", "play-smoke", "shell-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke", "cinema-smoke"):
         parser.error("--rendered applies to smoke checks")
+    if args.command == "shell-smoke" and not args.assets:
+        parser.error("shell-smoke boots the original legal/title/menu flow into L1A1 and requires --assets")
     if args.command in ("story-smoke", "story-transition-smoke"):
         if not args.assets:
             parser.error("story-smoke requires --assets with your original game folder")
-        if not re.fullmatch(r"data/l[1-8]a[1-7]_g\.psx", args.scene.lower()) or args.restart:
+        if not re.fullmatch(r"data/l[1-9]a[1-7]a?_g\.psx", args.scene.lower()) or args.restart:
             parser.error("story-smoke verifies original empty-save startup of a campaign level (data/lXaY_g.psx)")
         if args.command == "story-transition-smoke" and args.scene.lower() not in ("data/l1a1_g.psx", "data/l1a2_g.psx", "data/l1a4_g.psx"):
             parser.error("story-transition-smoke verifies the authored transition from L1A1, L1A2 or L1A4")
@@ -164,7 +166,10 @@ def main():
         environment["OPENSPIDEY_VERIFY_CAPTURES"] = str(args.capture_dir.resolve())
     else:
         environment.pop("OPENSPIDEY_VERIFY_CAPTURES", None)
-    environment["OPENSPIDEY_SCENE"] = args.scene
+    if args.command in ("game", "shell-smoke"):
+        environment.pop("OPENSPIDEY_SCENE", None)  # The shell selects the level from gSaveGame.
+    else:
+        environment["OPENSPIDEY_SCENE"] = args.scene
     environment["OPENSPIDEY_ANIMATION"] = str(args.animation)
     if args.restart:
         environment["OPENSPIDEY_RESTART"] = args.restart
@@ -174,14 +179,20 @@ def main():
     def run(command):
         subprocess.run([str(value) for value in command], cwd=MODERN, env=environment, check=True)
 
-    if args.command in ("voices", "play", "play-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke") and args.assets:
+    if args.command in ("voices", "game", "play", "play-smoke", "shell-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke") and args.assets:
         ffmpeg = executable("ffmpeg", "OPENSPIDEY_FFMPEG", Path("ffmpeg"))
         run([dotnet, "run", "--project", "OpenSpidey.MediaImporter", "--", args.assets.resolve(),
              args.media_cache.resolve(), "voices", ffmpeg])
         if args.command == "voices":
             return
         environment["OPENSPIDEY_MEDIA"] = str(args.media_cache.resolve())
-        if args.command in ("play", "story-smoke", "story-transition-smoke"):
+        if args.command == "game":
+            # The shell walks the whole campaign, so every level's cinema and voice media is prepared (cached).
+            run([dotnet, "run", "--project", "OpenSpidey.MediaImporter", "--", args.assets.resolve(),
+                 args.media_cache.resolve(), "all", ffmpeg])
+        if args.command == "shell-smoke":
+            args.scene = "data/L1A1_G.psx"
+        if args.command in ("play", "shell-smoke", "story-smoke", "story-transition-smoke"):
             scene_name = Path(args.scene).stem
             mission = (scene_name[:-2] if scene_name.lower().endswith("_g") else scene_name) + "_T"
             run([dotnet, "run", "--project", "OpenSpidey.MediaImporter", "--", args.assets.resolve(),
@@ -213,6 +224,17 @@ def main():
             command.extend(["--", "--smoke-cinema"])
             if args.finish_cinema:
                 command.append("--finish-cinema")
+    elif args.command == "game":
+        command.append("res://Scenes/ShellSession.tscn")
+    elif args.command in ("run", "workbench"):
+        command.extend(["res://Scenes/AssetWorkbench.tscn", "--", "--workbench"])
+    elif args.command == "shell-smoke":
+        # Legal, title, main menu, new game, difficulty, then the shell-selected L1A1 reaching gameplay.
+        command.append("res://Scenes/ShellSession.tscn")
+        command.extend(["--audio-driver", "Dummy"])
+        if not args.rendered:
+            command.append("--headless")
+        command.extend(["--", "--smoke-shell"])
     elif args.command in ("play", "play-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke"):
         command.append("res://Scenes/LevelSession.tscn")
         if args.command in ("play-smoke", "story-smoke", "story-transition-smoke", "checkpoint-smoke"):
@@ -236,6 +258,7 @@ def main():
                          "data/l1a4_g.psx": "--smoke-story-four-transition"}[args.scene.lower()]
             command.extend(["--", check])
     elif args.command == "smoke":
+        command.append("res://Scenes/AssetWorkbench.tscn")
         if not args.rendered:
             command.append("--headless")
         command.extend(["--", "--smoke-test"])

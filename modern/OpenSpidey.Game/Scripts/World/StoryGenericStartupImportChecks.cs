@@ -38,6 +38,13 @@ internal static class StoryGenericStartupImportChecks
                 await story.ToSignal(story.GetTree(), SceneTree.SignalName.PhysicsFrame);
             }
             Healthy();
+            if (story.Training.SourceModuleLoaded)
+            {
+                if (story.Training.MonitorCalls == 0 || story.Training.TextDraws == 0 || story.Application.Countdown.DisplayEnabled == 0)
+                    throw new InvalidDataException($"{mission} loaded the source training module, but its post-AI monitor did not run and draw.");
+                GD.Print($"Training module level {story.Training.State.Stuff[0]:X}: {story.Training.MonitorCalls} post-AI monitor calls, " +
+                    $"countdown {story.Application.Countdown.RemainingTicks}, {story.Training.TextDraws} source text draws.");
+            }
             GD.Print($"Passed generic {mission} startup: {skips} legal cinema skip requests, restart {story.Checkpoints.Current!.Name}, " +
                 $"{story.Startup.InitialActorsCreated} initial actors, {story.Registry.LiveCount} live, {story.SourceClock} source ticks. Mission traversal was not exercised.");
         }

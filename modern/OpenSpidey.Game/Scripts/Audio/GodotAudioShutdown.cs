@@ -10,6 +10,9 @@ internal static class GodotAudioShutdown
 
     public static async Task<Resource[]> RetirePlaybackAsync(Node root, SceneTree tree)
     {
+        // Halt the owner's frame first: live actor brains (CopBrain footsteps, thugs) would otherwise
+        // start fresh voices on the same cached PCM while the mixer drains the stopped ones.
+        root.ProcessMode = Node.ProcessModeEnum.Disabled;
         Node[] nodes = Descendants(root).ToArray();
         GodotSoundChannels[] sounds = nodes.OfType<GodotSoundChannels>().ToArray();
         GodotSpeechPlayer[] speech = nodes.OfType<GodotSpeechPlayer>().ToArray();

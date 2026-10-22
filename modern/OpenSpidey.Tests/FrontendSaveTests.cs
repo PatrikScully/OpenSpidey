@@ -20,9 +20,11 @@ internal static class FrontendSaveTests
         MainMenuRules(assert);
         ExpandingBox(assert);
         MenuZoom(assert);
+        MenuBoxDraw(assert);
         if (assets is null) return;
         byte[] image = File.ReadAllBytes(Path.Combine(assets, "SpideyPC.exe"));
         OriginalFrontendData data = OriginalFrontendData.Read(image);
+        MenuBoxSlices(data, assert);
         Cheats(root.GetProperty("cheat"), data, assert);
         ExecutableTables(data, image, assert);
         RoundTrip(data, assert);
@@ -275,6 +277,41 @@ internal static class FrontendSaveTests
         assert(box.ScrollBarHitTest(10, 50) == 0 && box.ScrollBarHitTest(25, 47) == 1,
             "CExpandingBox::ScrollBarHitTest uses anchor x/y and current height once the zoom finished.");
     }
+
+    private static void MenuBoxDraw(Action<bool, string> assert)
+    {
+        using Stream stream = typeof(FrontendSaveTests).Assembly.GetManifestResourceStream("OpenSpidey.Tests.Fixtures.menu-box.json")!;
+        using JsonDocument document = JsonDocument.Parse(stream);
+        int index = 0;
+        foreach (JsonElement test in document.RootElement.EnumerateArray())
+        {
+            int[] input = test.GetProperty("input").EnumerateArray().Select(value => value.GetInt32()).ToArray();
+            var call = new MenuBoxDrawCall(input[0], input[1], input[2], input[3], input[4], input[5], input[6], input[7]);
+            long[][] expected = test.GetProperty("calls").EnumerateArray()
+                .Select(row => row.EnumerateArray().Select(value => value.GetInt64()).ToArray()).ToArray();
+            long[][] actual = OriginalMenuBoxDraw.Plan(call, ReferenceMenuBoxSlices, input[8]).Select(primitive => primitive.Flat
+                ? new long[] { 1, (long)(primitive.Depth * 1000), -1, primitive.X, primitive.Y, primitive.Width, primitive.Height,
+                    primitive.Red, primitive.Green, primitive.Blue, primitive.BlendMode }
+                : [0, (long)(primitive.Depth * 1000), primitive.FrameIndex, primitive.X, primitive.Y, primitive.Width, primitive.Height,
+                    0, 0, 0, 0]).ToArray();
+            assert(actual.Length == expected.Length && actual.Zip(expected).All(pair => pair.First.SequenceEqual(pair.Second)),
+                $"Executable: PShell_DrawMenuBox 0x47A700 case {index++} submits the original panel draws, frames, geometry, depth and fill.");
+        }
+        assert(index == 100, "PShell_DrawMenuBox fixture covers 100 original calls.");
+    }
+
+    private static void MenuBoxSlices(OriginalFrontendData data, Action<bool, string> assert)
+    {
+        assert(data.MenuBoxSlices.SequenceEqual(ReferenceMenuBoxSlices),
+            "Executable: gMenuBoxSlices 0x5512F0 matches the stored PC .data table.");
+    }
+
+    private static readonly OriginalMenuBoxSlice[] ReferenceMenuBoxSlices =
+    [
+        new(-1, 0, 1, 0), new(0, 0, 0, 0), new(0, -4, 0, 6), new(0, 2, 14, 11),
+        new(0, 0, 10, 5), new(0, 1, 10, 5), new(-2, -4, 8, 6), new(0, 0, 10, 5),
+        new(-2, 0, 4, 0), new(0, 1, 10, 5), new(-2, 0, 4, 0), new(-1, -4, 8, 6), new(-2, -2, 3, 2)
+    ];
 
     private static void MenuZoom(Action<bool, string> assert)
     {

@@ -27,6 +27,8 @@ public sealed class PlayerCombatState(short health, int maxHealth)
     public int Field8DC { get; set; }
     public byte Field8E8 { get; set; }
     public byte Field8E9 { get; set; }
+    /// <summary>Source +0x8EB; CBaddy opcode 0x42BA writes (operand != 0) when MechList player is live.</summary>
+    public byte Field8EB { get; set; }
     public bool LookaroundActive { get; set; }
     public byte SwingCameraResetLatch { get; set; } // Source +0x201, consumed by camera-facing finalization.
     public byte CameraAngleLock { get; set; } // Source +0x8EC.

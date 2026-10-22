@@ -1,4 +1,5 @@
 using OpenSpidey.Core.Audio;
+using OpenSpidey.Core.Effects;
 using OpenSpidey.Core.Mathematics;
 
 namespace OpenSpidey.Core.Actors.Scripting;
@@ -19,8 +20,9 @@ public sealed class ControlActorEffects(ActorScriptState actor, IControlActorEff
     private bool destroyed;
     public uint SoundHandle { get; set; }
     public short SoundPositionPeriod { get; set; } = -1;
+    public ControlActorSmokeJet? SmokeJet { get; private set; }
 
-    public bool Execute(ushort opcode, ActorScriptCursor operands, FixedVector3 position, ActorScriptEnvironment environment)
+    public bool Execute(ushort opcode, ActorScriptCursor operands, FixedVector3 position, ActorAngles angles, ActorScriptEnvironment environment)
     {
         ObjectDisposedException.ThrowIf(destroyed, this);
         switch (opcode)
@@ -67,6 +69,18 @@ public sealed class ControlActorEffects(ActorScriptState actor, IControlActorEff
                     host.PlayPositionSound(code | (opcode == 0x428F ? 0x8000u : 0), position);
                 }
                 return true;
+            case 0x429B:
+                return StartSmokeJet(operands, position, angles, damageBaddies: true, ControlActorSmokeJet.SewerChecksum);
+            case 0x42A1:
+                return StartSmokeJet(operands, position, angles, damageBaddies: false, ControlActorSmokeJet.GroundChecksum);
+            case 0x429F:
+                DestroySmokeJet();
+                return true;
+            case 0x4513:
+                // SimbyPokeRadius: enables the CScriptOnlyBaddy AI sweep that calls CSimby::ExplosionReaction.
+                actor.Flags |= 0x100;
+                actor.SimbyPokeRadius = unchecked((short)operands.ReadWord());
+                return true;
             default: return false;
         }
     }
@@ -77,6 +91,7 @@ public sealed class ControlActorEffects(ActorScriptState actor, IControlActorEff
         ObjectDisposedException.ThrowIf(destroyed, this);
         if (SoundPositionPeriod != -1 && unchecked((int)clock) % SoundPositionPeriod == 0)
             host.UpdateSoundPosition(SoundHandle, position);
+        SmokeJet?.SetAnchor(position);
     }
 
     public void Destroy()
@@ -84,7 +99,24 @@ public sealed class ControlActorEffects(ActorScriptState actor, IControlActorEff
         if (destroyed) return;
         destroyed = true;
         StopPreviousSound();
+        DestroySmokeJet();
         if ((actor.Flags & 0x80) != 0) host.DestroyCompass();
+    }
+
+    private bool StartSmokeJet(ActorScriptCursor operands, FixedVector3 position, ActorAngles angles, bool damageBaddies, uint checksum)
+    {
+        // Original print_if_false then overwrites field_324 without freeing; managed code retires the previous jet.
+        if (SmokeJet is not null) DestroySmokeJet();
+        ControlActorSmokeJetSpec spec = ControlActorSmokeJet.ReadSpec(operands, damageBaddies, checksum);
+        SmokeJet = new ControlActorSmokeJet(spec, position, angles);
+        return true;
+    }
+
+    private void DestroySmokeJet()
+    {
+        if (SmokeJet is null) return;
+        SmokeJet.Destroy();
+        SmokeJet = null;
     }
 
     private void StopPreviousSound()

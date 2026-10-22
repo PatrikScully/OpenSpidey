@@ -3,7 +3,7 @@ config_version=5
 
 [application]
 config/name="OpenSpidey"
-run/main_scene="res://Scenes/AssetWorkbench.tscn"
+run/main_scene="res://Scenes/ShellSession.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 
 [autoload]

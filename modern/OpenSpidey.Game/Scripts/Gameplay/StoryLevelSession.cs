@@ -91,6 +91,9 @@ public partial class StoryLevelSession : Node3D
     public GodotCinemaPlayer Cinema { get; private set; } = null!;
     internal GodotScorpionApproachModule ScorpionApproach { get; private set; } = null!;
     internal GodotScorpionEncounterRuntime ScorpionEncounter { get; private set; } = null!;
+    internal GodotSubwayLevelModule SubwayLevel { get; private set; } = null!;
+    internal GodotCampaignWaterLevelModule CampaignWaterLevel { get; private set; } = null!;
+    internal GodotTrainingModule Training { get; private set; } = null!;
     internal GodotPlayerModuleHook PlayerModules { get; private set; } = null!;
     public uint SourceClock => unchecked((uint)sourceTicks);
     public int LogicFrame => sourceTicks / 2;
@@ -216,6 +219,7 @@ public partial class StoryLevelSession : Node3D
             Sounds = sounds, Speech = speech, EnvironmentVisibility = visibility, LightingState = lighting,
             Clock = () => SourceClock, AttackClock = () => application.AttackClock, TotalTime = () => LogicFrame,
             TriggerCommandPoint = checksum => Mission.TriggerCommandPoint(checksum),
+            WhatIf = () => application.WhatIf,
             UnloadCodeModulesOnDestroy = false
         });
         codeModules = enemies.Modules;
@@ -238,6 +242,33 @@ public partial class StoryLevelSession : Node3D
             Music = application.Music, PositionSpeech = (bank, slot, priority) => speech.PlayAtPosition(bank, slot, priority, () => SourceClock)
         });
         AddChild(ScorpionEncounter); ScorpionEncounter.Register(codeModules.Modules);
+        SubwayLevel = GodotSubwayLevelModule.Create(new()
+        {
+            Archive = archive, Repository = libraries.Repository, Registry = Registry,
+            Countdown = application.Countdown, PlayerHook = application.PlayerModuleHook,
+            Clock = () => SourceClock,
+            ScreenOffsetY = () => application.CinematicScreen.WideScreenShadow,
+            WideScreenValue = () => application.CinematicScreen.WideScreenValue,
+            EndLevelNode = () => application.EndLevelNode,
+            SendPulse = node => Mission.ReceivePulse(node),
+            PlayerBrightness = () => playerBrightness
+        });
+        AddChild(SubwayLevel); SubwayLevel.Register(codeModules.Modules);
+        CampaignWaterLevel = GodotCampaignWaterLevelModule.Create(new()
+        {
+            Registry = Registry, SceneWater = application.SceneWater,
+            PlayerHook = application.PlayerModuleHook, SendPulse = node => Mission.ReceivePulse(node)
+        });
+        AddChild(CampaignWaterLevel); CampaignWaterLevel.Register(codeModules.Modules);
+        Training = GodotTrainingModule.Create(new()
+        {
+            Archive = archive, Registry = Registry, Countdown = application.Countdown, Results = application.TrainingResults,
+            PlayerHook = application.PlayerModuleHook, Progress = application.Campaign, Clock = () => SourceClock,
+            ScreenOffsetY = () => application.CinematicScreen.WideScreenShadow,
+            KillCount = () => (combat ?? throw new InvalidOperationException("Training kill count requires the player combat owner.")).KillQuips.Rules.History.NotificationCount,
+            SendPulse = node => Mission.ReceivePulse(node)
+        });
+        AddChild(Training); Training.Register(codeModules.Modules);
         Cinema = new() { Name = "MissionCinema", CacheDirectory = speech.CacheDirectory, PauseGameplay = true }; AddChild(Cinema);
         lifecycle = new() { Name = "LevelLifecycle" }; AddChild(lifecycle);
         lifecycle.Exited += _ => StopGameplay();

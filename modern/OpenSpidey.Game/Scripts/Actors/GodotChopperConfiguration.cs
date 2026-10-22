@@ -10,4 +10,5 @@ public sealed class GodotChopperConfiguration
     public required Func<uint> Timer { get; init; }
     public required Func<int> SourceConstructionOrdinal { get; init; }
     public required Func<GodotChopperActor, bool> IsSourceCulled { get; init; }
+    public required GodotChopperMissileConfiguration Missiles { get; init; }
 }

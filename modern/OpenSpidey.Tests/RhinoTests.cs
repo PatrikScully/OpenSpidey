@@ -2,6 +2,7 @@ using System.Text.Json;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Procedures;
 using OpenSpidey.Core.Actors.Rhino;
+using OpenSpidey.Core.Actors.Thugs;
 using OpenSpidey.Core.Mathematics;
 
 internal static class RhinoTests
@@ -138,5 +139,10 @@ internal static class RhinoTests
         public bool PlayerCanTalkNow() => true;
         public void AttachRhinoSpeech(int bank, int slot) { }
         public void AttachPlayerSpeech(int bank, int slot) { }
+        // AI tail boundaries reached by the RhinoInit frame (state0 and the shared post-switch work).
+        public ThugMessageQueue Messages { get; } = new();
+        public int AnimationFrame => 0;
+        public void SetAnimationSpeed(int speed) { }
+        public void UpdateShadow() { }
     }
 }

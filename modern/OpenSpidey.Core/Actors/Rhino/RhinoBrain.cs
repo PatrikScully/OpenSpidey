@@ -1,8 +1,13 @@
+using OpenSpidey.Assets.Models;
 using OpenSpidey.Core.Actors.Procedures;
 using OpenSpidey.Core.Actors.Thugs;
+using OpenSpidey.Core.Combat;
 using OpenSpidey.Core.Mathematics;
 
 namespace OpenSpidey.Core.Actors.Rhino;
+
+/// <summary>An environmental-list body seen by StompGround (type 401 is CManipOb, whose vtable slot5 is Smash 0x456D40).</summary>
+public readonly record struct RhinoEnvironmentBody(object Identity, int Type, FixedVector3 Position);
 
 public interface IRhinoHost
 {
@@ -16,7 +21,6 @@ public interface IRhinoHost
     int AttackClock { get; }
     FixedVector3 PlayerPosition { get; }
     int PlayerInputSuppression { get; }
-    bool HasMessages { get; }
     bool PlayerIsCrawling { get; }
     int Difficulty { get; }
     int WebDomeCount { get; }
@@ -25,8 +29,6 @@ public interface IRhinoHost
     void RunAnimation(int animation);
     void Neutralize();
     void BuildTransform();
-    void ProcessMessages();
-    void PlaySounds();
     void DoPhysics(int mode);
     void SetGlobalBoss(bool enabled);
     void SetBossCameraMode();
@@ -34,17 +36,9 @@ public interface IRhinoHost
     ActorBodyMotion? RecoverPlayerBody();
     void AttachPlayerLookAt(uint completionMask, int rate, int tolerance);
     void PlayPositionalSound(int id);
-    bool LineOfSightToPlayer(int argument);
     RhinoWallChunkLists WallChunks { get; }
     bool TryGetChargeWallContact(FixedVector3 start, FixedVector3 direction, out RhinoChargeWallContact contact);
     void ChunkItemByChecksum(uint checksum);
-    void RewindChargePosition(FixedVector3 position);
-    void NotifyChargeBarrierVisible(object? collider);
-    void ApplyChargeBarrierCollision(int mode);
-    void ApplyChargeScrapeDamage();
-    void BeginStuckHorn(RhinoChargeWallContact contact, int shake);
-    bool IsPlayerBody(object? collider);
-    bool TryDetermineFightState(RhinoState state, int argument);
     bool ChargeLineHitsPlayer(FixedVector3 start, FixedVector3 end, int radius);
     void HitPlayerFromCharge(FixedVector3 delta);
     ReadOnlySpan<RhinoSpeechEntry> SpeechEntries { get; }
@@ -52,10 +46,112 @@ public interface IRhinoHost
     bool PlayerCanTalkNow();
     void AttachRhinoSpeech(int bank, int slot);
     void AttachPlayerSpeech(int bank, int slot);
+
+    /// <summary>CAIProc_AccZ (0x4016B0).</summary>
+    void AttachAcceleration(int acceleration, int targetSpeed, uint completionMask) =>
+        Procedures.Attach(new ActorAccelerationProcedure(Actor, acceleration, targetSpeed, completionMask));
+    /// <summary>CAIProc_MoveTo (0x4018D0) from an SMoveToInfo {destination, speed, turn rate, tolerance}.</summary>
+    void AttachMoveTo(FixedVector3 destination, int speed, int turnRate, int tolerance, uint completionMask) =>
+        Procedures.AttachMove(new ActorMoveToProcedure(Actor, destination, speed, turnRate, tolerance, completionMask));
+    /// <summary>CAIProc_LookAt yaw form (0x4012F0).</summary>
+    void AttachLookAtYaw(int yaw, uint completionMask, int rate, int tolerance) =>
+        Procedures.Attach(ActorLookAtProcedure.ForYaw(Actor, yaw, completionMask, rate, tolerance));
+    /// <summary>CAIProc_StateSwitchSendMessage (0x401E60) sending <paramref name="message"/> to this Rhino.</summary>
+    void AttachStateSwitchMessage(RhinoState state, int message) =>
+        Procedures.Attach(new RhinoStateSwitchMessageProcedure(state, message, code => Messages.Enqueue(new ThugMessage(code, this))));
+    /// <summary>CRhino::PlayXAPlease (0x47E0A0).</summary>
+    void PlayXAPlease(RhinoState state, int bankOffset, int slotCount, int rndAddend) =>
+        RhinoPlayXAPlease.Execute(state, SpeechEntries, this, bankOffset, slotCount, rndAddend);
+
+    // Boundaries of the remaining CRhino::AI leaves. Defaults fail loudly for fixture hosts that never reach them.
+    /// <summary>CItem 0x128 mFrame.</summary>
+    int AnimationFrame => throw Missing(nameof(AnimationFrame));
+    /// <summary>CItem::RunAnim(animation, frame, -1) (0x460C10).</summary>
+    void RunAnimation(int animation, int frame) => throw Missing(nameof(RunAnimation));
+    /// <summary>CItem::CycleAnim(animation, 1) (0x460D00).</summary>
+    void CycleAnimation(int animation) => throw Missing(nameof(CycleAnimation));
+    /// <summary>CItem 0x194 animation speed.</summary>
+    void SetAnimationSpeed(int speed) => throw Missing(nameof(SetAnimationSpeed));
+    ThugMessageQueue Messages => throw Missing(nameof(Messages));
+    /// <summary>CBaddy 0x2F0 waypoint flags.</summary>
+    uint RouteFlags => throw Missing(nameof(RouteFlags));
+    /// <summary>CBaddy::GetNextWaypoint (0x402F60).</summary>
+    bool TryAdvanceWaypoint() => throw Missing(nameof(TryAdvanceWaypoint));
+    /// <summary>CBaddy::PathCheck (0x403310).</summary>
+    ActorPathCheckResult PathCheck(FixedVector3 from, FixedVector3 to, bool wantHitPoint, int clearance) =>
+        throw Missing(nameof(PathCheck));
+    /// <summary>M3dColij_InitLineInfo + M3dZone_LineToItem(.., 1), with Spool_GetModelChecksum of the hit item.</summary>
+    bool TryLineToItem(FixedVector3 start, FixedVector3 end, out uint checksum, out FixedVector3 hitPosition) =>
+        throw Missing(nameof(TryLineToItem));
+    /// <summary>CBody 0xE4 mPlayerDist written by the item-list distance pass.</summary>
+    uint PlayerDistance => throw Missing(nameof(PlayerDistance));
+    /// <summary>CPlayer 0xE1C mActionState.</summary>
+    int PlayerActionState => throw Missing(nameof(PlayerActionState));
+    /// <summary>CPlayer 0x8E8 || 0x8E9 (wall/ceiling crawl).</summary>
+    bool PlayerOnWallOrCeiling => throw Missing(nameof(PlayerOnWallOrCeiling));
+    /// <summary>CPlayer 0xE48 held object.</summary>
+    object? PlayerHeldObject => throw Missing(nameof(PlayerHeldObject));
+    /// <summary>MechList-&gt;Hit (vtable+0xC); returns the player's hit-taken result.</summary>
+    bool HitPlayer(ActorHit hit) => throw Missing(nameof(HitPlayer));
+    /// <summary>CPlayer::KnockSpideyFromCrawlPosition (0x4BB710).</summary>
+    void KnockPlayerFromCrawl() => throw Missing(nameof(KnockPlayerFromCrawl));
+    /// <summary>CPlayer::SetIgnoreInputTimer (0x4C30A0).</summary>
+    void SetPlayerIgnoreInputTimer(int ticks) => throw Missing(nameof(SetPlayerIgnoreInputTimer));
+    /// <summary>CBaddy::Baddy_SendSignal (0x403230).</summary>
+    void SendSignal() => throw Missing(nameof(SendSignal));
+    /// <summary>Mem_RecoverPointer(field_104) trap web.</summary>
+    IThugTrapWeb? RecoverTrapWeb() => throw Missing(nameof(RecoverTrapWeb));
+    /// <summary>field_104.pWhatever != 0.</summary>
+    bool TrapWebHandleSet => throw Missing(nameof(TrapWebHandleSet));
+    /// <summary>field_104.pWhatever = 0.</summary>
+    void ReleaseTrapWebHandle() => throw Missing(nameof(ReleaseTrapWebHandle));
+    /// <summary>Effects_Electrify (0x438E20) / Effects_UnElectrify (0x438EE0).</summary>
+    void Electrify() => throw Missing(nameof(Electrify));
+    void UnElectrify() => throw Missing(nameof(UnElectrify));
+    /// <summary>SFX_PlayPos returning the voice handle, and SFX_Stop (0x4723D0).</summary>
+    int PlayTrackedSound(int id) => throw Missing(nameof(PlayTrackedSound));
+    void StopSound(int handle) => throw Missing(nameof(StopSound));
+    /// <summary>CAIProc_MonitorAttack (0x401C40).</summary>
+    void AttachAttackMonitor(int startFrame, uint hookMask, int frames, uint completionMask) =>
+        throw Missing(nameof(AttachAttackMonitor));
+    /// <summary>CCamera::Shake(mPos, CAMERASHAKE_BIG) (0x416880).</summary>
+    void ShakeCamera() => throw Missing(nameof(ShakeCamera));
+    /// <summary>gSaveGame field_7B vibration option, Pad_GetActuatorTime (0x4794A0) and Pad_ActuatorOn (0x4794D0).</summary>
+    bool VibrationEnabled => throw Missing(nameof(VibrationEnabled));
+    int ActuatorTime(int controller, int actuator) => throw Missing(nameof(ActuatorTime));
+    void ActuatorOn(int controller, int duration, int actuator, int strength) => throw Missing(nameof(ActuatorOn));
+    /// <summary>Effects_RhinoStomp (0x43A400).</summary>
+    void EmitStompEffect() => throw Missing(nameof(EmitStompEffect));
+    /// <summary>CRhinoWallImpact (0x43A550) built from the GonnaHitWall line hit.</summary>
+    void CreateWallImpact(RhinoChargeWallContact contact) => throw Missing(nameof(CreateWallImpact));
+    /// <summary>G_ENVIRONMENTAL_OBJECT_LIST (0x60DAAC) in source order.</summary>
+    IReadOnlyList<RhinoEnvironmentBody> EnvironmentalBodies => throw Missing(nameof(EnvironmentalBodies));
+    /// <summary>The type-401 vtable slot5 call, CManipOb::Smash (0x456D40).</summary>
+    void SmashEnvironmentalBody(object? identity) => throw Missing(nameof(SmashEnvironmentalBody));
+    /// <summary>CBody::StopMyXA (0x460400).</summary>
+    void StopMyXA() => throw Missing(nameof(StopMyXA));
+    /// <summary>CBaddy::Die(0) (0x404320).</summary>
+    void Die() => throw Missing(nameof(Die));
+    bool CameraPresent => throw Missing(nameof(CameraPresent));
+    /// <summary>CCamera field_236 view heading.</summary>
+    short CameraAngle => throw Missing(nameof(CameraAngle));
+    /// <summary>CCamera::SetCamAngle (0x4178E0).</summary>
+    void SetCameraAngle(short heading, ushort duration) => throw Missing(nameof(SetCameraAngle));
+    /// <summary>DieRhino case0 camera: CAMERAMODE_DEMO, tripod and focus on this body, offsets 0, XZ 0x1A8, Y -0x68.</summary>
+    void BeginDeathCamera() => throw Missing(nameof(BeginDeathCamera));
+    /// <summary>CRhino::DoMGSShadow (0x4825E0) footprint quad.</summary>
+    void UpdateShadow() => throw Missing(nameof(UpdateShadow));
+    /// <summary>CRhino::DoDazedEffect (0x480480) bit lifetimes after the source angle/speed/Rnd update.</summary>
+    void UpdateDazedStars(ReadOnlySpan<ActorHook> hooks, bool spawn) => throw Missing(nameof(UpdateDazedStars));
+    /// <summary>CRhinoNasalSteam constructed from two dynamic hooks (velocity = second - first) and its Rnd(4096) spin.</summary>
+    void EmitNasalSteam(ActorHook position, ActorHook direction, int spin) => throw Missing(nameof(EmitNasalSteam));
+
+    private static InvalidOperationException Missing(string member) =>
+        new($"This Rhino host does not provide {member}, which CRhino::AI (0x4819C0) requires.");
 }
 
-/// <summary>CRhino constructor (0x47DE40) and AI (0x4819C0) including ChargePlayer (0x47F800).</summary>
-public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHost host)
+/// <summary>CRhino constructor (0x47DE40) and AI (0x4819C0) with every state leaf it dispatches.</summary>
+public sealed partial class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHost host)
 {
     public static void Construct(RhinoState state, IRhinoHost host, Action attachToBaddyList, Func<int, int> random)
     {
@@ -68,6 +164,7 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
         state.AttackRelatedSnapshot = host.AttackClock;
         state.Field344 = unchecked(host.AttackClock - 240);
         state.MinorRadius = 175;
+        state.Field230 = 0;
         state.State = 0;
         state.Substate = 0;
         host.Actor.BehaviorFlags |= 0x02000201;
@@ -76,9 +173,10 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
         state.MovementAnimations = RhinoState.SetupWord0;
         state.IdleAnimations = RhinoState.SetupWord1;
         for (int index = 0; index < RhinoState.DazedStarCount; index++)
-            state.DazedStarSpeeds[index] = random(4096);
+            state.DazedStarSpeeds[index] = unchecked((short)random(4096));
     }
 
+    /// <summary>CRhino::AI (0x4819C0).</summary>
     public void Advance()
     {
         if (state.Field3D0 != 0)
@@ -90,11 +188,7 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
         if (state.State == 2)
         {
             state.Field3D4 = unchecked(state.Field3D4 + host.ElapsedTicks);
-            if (state.Field3D4 > 0x168)
-            {
-                state.State = 0x14;
-                state.Substate = 0;
-            }
+            if (state.Field3D4 > 0x168) SetState(0x14);
         }
         else state.Field3D4 = 0;
 
@@ -107,44 +201,27 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
 
         state.Field35C = unchecked(state.Field35C + 1);
 
-        ushort flag = flags.Check(state.State);
-        if ((flag & 4) == 0) host.DoPhysics(0);
-        if ((flag & 0x40) != 0)
+        if ((flags.Check(state.State) & 4) == 0) host.DoPhysics(0);
+        if ((flags.Check(state.State) & 0x40) != 0)
         {
             if (state.Field324 != 0)
             {
-                int dy = unchecked(host.Body.Position.Y - host.PlayerPosition.Y);
-                int absDy = dy < 0 ? unchecked(-dy) : dy;
-                if (absDy > 0x64000)
+                if (Abs(unchecked(host.Body.Position.Y - host.PlayerPosition.Y)) > 0x64000)
                 {
-                    state.Field324 = unchecked(state.Field324 - host.ElapsedTicks);
-                    if (state.Field324 <= 0)
-                    {
-                        state.Field324 = 0;
-                        state.State = 0xD;
-                        state.Substate = 0;
-                    }
+                    state.Field324 = RunTimer(state.Field324);
+                    if (state.Field324 == 0) SetState(0xD);
                 }
                 else state.Field324 = 0;
             }
             if (state.Field328 != 0)
             {
-                state.Field328 = unchecked(state.Field328 - host.ElapsedTicks);
-                if (state.Field328 <= 0)
-                {
-                    state.Field328 = 0;
-                    state.State = 0xD;
-                    state.Substate = 0;
-                }
+                state.Field328 = RunTimer(state.Field328);
+                if (state.Field328 == 0) SetState(0xD);
             }
             if (state.Field32C != 0)
             {
-                state.Field32C = unchecked(state.Field32C - host.ElapsedTicks);
-                if (state.Field32C <= 0)
-                {
-                    state.Field32C = 0;
-                    PlayXAPlease(0xF, 3, 1);
-                }
+                state.Field32C = RunTimer(state.Field32C);
+                if (state.Field32C == 0) PlayXAPlease(0xF, 3, 1);
             }
         }
         else
@@ -153,8 +230,8 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
             state.Field324 = 0;
         }
 
-        if (host.HasMessages) host.ProcessMessages();
-        host.Procedures.Execute(host.ElapsedTicks);
+        ProcessMessages();
+        if (host.Procedures.Count != 0) host.Procedures.Execute(host.ElapsedTicks);
         state.Field348 = 0;
 
         if ((flags.Check(state.State) & 0x10) != 0) host.Actor.BehaviorFlags |= 0x10000;
@@ -163,11 +240,12 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
         if (state.State == 0x16)
         {
             state.BodyFlags |= 0x10;
-            throw new NotSupportedException("CRhino::DetermineFightState (0x481300) after state22 is not ported yet.");
+            state.Field310 = 0;
+            if (!DetermineFightState(0)) SetState(1);
         }
         else if ((state.State == 2 || state.State == 1) && (host.AttackClock & 3) == 0)
         {
-            if (RhinoDetermineFightState.TryAdvance(state, host, argument: 0))
+            if (DetermineFightState(0))
             {
                 state.Field328 = 0;
                 state.Field324 = 0;
@@ -176,53 +254,121 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
                 state.Field328 = Difficulty(0x2710, 0x1B58, 0x1388, 0xBB8);
         }
 
-        host.PlaySounds();
+        PlaySounds();
         if (state.State != 0) host.SetHeight(false, 0x64, 0x258);
 
         switch (state.State)
         {
             case 0: RhinoInit(); host.SetHeight(false, 0x64, 0x258); break;
-            case 2: StandStill(); break;
-            case 1:
-                throw new NotSupportedException("CRhino::FollowWaypoints (0x47F320) is not ported yet.");
+            case 1: FollowWaypoints(); break;
+            case 2:
+                state.Field1F0 = 0;
+                StandStill();
+                break;
+            case 3: Laugh(); break;
+            case 4:
+                state.Field358 = host.AttackClock;
+                ChasePlayer(2);
+                break;
+            case 5:
+                state.Field358 = host.AttackClock;
+                ChasePlayer(1);
+                break;
             case 6:
-                throw new NotSupportedException("CRhino::ChasePlayer (0x47F490) is not ported yet.");
+                host.Actor.BehaviorFlags |= 0x20000000;
+                state.Field358 = host.AttackClock;
+                AttackPlayer();
+                break;
             case 7:
             case 8:
                 state.Field358 = host.AttackClock;
                 host.Actor.BehaviorFlags |= 0x20000000;
                 ChargePlayer();
                 break;
-            case 9:
-                throw new NotSupportedException("CRhino::AttackPlayer (0x480170) is not ported yet.");
+            case 9: HitWall(); break;
             case 10:
-            case 11:
-                throw new NotSupportedException("CRhino::StuckInWall (0x47E680) is not ported yet.");
-            case 12:
-                throw new NotSupportedException("CRhino::GetShocked (0x47E420) is not ported yet.");
+            case 11: StuckInWall(); break;
+            case 12: GetShocked(); break;
             case 13:
-                throw new NotSupportedException("CRhino::GetLaunched (0x47ECA0) is not ported yet.");
-            case 14:
-                throw new NotSupportedException("CRhino::TakeHit (0x480820) is not ported yet.");
-            case 15:
-                throw new NotSupportedException("CRhino::StompGround (0x4810C0) is not ported yet.");
-            case 16:
-                throw new NotSupportedException("CRhino::GetTrapped (0x480A40) is not ported yet.");
-            case 17:
-                throw new NotSupportedException("CRhino::HitWall (0x480F50) is not ported yet.");
-            case 18:
-                throw new NotSupportedException("CRhino::Laugh (0x480090) is not ported yet.");
             case 20:
-                throw new NotSupportedException("CRhino::DieRhino (0x480DA0) is not ported yet.");
-            case 21:
-                throw new NotSupportedException($"CRhino::AI state {state.State} (substate {state.Substate}) is not ported yet; original dispatch 0x4819C0.");
+                state.Field358 = host.AttackClock;
+                StompGround();
+                break;
+            case 14:
+                TakeHit();
+                state.Field358 = host.AttackClock;
+                break;
+            case 15: GetLaunched(); break;
+            case 16:
+            case 17:
+                state.Field358 = host.AttackClock;
+                GetTrapped();
+                break;
+            case 18:
+                state.Field358 = host.AttackClock;
+                if ((host.Actor.BehaviorFlags & 8) != 0) StandStill();
+                else SetState(0x16);
+                break;
+            case 21: DieRhino(); break;
             default:
-                throw new NotSupportedException(
-                    $"CRhino::AI state {state.State} (substate {state.Substate}) is not ported yet; original dispatch 0x4819C0.");
+                // The original only prints "Unknown state!" through nullsub_1 and continues with the tail.
+                break;
         }
 
+        if (host.AnimationFinished)
+        {
+            if (host.AnimationId == 0) PlaySingleAnim(0);
+            else if (host.AnimationId == 2) PlaySingleAnim(2);
+            else if (host.AnimationId == 5) PlaySingleAnim(5);
+        }
+
+        host.SetAnimationSpeed((state.Field348 & 2) != 0 ? 0x8000 : 0x10000);
+        host.BuildTransform();
+        host.UpdateShadow();
+        DoDazedEffect();
+        DoNasalSteam();
         state.BehaviorFlags = host.Actor.BehaviorFlags;
-        if ((host.ItemFlags & 4) == 0) host.BuildTransform();
+    }
+
+    /// <summary>The AI message walk: codes 5 (trap), 0xE (burst web) and 0x11 (unelectrify).</summary>
+    private void ProcessMessages()
+    {
+        ThugMessageQueue messages = host.Messages;
+        if (messages.Head is null) return;
+        for (ThugMessage? message = messages.Head; message is not null; message = message.Next)
+        {
+            bool consumed = true;
+            if (state.State != 0x15 || message.Code >= 11)
+            {
+                switch (message.Code)
+                {
+                    case 5:
+                        if ((flags.Check(state.State) & 0x10) != 0) consumed = false;
+                        else if (state.State != 0x10)
+                        {
+                            host.Neutralize();
+                            SetState(0x10);
+                        }
+                        else if ((state.Field348 & 1) != 0)
+                        {
+                            state.Field1F8 = 0;
+                            state.Substate = 1;
+                        }
+                        else consumed = false;
+                        break;
+                    case 0xE:
+                        host.RecoverTrapWeb()?.Burst();
+                        break;
+                    case 0x11:
+                        host.UnElectrify();
+                        if (state.Field338 != 0) host.StopSound(state.Field338);
+                        state.Field338 = 0;
+                        break;
+                }
+            }
+            if (consumed) message.Flags |= 1;
+        }
+        messages.Cleanup();
     }
 
     private void RhinoInit()
@@ -241,14 +387,12 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
                 PlaySingleAnim(0);
                 break;
             case 1:
-                state.State = 8;
-                state.Substate = 0;
+                SetState(8);
                 break;
-            default:
-                throw new InvalidDataException($"Unknown Rhino initialization substate {state.Substate}.");
         }
     }
 
+    /// <summary>CRhino::StandStill, inlined by AI for states 2 and 18.</summary>
     private void StandStill()
     {
         switch (state.Substate)
@@ -260,184 +404,8 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
             case 1:
                 if (host.AnimationId != 0) PlaySingleAnim(0);
                 break;
-            default:
-                throw new InvalidDataException($"Unknown Rhino stand-still substate {state.Substate}.");
         }
     }
-
-    /// <summary>CRhino::ChargePlayer at 0x47F800. Public for original-exe fixture replay.</summary>
-    public void ChargePlayer()
-    {
-        switch (state.Substate)
-        {
-            case 0:
-                state.Field310 = 0x64;
-                host.Neutralize();
-                host.AttachPlayerLookAt(2, 0x50, 0);
-                state.Field330 = unchecked(host.Random(30) + 0x5A);
-                if (state.State == 8) state.Substate = 2;
-                else
-                {
-                    PlaySingleAnim(9);
-                    host.PlayPositionalSound(0x8049);
-                    host.PlayPositionalSound(0x804A);
-                    state.Field334 = unchecked(host.Random(30) + 0x3C);
-                    state.Substate++;
-                }
-                break;
-            case 1:
-                state.Field334 = unchecked(state.Field334 - host.ElapsedTicks);
-                if (state.Field334 < 0) state.Field334 = 0;
-                host.DoPhysics(0);
-                if (!host.AnimationFinished) break;
-                if (Difficulty(1, 1, 0, 0) == 0 && !host.LineOfSightToPlayer(1))
-                {
-                    state.State = 0x16;
-                    state.Substate = 0;
-                    break;
-                }
-                if (state.Field334 != 0)
-                {
-                    PlaySingleAnim(9);
-                    host.PlayPositionalSound(0x8049);
-                }
-                else state.Substate++;
-                break;
-            case 2:
-                host.DoPhysics(0);
-                state.Field330 = unchecked(state.Field330 - host.ElapsedTicks);
-                if ((host.Actor.CompletionFlags & 2) != 0)
-                    host.Actor.CompletionFlags &= ~2u;
-                else if (state.Field330 > 0) return;
-                state.Field330 = 0;
-                if (host.PlayerIsCrawling)
-                {
-                    state.State = 0xD;
-                    state.Substate = 0;
-                    break;
-                }
-                PlaySingleAnim(4);
-                host.PlayPositionalSound(0x8042);
-                state.State = 8;
-                state.Substate++;
-                break;
-            case 3:
-                if (!host.AnimationFinished) break;
-                PlaySingleAnim(5);
-                host.Procedures.Attach(new ActorAccelerationProcedure(host.Actor,
-                    Difficulty(0x50, 0x50, 0x50, 0x50),
-                    unchecked(-Difficulty(500, 500, 500, 600)),
-                    8));
-                state.CombatFlags &= ~2u;
-                state.Field334 = ThugPerception.ApproximateHorizontalDistance(host.Body.Position, host.PlayerPosition);
-                state.Substate = 5;
-                break;
-            case 5:
-                if ((GonnaHitWall(1) & 0xD) != 0) break;
-                if (host.AnimationFinished && (host.AnimationId == 5 || host.AnimationId == 0xC))
-                    PlaySingleAnim(5);
-                {
-                    int dist = ThugPerception.ApproximateHorizontalDistance(host.Body.Position, host.PlayerPosition);
-                    if (dist < Difficulty(0x258, 0x190, 0x154, 0x12C))
-                    {
-                        host.Procedures.Mark(category: 0x100);
-                        host.Body.AngularVelocity = host.Body.AngularVelocity with { Y = 0 };
-                        host.Body.AngularAcceleration = host.Body.AngularAcceleration with { Y = 0 };
-                    }
-                    if (host.WebDomeCount != 0)
-                    {
-                        if (host.ChargeLineHitsPlayer(state.PreviousPosition, host.Body.Position, 0x2AF8))
-                        {
-                            state.State = 9;
-                            state.Substate = 0;
-                            return;
-                        }
-                    }
-                    else if (host.ChargeLineHitsPlayer(state.PreviousPosition, host.Body.Position, 0x1800))
-                    {
-                        host.HitPlayerFromCharge(host.PlayerPosition - host.Body.Position);
-                        PlaySingleAnim(0xC);
-                        state.CombatFlags |= 1;
-                        host.Procedures.Mark(category: 0x100);
-                        state.Substate = 0xA;
-                        state.Field330 = 5;
-                        state.Field344 = host.AttackClock;
-                        return;
-                    }
-                    if ((host.Actor.CompletionFlags & 8) != 0)
-                    {
-                        host.Actor.CompletionFlags &= ~8u;
-                        state.CombatFlags |= 2;
-                    }
-                    if (host.AnimationFinished || ((state.CombatFlags & 2) != 0 && state.Field334 < dist))
-                    {
-                        state.Field330 = 10;
-                        if (state.Field334 < 300) PlayXAPlease(0, 3, 1);
-                        state.Substate = 0xA;
-                        state.CombatFlags &= ~1u;
-                    }
-                    else
-                    {
-                        state.Field330 = unchecked(state.Field330 + host.ElapsedTicks);
-                        state.Field334 = dist;
-                        if (state.Field330 >= 0x12C)
-                        {
-                            PlaySingleAnim(8);
-                            host.Procedures.Attach(new ActorAccelerationProcedure(host.Actor, 0x50, 0, 8));
-                            state.Substate = 7;
-                        }
-                    }
-                }
-                break;
-            case 7:
-                if ((GonnaHitWall(1) & 0xD) != 0) break;
-                if ((host.Actor.CompletionFlags & 8) == 0) break;
-                host.Actor.CompletionFlags &= ~8u;
-                host.Neutralize();
-                state.BodyFlags |= 0x10;
-                state.State = 2;
-                state.Substate = 0;
-                break;
-            case 10:
-                if ((GonnaHitWall(1) & 0xD) != 0) break;
-                state.Field330 = unchecked(state.Field330 - host.ElapsedTicks);
-                if (state.Field330 > 0) break;
-                PlaySingleAnim(8);
-                host.Procedures.Attach(new ActorAccelerationProcedure(host.Actor, 0x50, 0, 8));
-                state.Substate++;
-                break;
-            case 11:
-                if ((GonnaHitWall(1) & 0xD) != 0) break;
-                if ((host.Actor.CompletionFlags & 8) == 0) break;
-                host.Actor.CompletionFlags &= ~8u;
-                if ((state.CombatFlags & 1) == 0)
-                {
-                    state.State = 2;
-                    state.Substate = 0;
-                    break;
-                }
-                host.Neutralize();
-                host.AttachPlayerLookAt(2, 0x1E, 0);
-                PlaySingleAnim(0x14);
-                host.PlayPositionalSound(((host.AttackClock & 1) == 0 ? 1 : 0) | 0x8046);
-                state.BodyFlags |= 0x10;
-                state.Substate++;
-                break;
-            case 12:
-                if (host.AnimationFinished)
-                {
-                    state.State = 2;
-                    state.Substate = 0;
-                }
-                break;
-            default:
-                throw new InvalidDataException($"Unknown Rhino ChargePlayer substate {state.Substate}.");
-        }
-    }
-
-    /// <summary>CRhino::GonnaHitWall motion gate at 0x47E8A0.</summary>
-    private int GonnaHitWall(int mode) =>
-        RhinoGonnaHitWall.Evaluate(state, host, host.WallChunks, mode, PlayXAPlease);
 
     private int Difficulty(int easy, int normal, int hard, int alternative) => host.Difficulty switch
     {
@@ -447,6 +415,19 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
         _ => alternative
     };
 
+    /// <summary>CBaddy::RunTimer (0x402BE0).</summary>
+    private int RunTimer(int timer)
+    {
+        timer = unchecked(timer - host.ElapsedTicks);
+        return timer < 0 ? 0 : timer;
+    }
+
+    private void SetState(int value)
+    {
+        state.State = value;
+        state.Substate = 0;
+    }
+
     private void PlaySingleAnim(int animation)
     {
         state.Field388 = 0;
@@ -455,5 +436,16 @@ public sealed class RhinoBrain(RhinoState state, RhinoStateFlags flags, IRhinoHo
 
     /// <summary>CRhino::PlayXAPlease (0x47E0A0): a2 bank offset, a3 slot count, a4 Rnd addend only.</summary>
     private void PlayXAPlease(int bankOffset, int slotCount, int rndAddend) =>
-        RhinoPlayXAPlease.Execute(state, host.SpeechEntries, host, bankOffset, slotCount, rndAddend);
+        host.PlayXAPlease(state, bankOffset, slotCount, rndAddend);
+
+    /// <summary>CRhino::ShakePad, inlined at every PC call site.</summary>
+    private void ShakePad()
+    {
+        if (!host.VibrationEnabled) return;
+        if (unchecked((ushort)host.ActuatorTime(0, 0)) <= 2) host.ActuatorOn(0, 6, 0, 1);
+        if (unchecked((ushort)host.ActuatorTime(0, 1)) <= 2) host.ActuatorOn(0, 10, 1, 200);
+    }
+
+
+    private static int Abs(int value) => value < 0 ? unchecked(-value) : value;
 }

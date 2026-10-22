@@ -1,3 +1,5 @@
+using OpenSpidey.Assets.Animation;
+using OpenSpidey.Core.Actors.Procedures;
 using OpenSpidey.Core.Mathematics;
 
 namespace OpenSpidey.Core.Actors.Simby;
@@ -25,7 +27,18 @@ public sealed class SimbyState(int node, int levelId, int sourceConstructionOrdi
     public ushort MinorRadius { get; set; } = 140;
     public uint BodyFlags { get; set; } = 0x216;
     public uint BehaviorFlags { get; set; }
-    public uint CombatFlags { get; set; } = 0x201;
+    private ActorProcedureState? combatOwner;
+    private uint combatFlags = 0x201;
+    /// <summary>CBaddy field_2A8; once bound it is the procedure state's flags read by Neutralize and PathCheck.</summary>
+    public uint CombatFlags
+    {
+        get => combatOwner?.BehaviorFlags ?? combatFlags;
+        set
+        {
+            if (combatOwner is null) combatFlags = value;
+            else combatOwner.BehaviorFlags = value;
+        }
+    }
     public short Health { get; set; } = 800;
     public short PushValue { get; set; } = 64;
     public int GeneralParameter { get; set; } = 32;
@@ -54,8 +67,8 @@ public sealed class SimbyState(int node, int levelId, int sourceConstructionOrdi
     public int AttackMask { get; set; }
     /// <summary>field_324 used by MoveFreely as a long-range wait counter.</summary>
     public int Field324 { get; set; }
-    /// <summary>field_354 DropDown case3 previous Y sample.</summary>
-    public int DropSampleY { get; set; }
+    /// <summary>field_354 (StretchStart.Y): DropDown settle sample and DieWhileFalling ground height.</summary>
+    public int DropSampleY { get => StretchStart.Y; set => StretchStart = StretchStart with { Y = value }; }
     /// <summary>field_1F0 waypoint budget used by Initialize / FollowWaypoints.</summary>
     public int Field1F0 { get; set; }
     /// <summary>field_1F8 RunTimer slot used by FollowWaypoints / MoveFreely(666).</summary>
@@ -85,7 +98,66 @@ public sealed class SimbyState(int node, int levelId, int sourceConstructionOrdi
     /// <summary>CBaddy field_212/213 height-query timing from opcode 0x4227.</summary>
     public byte HeightQueryInterval { get; set; }
     public byte HeightQueryElapsed { get; set; }
+    /// <summary>field_204 / field_208 CBaddy::DistanceToPlayer cache.</summary>
+    public int CachedPlayerDistance { get; set; }
+    public int DistanceClock { get; set; }
+    /// <summary>field_374 unit vector toward the claimed attack slot.</summary>
+    public FixedVector3 AttackUnit { get; set; }
+    /// <summary>field_380 GetToTarget(2) climb probe point.</summary>
+    public FixedVector3 ClimbTarget { get; set; }
+    /// <summary>field_39C attack slot heading (1365 * slot).</summary>
+    public int AttackAngle { get; set; }
+    /// <summary>field_3A8 SetUpJumpPath arc height.</summary>
+    public int JumpHeight { get; set; }
+    /// <summary>field_3AC one-based RegisterTargetPos slot (0 = none).</summary>
+    public int TargetSlot { get; set; }
+    /// <summary>field_3CC stretch/jump step count and field_3D0 4096 / steps.</summary>
+    public int JumpSteps { get; set; }
+    public int JumpStep { get; set; }
+    /// <summary>field_188 SLink corrections for the 16 links of the 0x5554A0 pose packet.</summary>
+    public RawJointPose[] Joints { get; } = new RawJointPose[16];
+    /// <summary>field_3B0 DoStretch reach scale (455 or 204).</summary>
+    public int StretchScale { get; set; }
+    /// <summary>field_3DC SetUpHandPos midpoint between hooks 14 and 11.</summary>
+    public FixedVector3 HandPosition { get; set; }
+    /// <summary>field_334 slink scale timer (30 frames).</summary>
+    public int SlinkScaleTimer { get; set; }
+    /// <summary>field_338 / field_33C sym_base handles and field_340 slink ribbon handle (0 = none).</summary>
+    public int SymBase { get; set; }
+    public int ClimbSymBase { get; set; }
+    public int Ribbon { get; set; }
+    /// <summary>field_350 slink/climb start position.</summary>
+    public FixedVector3 StretchStart { get; set; }
+    /// <summary>field_3F8 slink delta (target - start) >> 12 and field_410 its length.</summary>
+    public FixedVector3 SlinkDelta { get; set; }
+    public int SlinkLength { get; set; }
+    /// <summary>field_418 ribbon segment fills: seven 585-unit slink spans, ten climb spans.</summary>
+    public int[] SlinkSegments { get; } = new int[10];
+    /// <summary>field_444 per-tick segment fill and field_448 retracted total.</summary>
+    public int SlinkRate { get; set; }
+    public int SlinkProgress { get; set; }
+    /// <summary>CItem scale shorts at 0x28/0x2A/0x2C (used while ItemFlags bit 0x200 is set).</summary>
+    public short Scale { get; set; } = 4096;
+    /// <summary>field_3D4 4096 / frame count of the current clip.</summary>
+    public int ClipScaleRate { get; set; }
+    /// <summary>field_3A4 ceiling height found by StillTouchingCeiling (0x4AB490).</summary>
+    public int CeilingY { get; set; }
+    /// <summary>field_318 attack kind of the last accepted hit (SHitInfo field_4 when flag 2 is set).</summary>
+    public int LastHitKind { get; set; }
+    /// <summary>field_194 CBaddy collision word: AI sets bits 0..2 while field_3A0 bit 2 is up, else bit 0x8000.</summary>
+    public uint Field194 { get; set; }
+    /// <summary>field_45C: the player's AI function saved while the Simby holds him (GettingGrabbed 10..13).</summary>
+    public bool PlayerAiSaved { get; set; }
+    /// <summary>field_38C last hand position the player was pulled toward.</summary>
+    public FixedVector3 GrabHandPosition { get; set; }
     public bool IsDead => (BodyFlags & 0x40) != 0;
+
+    public void BindCombatFlags(ActorProcedureState owner)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        owner.BehaviorFlags = CombatFlags;
+        combatOwner = owner;
+    }
 }
 
 /// <summary>Source412 CPunchOb constructor fields (0x4A73B0), created by module slot4.</summary>
@@ -112,5 +184,18 @@ public sealed class SimbyWorldState
 {
     public int Count { get; set; }
     public int CountResetFlag { get; set; }
+    /// <summary>gSimbyAttackData (0x682C60): three attack-slot bits.</summary>
     public int AttackData { get; set; }
+    /// <summary>Target slot mask at 0x682C68 for the eight positions at 0x6A7B10.</summary>
+    public uint TargetSlotMask { get; set; }
+    public FixedVector3[] TargetSlots { get; } = new FixedVector3[8];
+    /// <summary>Slot index -1 (0x6A7B04) written after "Not enough slots.  Fire Matt."; its mask bit is 31.</summary>
+    public FixedVector3 OverflowTargetSlot { get; set; }
+
+    /// <summary>~CSimby (0x4A7AE0) target-slot release.</summary>
+    public void ReleaseTargetSlot(SimbyState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        TargetSlotMask &= ~(1u << ((state.TargetSlot - 1) & 31));
+    }
 }

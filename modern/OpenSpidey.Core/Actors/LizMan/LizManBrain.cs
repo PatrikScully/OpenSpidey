@@ -27,7 +27,12 @@ public interface ILizManHost
     void ProcessMessages();
     void UpdateFootstepBits();
     void PlaySounds();
-    void LookAtPlayer(int holdTicks, int rate);
+    /// <summary>MechList body for CAIProc_LookAt targets; null when the player is gone.</summary>
+    ActorBodyMotion? RecoverPlayerBody();
+    /// <summary>CItem 0x128 frame clamp used by CLizMan::Jump.</summary>
+    void SetAnimationFrame(int frame);
+    /// <summary>CBody::KillShadow (0x460570).</summary>
+    void KillShadow();
     int ScanNearbyNodesForJumpTarget();
     FixedVector3 TriggerPosition(int node);
     void PlayPositionalSound(int id);
@@ -35,7 +40,7 @@ public interface ILizManHost
 }
 
 /// <summary>CLizMan constructor tail after SquirtPos/Angles and AI (0x451350) for proven states.</summary>
-public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizManAttackOwnership ownership, ILizManHost host)
+public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizManAttackOwnership ownership, ILizManFollowWaypointsHost host)
 {
     public LizManAttackOwnership AttackOwnership { get; } = ownership;
     public FixedVector3 TrajectoryScratch { get; private set; }
@@ -62,7 +67,7 @@ public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizMa
     public void Advance()
     {
         if (state.LevelId == 0x1103 && state.State != 4)
-            state.Field1F8 = unchecked(state.Field1F8 + host.ElapsedTicks);
+            state.Field324 = unchecked(state.Field324 + host.ElapsedTicks);
 
         int followOn = LizManAnimationFollowOn.Resolve(host.AnimationFinished, host.AnimationId);
         if (followOn == 31) state.BehaviorFlags |= 0x4000;
@@ -71,6 +76,8 @@ public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizMa
             state.Field340 = 0;
             host.RunAnimation(followOn);
         }
+        if (ReferenceEquals(AttackOwnership.Shooter, host.AttackIdentity) && state.State != 7)
+            AttackOwnership.Shooter = null;
 
         host.UpdateFootstepBits();
         if ((flags.Check(state.State) & 4) == 0)
@@ -81,7 +88,7 @@ public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizMa
         host.PlaySounds();
         UpdateShadow();
         if (host.HasMessages) host.ProcessMessages();
-        if (state.State != 0) DoAiSwitchLogic();
+        if (state.State != 0) LizManPerception.DoAiSwitchLogic(state, AttackOwnership, host);
 
         byte climb = state.Field390;
         state.Field394 = 0;
@@ -93,11 +100,18 @@ public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizMa
         switch (state.State)
         {
             case 0: Initialize(); break;
-            case 1: Guard(); break;
+            case 1: LizManGuard.Guard(state, host); break;
+            case 2:
+                LizManFollowWaypoints.Advance(state, AttackOwnership, host.AttackIdentity, host);
+                break;
+            case 23: LizManGuard.Jump(state, host); break;
+            case 25:
+                // CLizMan::AI has no case 25; DoAISwitchLogic resolves it and the switch only asserts.
+                break;
             case 15: StandStill(); break;
             default:
                 throw new NotSupportedException(
-                    $"CLizMan::AI state {state.State} (substate {state.Substate}) is not ported yet; original dispatch 0x451350.");
+                    $"CLizMan::AI state {state.State} (substate {state.Substate}) is not ported yet: {UnportedState(state.State)}.");
         }
         AfterState();
     }
@@ -121,8 +135,8 @@ public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizMa
                 if (ground == -1) return;
                 int height = unchecked(ground - (state.SurfaceClearance << 12));
                 host.Body.Position = host.Body.Position with { Y = height };
-                state.ShadowPosition = new(host.Body.Position.X, height, host.Body.Position.Z);
-                // Original stores both ground and body Y into the shadow placement pair at 0x29C/0x2A0.
+                state.Field29C = height;
+                state.ShadowGroundY = ground;
                 host.SetHeight(true, 100, 600);
                 state.Substate++;
                 state.Field340 = 0;
@@ -145,62 +159,44 @@ public sealed class LizManBrain(LizManState state, LizManStateFlags flags, LizMa
         }
     }
 
-    private void Guard()
-    {
-        switch (state.Substate)
-        {
-            case 0:
-                state.Field1F8 = 0;
-                host.Neutralize();
-                if (unchecked(host.TotalTime - state.Field374) < 0x12C)
-                    host.LookAtPlayer(128, 200);
-                state.Substate++;
-                break;
-            case 1:
-                if (LizManAnimationFollowOn.PendingAnimation != 0xFFFF && host.AnimationId != 5)
-                {
-                    state.Field340 = 0;
-                    host.RunAnimation(5);
-                }
-                state.Field1F8 = unchecked(state.Field1F8 + host.ElapsedTicks);
-                if (state.Field1F8 <= 120) break;
-                state.Field1F8 = 0;
-                int target = host.ScanNearbyNodesForJumpTarget();
-                if (target == 0) break;
-                // Jump path: CalculateJumpPositionArray then state23 CLizMan::Jump remain unported.
-                throw new NotSupportedException(
-                    $"CLizMan::Jump (0x44F420) after ScanNearbyNodesForJumpTarget node {target} is not ported yet.");
-            default:
-                throw new InvalidDataException($"Unknown LizMan guard substate {state.Substate}.");
-        }
-    }
-
+    /// <summary>CLizMan::AI case 15 (inline StandStill): needs 0x2A8 bit 8, else hands back to the fight probe.</summary>
     private void StandStill()
     {
-        switch (state.Substate)
+        state.Field374 = host.TotalTime;
+        state.CombatFlags |= 0x20;
+        if ((state.CombatFlags & 8) == 0)
         {
-            case 0:
-                host.Neutralize();
-                state.Field340 = 0;
-                host.RunAnimation(19);
-                state.Substate++;
-                break;
-            case 1:
-                throw new InvalidDataException("Unknown substate.");
-            default:
-                throw new InvalidDataException($"Unknown LizMan stand-still substate {state.Substate}.");
+            state.State = 25;
+            state.Substate = 0;
+            return;
         }
+        if (state.Substate != 0) return;
+        host.Neutralize();
+        state.Field340 = 0;
+        host.RunAnimation(19);
+        state.Substate++;
     }
 
-    private void DoAiSwitchLogic()
+    private static string UnportedState(int value) => value switch
     {
-        // CLizMan_DoAISwitchLogic 0x451280. The warn probe uses TotalTime against field_374 and AttackClock&phase.
-        if (state.State == 25)
-            throw new NotSupportedException("CLizMan::DoAISwitchLogic state25 probe (0x44FD40) is not ported yet.");
-        if (unchecked((uint)(host.TotalTime - state.Field374)) < 0x12C &&
-            (((host.AttackClock + state.ActorPhase) & 0x1F) == 0))
-            throw new NotSupportedException("CLizMan::WarnOtherLizMans / AI switch probe (0x44D520) is not ported yet.");
-    }
+        3 => "ChasePlayer 0x44BC70",
+        4 => "AttackPlayer 0x44CD70",
+        7 => "ShootPlayer 0x44D610",
+        8 => "TakeHit 0x44DAA0",
+        9 => "BackpedalPlease 0x450480",
+        10 or 11 => "GetYankedBySpidey 0x44E550",
+        12 => "GetWhippedLikeTheWhoreYouAre 0x44E2D0",
+        13 => "FlyAcrossRoom 0x44DEC0",
+        14 => "GetTrapped 0x44DC00",
+        16 => "state16 0x44FAF0",
+        17 => "Acknowledge 0x44FFE0",
+        18 => "Fall 0x44EFA0",
+        19 => "ControlledDrop 0x44F850",
+        20 or 21 => "DieLizMan 0x44EBB0",
+        22 => "ClimbUp 0x44F640",
+        24 => "SubwayFlyback 0x44EE60",
+        _ => "original dispatch 0x451350"
+    };
 
     private void AfterState()
     {

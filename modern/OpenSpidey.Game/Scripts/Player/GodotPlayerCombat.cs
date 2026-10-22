@@ -74,6 +74,14 @@ public sealed class GodotPlayerCombat : IPlayerHitHost, IPlayerDamageTimerHost, 
             collisionPose, collisionBoxes, HiddenParts, from, to, scale, out hit);
     }
 
+    /// <summary>CPlayer::KnockSpideyFromCrawlPosition (0x4BB710).</summary>
+    public bool KnockFromCrawlPosition()
+    {
+        bool knocked = player.Controller.KnockFromCrawlPosition();
+        player.RefreshCombatTransform();
+        return knocked;
+    }
+
     public bool Hit(ActorHit hit)
     {
         State.SynthesizedInputActive = player.Scripts?.Active == true;

@@ -20,6 +20,8 @@ public sealed class ActorMoveToProcedure : IActorProcedure
     {
         ArgumentNullException.ThrowIfNull(actor);
         this.actor = actor;
+        // 0x4018D0 replaces the destination height with the body's before deriving velocity and facing.
+        destination = destination with { Y = actor.Body.Position.Y };
         this.destination = destination;
         CompletionMask = completionMask;
         actor.CompletionFlags &= ~completionMask;
@@ -61,7 +63,7 @@ public sealed class ActorMoveToProcedure : IActorProcedure
             }
             else
             {
-                actor.BehaviorFlags |= 0x80000000;
+                actor.BehaviorFlags |= 0x08000000;
                 actor.Body.MovementFlags |= 0x40000;
             }
         }

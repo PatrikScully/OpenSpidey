@@ -66,8 +66,9 @@ def main() -> None:
     fixtures.append(dict(mode='M', input=[261, 0], expected=[4, 10, 513, 0, 6]))
     fixtures.append(dict(mode='M', input=[0x0105, 100], expected=[4, 10, 513, 0, 6]))
     # FollowWaypoints (0x4A9240) leaves recovered from IDA: stage,sub,field1F0,combat,procs,completion,anim
+    # (AI ORs flag-0x800 bit 0x10 into the CBody word at 0x46, not field_2A8.)
     # input = [sub, field1F0, waypointFlags, canAdvance, completionFlags]
-    fixtures.append(dict(mode='W', input=[0, 0, 0, 0, 0], expected=[2, 1, 0, 0x10000211, 2, 0, 5]))
+    fixtures.append(dict(mode='W', input=[0, 0, 0, 0, 0], expected=[2, 1, 0, 0x10000201, 2, 0, 5]))
     fixtures.append(dict(mode='W', input=[1, 0, 0, 0, 1], expected=[4, 0, 0, 0x201, 0, 0, 5]))
     fixtures.append(dict(mode='W', input=[1, 3, 0, 0, 1], expected=[2, 0, 2, 0x201, 0, 0, 5]))
     flag_states = [-1, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 100]

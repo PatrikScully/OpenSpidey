@@ -34,17 +34,37 @@ public sealed class RhinoState(int node, int attackRelatedSnapshot, int sourceCo
     public uint CombatFlags { get; set; }
     public int State { get; set; }
     public int Substate { get; set; }
+    /// <summary>CBaddy field_1F0 count of pending field_1A8 path points (DetermineFightState writes slot1).</summary>
+    public int Field1F0 { get; set; }
+    /// <summary>CBaddy field_1A8 path points.</summary>
+    public FixedVector3[] PathPoints { get; } = new FixedVector3[6];
+    /// <summary>CBaddy field_1F8: DoPhysics(1) flight budget, trap/death timers.</summary>
+    public int Field1F8 { get; set; }
+    /// <summary>CBaddy field_204/field_208 DistanceToPlayer cache (0x404170).</summary>
+    public int CachedPlayerDistance { get; set; }
+    public int CachedPlayerDistanceClock { get; set; }
+    /// <summary>CBaddy field_21D GetWaypointNearTarget phase byte.</summary>
+    public byte Field21D { get; set; }
+    public int Field230 { get; set; }
+    /// <summary>CBaddy field_318 last SHitInfo kind recorded by CRhino::Hit.</summary>
+    public int LastHitKind { get; set; }
     public int Field310 { get; set; }
     public int Field324 { get; set; }
     public int Field328 { get; set; }
     public int Field32C { get; set; }
     public int Field330 { get; set; }
     public int Field334 { get; set; }
+    /// <summary>CRhino field_338 electrified-loop SFX handle.</summary>
     public int Field338 { get; set; }
     public int Field344 { get; set; }
     public int Field348 { get; set; }
+    public int Field34C { get; set; }
+    public int Field350 { get; set; }
+    public int Field354 { get; set; }
     public int Field358 { get; set; }
     public int Field35C { get; set; }
+    /// <summary>CRhino field_360 alternating AttackPlayer swing.</summary>
+    public int Field360 { get; set; }
     public int Field388 { get; set; }
     public int Field3D0 { get; set; }
     public int Field3D4 { get; set; }
@@ -57,5 +77,13 @@ public sealed class RhinoState(int node, int attackRelatedSnapshot, int sourceCo
     public uint IdleAnimations { get; set; } = SetupWord1;
     public short Health { get; set; } = 1400;
     public int[] DazedStarSpeeds { get; } = new int[DazedStarCount];
+    /// <summary>gRhinoDazedStarAngle at 0x552070 (initialized data, never reset by the constructor).</summary>
+    public int[] DazedStarAngles { get; } = [0, 819, 1638, 2458, 3277];
+    /// <summary>Red byte (bit +0x40) of field_3E4[0], the head dazed-star CFT4Bit; 0 while that bit does not exist.</summary>
+    public byte DazedStarRed { get; set; }
+    /// <summary>CRhino field_420 GetShocked health ramp per remaining tick.</summary>
+    public int Field420 { get; set; }
+    /// <summary>gRhinoSound at 0x682C4C, the last footstep SFX so the next differs.</summary>
+    public int LastFootstepSound { get; set; }
     public bool IsDead => (BodyFlags & 0x40) != 0;
 }

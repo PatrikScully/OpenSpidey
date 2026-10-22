@@ -516,6 +516,16 @@ public sealed class PlayerTerrainController
         return accepted;
     }
 
+    /// <summary>CPlayer::KnockSpideyFromCrawlPosition (0x4BB710) on the live crawl state.</summary>
+    public bool KnockFromCrawlPosition()
+    {
+        if (CombatState is null || combatHost is null) throw new InvalidOperationException("Player crawl knock-off requires the source combat host.");
+        CaptureCombatState(CombatState.ElapsedTicks);
+        bool knocked = PlayerCrawlKnockoff.Apply(CombatState, combatHost);
+        ApplyCombatState();
+        return knocked;
+    }
+
     /// <summary>Copies live locomotion fields while retaining combat timers, health and effect ownership.</summary>
     public void CaptureCombatState(int elapsedTicks)
     {

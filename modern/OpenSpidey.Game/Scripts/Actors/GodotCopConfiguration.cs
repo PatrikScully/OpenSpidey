@@ -19,4 +19,8 @@ public sealed class GodotCopConfiguration
     public required Func<GodotCopActor, bool> IsSourceCulled { get; init; }
     public required GodotActorSessionServices Session { get; init; }
     public required Action<ushort, FixedVector3, int> PlayPositionSound { get; init; }
+    public required GodotThugNativeServices Effects { get; init; }
+    /// <summary>Mem_RecoverPointer on CCop 0x104, the trap web stuck to this cop.</summary>
+    public required Func<GodotCopActor, IThugTrapWeb?> RecoverTrapWeb { get; init; }
+    public required GodotPlayerGrabUpdate GrabUpdate { get; init; }
 }

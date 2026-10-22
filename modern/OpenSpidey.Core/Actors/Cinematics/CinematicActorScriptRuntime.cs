@@ -12,7 +12,9 @@ public readonly record struct CinematicActorScriptProfile(int WalkSpeed, int Wal
 {
     public static CinematicActorScriptProfile BlackCat => new(3, 2, 3, 4, true, CinematicActorSignalSource.InputFlags, true);
     public static CinematicActorScriptProfile Torch => new(3, 0, 0, 0, true, CinematicActorSignalSource.InputFlags, true, false, false);
-    public static CinematicActorScriptProfile SpiderClone => new(8, 1, 21, 13, false, CinematicActorSignalSource.InputFlags, false);
+    public static CinematicActorScriptProfile SpiderClone => new(8, 1, 21, 13, true, CinematicActorSignalSource.InputFlags, false);
+    /// <summary>CVenom chase bytecode (0x4E9B00): walk uses anim5 like DoPhysics field_218&amp;1; speed matches clone8.</summary>
+    public static CinematicActorScriptProfile Venom => new(8, 5, 5, 5, true, CinematicActorSignalSource.InputFlags, false);
 }
 
 public interface ICinematicActorScriptHost

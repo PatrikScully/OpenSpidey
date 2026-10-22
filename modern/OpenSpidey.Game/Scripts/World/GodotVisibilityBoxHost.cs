@@ -62,8 +62,8 @@ public sealed class GodotVisibilityBoxHost : IVisibilityBoxHost
             GodotThugActor thug => thug.ItemFlags,
             GodotHostageActor hostage => hostage.ItemFlags,
             GodotBlackCatActor cat => cat.ItemFlags,
-            IGodotSourceBaddyBody baddy => baddy.ItemFlags,
             IGodotSourceActorVisibility source => source.SourceVisibilityFlags,
+            IGodotSourceBaddyBody baddy => baddy.ItemFlags,
             _ => throw Unported()
         };
         public void SetVisible(bool visible)
@@ -74,8 +74,8 @@ public sealed class GodotVisibilityBoxHost : IVisibilityBoxHost
                 case GodotThugActor thug: thug.ItemFlags = flags; break;
                 case GodotHostageActor hostage: hostage.ItemFlags = flags; hostage.Variables.ItemFlags = flags; break;
                 case GodotBlackCatActor cat: cat.ItemFlags = flags; break;
-                case IGodotSourceBaddyBody baddy: baddy.ItemFlags = flags; break;
                 case IGodotSourceActorVisibility source: source.SetSourceVisibilityFlags(flags); return;
+                case IGodotSourceBaddyBody baddy: baddy.ItemFlags = flags; break;
                 default: throw Unported();
             }
             AnimatedModel().Visible = (flags & 0x8001) == 0;

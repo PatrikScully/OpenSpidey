@@ -72,11 +72,6 @@ internal static class RhinoImportChecks
             Assert(actor.Lighting.LitPartCount >= 0 && resources.ReadLight().Directions != default,
                 "M3d_RhinoLight at 0x552080 is applied to the Rhino model.");
 
-            bool hitRejected = false;
-            try { actor.Hit(new ActorHit { Damage = ushort.MaxValue }); }
-            catch (NotSupportedException ex) when (ex.Message.Contains("0x47EE70", StringComparison.Ordinal)) { hitRejected = true; }
-            Assert(hitRejected, "Unported CRhino::Hit keeps an explicit NotSupportedException naming 0x47EE70.");
-
             for (int frame = 0; frame < 8; frame++)
             {
                 clock += 2; attack += 2;
@@ -84,6 +79,9 @@ internal static class RhinoImportChecks
             }
             Assert(actor.State.State == 8 && actor.State.Substate is 2 or 3,
                 "Bounded AI frames leave RhinoInit and enter ChargePlayer wind-up (0x47F800).");
+            Assert(actor.Hit(new ActorHit { Damage = ushort.MaxValue }) && actor.State.Health == 1400 &&
+                actor.State.Field3D0 == 30 && actor.State.State == 8,
+                "CRhino::Hit (0x47EE70) without the damage flag keeps health, starts the 30-tick flash and leaves charge state flags8 alone.");
 
             modules.Modules.Unload(RhinoState.ModuleName);
             Assert(!GodotObject.IsInstanceValid(actor) && registry.LiveCount == 0 && registry.BaddyConstructionState.Count == 0 &&

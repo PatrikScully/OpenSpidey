@@ -118,7 +118,9 @@ internal static class LizManTests
         public void ProcessMessages() { }
         public void UpdateFootstepBits() { }
         public void PlaySounds() { }
-        public void LookAtPlayer(int holdTicks, int rate) { }
+        public ActorBodyMotion? RecoverPlayerBody() => null;
+        public void SetAnimationFrame(int frame) => AnimationFrame = frame;
+        public void KillShadow() { }
         public int ScanNearbyNodesForJumpTarget() => 0;
         public FixedVector3 TriggerPosition(int node) => default;
         public void PlayPositionalSound(int id) { }

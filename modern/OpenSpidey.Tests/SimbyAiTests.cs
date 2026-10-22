@@ -2,6 +2,10 @@ using System.Text.Json;
 using OpenSpidey.Core.Actors;
 using OpenSpidey.Core.Actors.Procedures;
 using OpenSpidey.Core.Actors.Simby;
+using OpenSpidey.Core.Actors.Thugs;
+using OpenSpidey.Assets.Animation;
+using OpenSpidey.Assets.Models;
+using OpenSpidey.Core.Combat;
 using OpenSpidey.Core.Mathematics;
 
 internal static class SimbyAiTests
@@ -105,7 +109,6 @@ internal static class SimbyAiTests
         public short PlayerHealth { get; set; } = 100;
         public byte PlayerSpecialState { get; set; }
         public byte PlayerInputLock { get; set; }
-        public bool HasMessages { get; set; }
         public bool HasProcedures => Procedures.Count != 0;
         public bool HasSupportBody { get; set; }
         public int IdleSetupLow => 513;
@@ -116,7 +119,6 @@ internal static class SimbyAiTests
         public bool CanAdvanceWaypoint { get; set; }
         public int Ground { get; set; } = -1;
         public Host() => Actor = new(Body);
-        public int PerimeterDistance(int mode) => 2000;
         public int GroundHeight(FixedVector3 position, int above, int below, int flags) => Ground;
         public int GroundHeightWithSupport(FixedVector3 position, int above, int below, out bool hasSupport)
         {
@@ -129,20 +131,81 @@ internal static class SimbyAiTests
         public void CycleAnimation(int animation) => AnimationId = animation;
         public void Neutralize() => Actor.Neutralize(Procedures);
         public void BuildTransform() { }
-        public void ProcessMessages() { }
         public void ProcessProcedures() => Procedures.Execute(ElapsedTicks);
         public void DoPhysics(int mode) { }
         public void RunTimer(ref int timer) { timer = unchecked(timer - ElapsedTicks); if (timer < 0) timer = 0; }
         public bool TryAdvanceWaypoint() => CanAdvanceWaypoint;
-        public int GetToTarget(int mode) => 0;
         public void SpawnEmergeEffect() { }
         public void PlayPositionalSound(int id) { }
         public int Random(int bound) => bound == 0 ? 0 : 0;
-        public void EnsureSlimeQuad() { }
         public void DestroySlimeQuad() { }
-        public void UpdateSlimeQuad(bool invertedClearance) { }
-        public bool LineOfSightToPlayer() => false;
-        public bool RegisterTargetFromPlayer() => false;
+        public void UpdateSlimeQuad(FixedVector3 position, bool grounded, byte red, byte green, byte blue) { }
+        public bool LineOfSight(FixedVector3 from, FixedVector3 to, out FixedVector3 hit) { hit = default; return true; }
+        public FixedVector3 LastLineHitNormal => default;
+        public bool LineToItem(FixedVector3 start, FixedVector3 end, out int hitY) { hitY = 0; return false; }
+        public bool CheckObjectCollision(FixedVector3 from, FixedVector3 to) => false;
+        public ActorPathCheckResult PathCheck(FixedVector3 from, FixedVector3 to, bool wantHitPoint, int groundRange, FixedVector3 initialHit) => default;
         public bool BumpedIntoSpidey(int radius) => false;
+        public uint PlayerDistance => 0;
+        public ushort PlayerMinorRadius => 0;
+        public int AnimationFrame => 0;
+        public byte HeightQueryInterval { set { } }
+        public FixedJointTransform TransformBasis => default;
+        public int CeilingSetupLow => 555819296;
+        public int CeilingSetupHigh => 543;
+        public int SupportVelocityY => 0;
+        public ThugMessage? FirstMessage => null;
+        public int UpdateGroundSupport(FixedVector3 position, int above, int below) => GroundHeightWithSupport(position, above, below, out _);
+        public void AttachMoveTo(FixedVector3 target, int speed, int turnRate, int tolerance, uint mask) =>
+            Procedures.AttachMove(new ActorMoveToProcedure(Actor, target, speed, turnRate, tolerance, mask));
+        public void AttachLookAtPlayer(uint mask, int rate, int tolerance) => throw Unexpected();
+        public void AttachLookAtPoint(FixedVector3 point, uint mask, int rate, int tolerance) => throw Unexpected();
+        public void AttachLookAtYaw(int yaw, uint mask, int rate, int tolerance) => throw Unexpected();
+        public FixedVector3 DynamicHookPosition(ActorHook hook) => throw Unexpected();
+        public void ApplyPose() => throw Unexpected();
+        public void AttachAttackMonitor(int startFrame, uint hookMask, int frames, uint completionMask) => throw Unexpected();
+        public void AttachStateSwitchMessage(int message) => throw Unexpected();
+        public bool TrapWebBurning() => throw Unexpected();
+        public void BurstTrapWeb() => throw Unexpected();
+        public bool PlayerCanTalk() => throw Unexpected();
+        public bool PlayAndAttachPlayerXA(int bank, int slot, int volume) => throw Unexpected();
+        public void SpawnShot(FixedVector3 position) => throw Unexpected();
+        public int PlayerAnimationId => 0;
+        public int PlayerActionState { get; set; }
+        public short PlayerYaw => 0;
+        public FixedVector3 PlayerVelocity { set => throw Unexpected(); }
+        public bool GrabUpdate(ref FixedVector3 position, ref short yaw) => throw Unexpected();
+        public void SetPlayerAi(SimbyPlayerAi ai) => throw Unexpected();
+        public void RestorePlayerAi() => throw Unexpected();
+        public void HitPlayer(ActorHit hit) => throw Unexpected();
+        public void PlayPlayerSingleAnimation(int animation) => throw Unexpected();
+        public void CreatePlayerImpactEffect(FixedVector3 position, int flags) => throw Unexpected();
+        public void SendSelfMessage(int code) => throw Unexpected();
+
+        public void ReleaseSlimeQuad() { }
+        public void NotifyPlayerKill() => throw Unexpected();
+        public void Die() => throw Unexpected();
+        public void SplattyDeath() => throw Unexpected();
+        public void SpawnFireDeath() => throw Unexpected();
+        public int SpawnSymBase(FixedVector3 position, ActorAngles angles, bool following) => throw Unexpected();
+        public void StartSymBaseFollowing(int handle, int scale) => throw Unexpected();
+        public void SetSymBaseTarget(int handle, int scale) => throw Unexpected();
+        public void ReleaseSymBase(int handle) => throw Unexpected();
+        public void StopSymBaseFollowing(int handle) => throw Unexpected();
+        public void DeleteSymBase(int handle) => throw Unexpected();
+        public void SetSymBaseItemScale(int handle, short scale) => throw Unexpected();
+        public void SetSymBaseAngleX(int handle, short angle) => throw Unexpected();
+        public int CreateRibbon(int faces, byte red, byte green, byte blue, int width) => throw Unexpected();
+        public void SetRibbonPoint(int handle, int index, FixedVector3 position) => throw Unexpected();
+        public void SetRibbonPointY(int handle, int index, int y) => throw Unexpected();
+        public void SetRibbonWidth(int handle, int index, int width) => throw Unexpected();
+        public void DeleteRibbon(int handle) => throw Unexpected();
+        public int ClipFrameCount(int clip) => throw Unexpected();
+        public int WebGroundY(FixedVector3 position) => throw Unexpected();
+        public void SpawnDrop(FixedVector3 position, FixedVector3 velocity, int groundY, int flags) => throw Unexpected();
+        public void CreateSlimeQuad(FixedVector3 position, int flags, bool scaleUp) { }
+        public void CleanUpMessages() { }
+        private static InvalidOperationException Unexpected() => new("Simby fixture reached an unrecorded host service.");
+
     }
 }

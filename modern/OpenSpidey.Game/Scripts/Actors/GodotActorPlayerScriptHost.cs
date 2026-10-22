@@ -14,4 +14,5 @@ public sealed class GodotActorPlayerScriptHost(Func<GodotPlayer?> player) : IAct
     public int SwitchToSynthesizedInput(ReadOnlyMemory<byte> source, int sourceOffset) =>
         (Current.Scripts ?? throw new InvalidOperationException("The actual CPlayer input VM has not been composed."))
             .StartEmbedded(source, sourceOffset);
+    public void SetMechListField8EB(bool enabled) => Current.Combat.State.Field8EB = enabled ? (byte)1 : (byte)0;
 }

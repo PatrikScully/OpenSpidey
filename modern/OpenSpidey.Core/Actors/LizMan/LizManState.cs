@@ -36,12 +36,23 @@ public sealed class LizManState(int node, int levelId, int attackRelatedSnapshot
     public int Field374 { get; set; }
     public int Field398 { get; set; }
     public int Field3AC { get; set; } = 0x21;
+    /// <summary>0x324 level-0x1103 tick counter.</summary>
+    public int Field324 { get; set; }
+    /// <summary>0x380 fight-probe phase mask (3/15/31 by player distance).</summary>
+    public int Field380 { get; set; }
+    /// <summary>CBaddy 0x1A8 last seen player position, 0x204/0x208 DistanceToPlayer cache, 0x29C stored body Y.</summary>
+    public FixedVector3 LastSeenPlayerPosition { get; set; }
+    public int CachedPlayerDistance { get; set; }
+    public int DistanceSampleClock { get; set; }
+    public int Field29C { get; set; }
     public int Field1F0 { get; set; }
     public int Field1F4 { get; set; }
     public int Field1F8 { get; set; }
     public uint Field2F0 { get; set; }
     public int Field310 { get; set; }
+    public int Field230 { get; set; }
     public int Field318 { get; set; }
+    public int ShadowGroundY { get; set; }
     public int Field394 { get; set; }
     public byte Field390 { get; set; }
     public byte Field39C { get; set; }

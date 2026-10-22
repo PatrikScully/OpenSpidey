@@ -109,6 +109,30 @@ public sealed class CopState
     public int Damage { get; set; } = 10;
     /// <summary>0x37C, the fight-claim distance used with 0x218 bit 0x800.</summary>
     public int FightClaimDistance { get; set; } = 2000;
+    /// <summary>0x388, player Y latched when look-at completes during ShootPlayer.</summary>
+    public int AimPlayerY { get; set; }
+    /// <summary>0x380 CGPolyLine handle present while the laser sight is drawn.</summary>
+    public bool HasLaser { get; set; }
+    /// <summary>0x354, chase work counter used by ChasePlayer.</summary>
+    public int WorkCounter { get; set; }
+    /// <summary>0x2FC, the position before the latest flight or yank physics step.</summary>
+    public FixedVector3 PreviousPosition { get; set; }
+    /// <summary>0x308, the CAIProc_Fall landing height written by ShouldFall.</summary>
+    public int LandingY { get; set; }
+    /// <summary>0x338, the dying groan countdown.</summary>
+    public int DeathSoundTicks { get; set; }
+    /// <summary>0x330 / 0x334, per-tick pitch and yaw spin while flying dead (0x218 bit 0x2000).</summary>
+    public int SlidePitchRate { get; set; }
+    public int SlideYawRate { get; set; }
+    /// <summary>CItem 0x30 and 0x24, written by CBaddy::Die's fade.</summary>
+    public int Transparency { get; set; }
+    public uint TintColor { get; set; }
+    /// <summary>0x358, the trapped cop's struggle delay.</summary>
+    public int WorkDelayCounter { get; set; }
+    /// <summary>0x33C, the state-14 yank bob counter (rises to 40, then falls).</summary>
+    public int YankOscillationTicks { get; set; }
+    /// <summary>0x211, the CBaddy::SendDeathPulse latch.</summary>
+    public bool DeathPulseSent { get; set; }
 
     /// <summary>0x4288D0. The unknown-type diagnostic branch still stores mType.</summary>
     public void SetCopType(int type)

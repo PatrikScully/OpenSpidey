@@ -140,15 +140,15 @@ public sealed partial class GodotEnvironmentVisibility : IEnvironmentVisibilityH
             throw new InvalidOperationException("ENV visibility requires the actual loaded imported bank generation.");
         if (ReferenceEquals(source, next)) return;
         PsxScene scene = next.Scene;
-        if (scene.Models.Count != scene.Instances.Count || scene.Instances.Where((instance, index) => instance.ModelIndex != index).Any())
-            throw new NotSupportedException("Source ENV checksum lookup requires one same-index item per model.");
+        if (scene.Instances.Any(instance => (uint)instance.ModelIndex >= scene.Models.Count))
+            throw new InvalidDataException("ENV instance references a missing model.");
         if (scene.Models.Any(model => model.Checksum is null)) throw new InvalidDataException("ENV source checksum table is missing.");
         if (scene.Models.GroupBy(model => model.Checksum!.Value % 256).Any(bucket => bucket.Count() > 5))
             throw new InvalidDataException("ENV source checksum bucket exceeds its five-entry bound.");
         source = next;
         bank = nextBank;
         items = scene.Instances.Select((instance, index) => new GodotEnvironmentVisibilityItem(this, next, index,
-            InitialFlags(instance.Flags, scene.Models[index]))).ToArray();
+            InitialFlags(instance.Flags, scene.Models[instance.ModelIndex]))).ToArray();
     }
 
     private static ushort InitialFlags(ushort flags, PsxModel model)
@@ -166,10 +166,11 @@ public sealed partial class GodotEnvironmentVisibility : IEnvironmentVisibilityH
         Node3D geometry = world.Geometry.GetChildren().OfType<Node3D>().Single(group => group.Name.ToString().Equals(groupName, StringComparison.OrdinalIgnoreCase));
         Node3D collision = world.Collision.GetChildren().OfType<Node3D>().Single(group => group.Name.ToString().Equals(groupName, StringComparison.OrdinalIgnoreCase));
         ImportedSceneMesh? mesh = geometry.GetChildren().OfType<ImportedSceneMesh>().SingleOrDefault(mesh => mesh.SourceInstanceIndex == item.InstanceIndex);
-        bool renderVisible = (flags & 0x1001) == 0 && PsxRenderPolicy.IsModelVisible(item.Source.Scene.Models[item.InstanceIndex]);
+        int modelIndex = item.Source.Scene.Instances[item.InstanceIndex].ModelIndex;
+        bool renderVisible = (flags & 0x1001) == 0 && PsxRenderPolicy.IsModelVisible(item.Source.Scene.Models[modelIndex]);
         if (mesh is null && renderVisible)
         {
-            PsxModel model = item.Source.Scene.Models[item.InstanceIndex];
+            PsxModel model = item.Source.Scene.Models[modelIndex];
             string texturesPath = item.Source.AssetPath[..^6] + "_L.psx";
             IReadOnlyList<DecodedTexture> textures = repository.Loaded.TryGetValue(texturesPath, out PsxAssetLibrary? textureBank)
                 ? textureBank.Textures.Concat(bank!.Textures).ToArray() : bank!.Textures;
@@ -179,7 +180,7 @@ public sealed partial class GodotEnvironmentVisibility : IEnvironmentVisibilityH
             if (nativeMesh is not null)
             {
                 mesh = new ImportedSceneMesh { Name = $"Instance{item.InstanceIndex}", SourceInstanceIndex = item.InstanceIndex,
-                    SourceModelIndex = item.InstanceIndex, Mesh = nativeMesh,
+                    SourceModelIndex = modelIndex, Mesh = nativeMesh,
                     Transform = PsxCoordinates.InstanceTransform(item.Source.Scene.Instances[item.InstanceIndex]) };
                 geometry.AddChild(mesh);
             }
@@ -234,7 +235,8 @@ public sealed class GodotEnvironmentVisibilityItem : IVisibilityBoxItem, IEnviro
     }
     public ImportedLevelSource Source { get; }
     public int InstanceIndex { get; }
-    public uint ModelChecksum => Source.Scene.Models[InstanceIndex].Checksum!.Value;
+    public int ModelIndex => Source.Scene.Instances[InstanceIndex].ModelIndex;
+    public uint ModelChecksum => Source.Scene.Models[ModelIndex].Checksum!.Value;
     public FixedVector3 SourcePosition => owner.ReadPosition(this);
     public bool RegionUsable => owner.IsRegionUsable(this);
     public ushort ItemFlags { get => owner.ReadFlags(this); set => owner.WriteChunkFlags(this, value); }
